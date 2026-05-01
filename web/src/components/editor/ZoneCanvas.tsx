@@ -45,13 +45,22 @@ export function ZoneCanvas({
 
   const bgStyle: React.CSSProperties = {
     position: 'absolute', inset: 0,
-    backgroundImage: slide.imageUrl ? `url(${slide.imageUrl})` : undefined,
-    // Show the whole photo (letterboxed if needed) instead of zoomed-in crop.
-    backgroundSize: 'contain',
-    backgroundPosition: `${slide.imageX ?? 50}% ${slide.imageY ?? 50}%`,
-    backgroundRepeat: 'no-repeat',
     backgroundColor: slide.type === 'cta' ? '#0f1f16' : '#1c1c2e',
   };
+  // Photo as <img> with object-fit:contain (whole photo fits at scale 1)
+  // and CSS transform:scale() so the Zoom slider works relative to contain baseline.
+  const imgStyle: React.CSSProperties = slide.imageUrl
+    ? {
+        position: 'absolute', inset: 0,
+        width: '100%', height: '100%',
+        objectFit: 'contain',
+        objectPosition: `${slide.imageX ?? 50}% ${slide.imageY ?? 50}%`,
+        transform: `scale(${slide.imageScale ?? 1})`,
+        transformOrigin: 'center center',
+        userSelect: 'none',
+        pointerEvents: 'none',
+      }
+    : { display: 'none' };
 
   const gradDir = (slide.textPosition ?? 'bottom') === 'top' ? 'to top' : 'to bottom';
   const gradAlpha = (slide.overlayOpacity ?? 75) / 100;
@@ -160,6 +169,7 @@ export function ZoneCanvas({
       onClick={() => onSelect(null)}
     >
       <div style={bgStyle} />
+      {slide.imageUrl && <img src={slide.imageUrl} style={imgStyle} alt="" draggable={false} />}
       {(slide.type === 'photo' || slide.type === 'overlay') && <div style={gradOverlay} />}
       {showGrid && (
         <div style={{
@@ -281,14 +291,21 @@ export function SlideThumbnail({ slide, format, active, index, onClick }: SlideT
 
   const bgStyle: React.CSSProperties = {
     width: thumbW, height: thumbH, position: 'relative', overflow: 'hidden', flexShrink: 0,
-    backgroundImage: slide.imageUrl ? `url(${slide.imageUrl})` : undefined,
-    // Match main preview: show whole photo (no zoom).
-    backgroundSize: 'contain',
-    backgroundRepeat: 'no-repeat',
-    backgroundPosition: `${slide.imageX ?? 50}% ${slide.imageY ?? 50}%`,
     backgroundColor: slide.type === 'cta' ? '#0f1f16' : '#1c1c2e',
     cursor: 'pointer',
   };
+  const imgStyle: React.CSSProperties = slide.imageUrl
+    ? {
+        position: 'absolute', inset: 0,
+        width: '100%', height: '100%',
+        objectFit: 'contain',
+        objectPosition: `${slide.imageX ?? 50}% ${slide.imageY ?? 50}%`,
+        transform: `scale(${slide.imageScale ?? 1})`,
+        transformOrigin: 'center center',
+        userSelect: 'none',
+        pointerEvents: 'none',
+      }
+    : { display: 'none' };
 
   return (
     <div
@@ -297,6 +314,7 @@ export function SlideThumbnail({ slide, format, active, index, onClick }: SlideT
       className={`relative transition-all ${active ? 'ring-2 ring-amber-500' : 'ring-1 ring-zinc-700 opacity-55 hover:opacity-90'}`}
     >
       <div style={bgStyle}>
+        {slide.imageUrl && <img src={slide.imageUrl} style={imgStyle} alt="" draggable={false} />}
         {slide.type === 'photo' && slide.imageUrl && (
           <div style={{
             position: 'absolute', inset: 0,

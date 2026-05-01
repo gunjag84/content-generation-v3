@@ -15,15 +15,14 @@ export function buildSlideHtml(
   const bgColor = slide.type === 'cta' ? '#0f1f16' : '#1c1c2e';
   const imageX = slide.imageX ?? 50;
   const imageY = slide.imageY ?? 50;
+  const imageScale = slide.imageScale ?? 1;
 
-  // Match editor preview: show the whole photo (contain), not zoomed-cover crop.
-  const bgCss = photoUrl
-    ? `background-image: url('${escapeAttr(photoUrl)}');
-       background-size: contain;
-       background-position: ${imageX}% ${imageY}%;
-       background-repeat: no-repeat;
-       background-color: ${bgColor};`
-    : `background-color: ${bgColor};`;
+  // Match editor preview: <img> with object-fit:contain + transform:scale().
+  // Default (scale=1) = whole photo visible; slider zoom up to 3x.
+  const bgCss = `background-color: ${bgColor};`;
+  const photoHtml = photoUrl
+    ? `<img src="${escapeAttr(photoUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:${imageX}% ${imageY}%;transform:scale(${imageScale});transform-origin:center center;" />`
+    : '';
 
   // Gradient overlay — mirrors ZoneCanvas gradOverlay logic
   let overlayHtml = '';
@@ -105,6 +104,7 @@ export function buildSlideHtml(
 <body>
 <div style="width:1080px;height:1080px;position:relative;overflow:hidden;">
   <div style="position:absolute;inset:0;${bgCss}"></div>
+  ${photoHtml}
   ${overlayHtml}
   ${zonesHtml}
 </div>
