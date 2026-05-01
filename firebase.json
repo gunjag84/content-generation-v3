@@ -1,0 +1,32 @@
+{
+  "hosting": {
+    "public": "web/dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      { "source": "/api/**", "run": { "serviceId": "content-gen", "region": "europe-west1" } },
+      { "source": "**", "destination": "/index.html" }
+    ]
+  },
+  "functions": [
+    {
+      "source": "server/functions",
+      "codebase": "default",
+      "ignore": ["node_modules", ".git", "*.local"],
+      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
+    }
+  ],
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "emulators": {
+    "auth": { "port": 9099 },
+    "firestore": { "port": 8081 },
+    "storage": { "port": 9199 },
+    "hosting": { "port": 5000 },
+    "ui": { "enabled": true }
+  }
+}

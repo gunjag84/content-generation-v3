@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // user root
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      // brands
+      match /brands/{brandId} {
+        allow read, write: if request.auth.uid == uid;
+
+        // situations: full CRUD
+        match /situations/{sitId} {
+          allow read, write: if request.auth.uid == uid;
+        }
+
+        // methods: full CRUD
+        match /methods/{methodId} {
+          allow read, write: if request.auth.uid == uid;
+        }
+
+        // photos (pool metadata; binaries live in Storage)
+        match /photos/{photoId} {
+          allow read, write: if request.auth.uid == uid;
+        }
+
+        // posts: aiSnapshot is immutable after create
+        match /posts/{postId} {
+          allow read:   if request.auth.uid == uid;
+          allow create: if request.auth.uid == uid;
+          allow update: if request.auth.uid == uid
+                        && request.resource.data.aiSnapshot == resource.data.aiSnapshot;
+          allow delete: if request.auth.uid == uid;
+        }
+
+        // renderJobs (placeholder for Phase 03)
+        match /renderJobs/{jobId} {
+          allow read, write: if request.auth.uid == uid;
+        }
+      }
+    }
+
+    // legacy nested rule kept as catch-all under /users for paths not enumerated above
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /system/{doc} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

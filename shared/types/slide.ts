@@ -1,0 +1,64 @@
+// Shared types for Social Club zone-based editor.
+// Ported verbatim from v2 client/src/components/social-club/types.ts.
+// Canonical source for editor + parser + render layers in v3.
+
+export type SlideType = 'photo' | 'text' | 'overlay' | 'cta';
+export type AlignH = 'left' | 'center' | 'right';
+export type AlignV = 'top' | 'middle' | 'bottom';
+export type Format = 'post' | 'portrait' | 'story';
+
+export interface Zone {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  text: string;
+  fontSize: number;
+  fontFamily: string;
+  fontWeight: number;
+  color: string;
+  alignH: AlignH;
+  alignV: AlignV;
+  italic: boolean;
+  lineHeight: number;
+  letterSpacing: number;
+  rotation: number;
+  isLogo?: boolean;
+}
+
+// The legacy line types used by the v2 renderer.
+export interface SlideContentLine {
+  type: 'BASE' | 'ACCENT' | 'SUBTLE' | 'BRAND' | 'DIVIDER';
+  text: string;
+  fontSize?: number;
+  opacity?: number;
+}
+
+// SocialSlide extends the legacy ParsedSlide with zone fields.
+export interface SocialSlide {
+  number: number;
+  type: SlideType;
+  textPosition?: 'top' | 'bottom';
+  lineGap?: number;
+  gradientStart?: number;
+  gradientColor?: string;
+  photo?: string | number;
+  lines: SlideContentLine[];
+  // Zone-based fields
+  zones: Zone[];
+  imageUrl?: string;
+  imageScale: number;
+  imageX: number;
+  imageY: number;
+  overlayOpacity: number;
+}
+
+export const FORMAT_HEIGHTS: Record<Format, number> = {
+  post: 1080,
+  portrait: 1350,
+  story: 1920,
+};
+
+export const REF_W = 1080;

@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+dist
+web
+.firebase
+.planning
+.git
+*.log
+.env
+.env.*
