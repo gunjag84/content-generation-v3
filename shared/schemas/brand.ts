@@ -27,6 +27,8 @@ export const BrandSchema = z.object({
   identity: BrandIdentitySchema.default({}),
   design: BrandDesignSchema.default({}),
   focusAreas: z.array(FocusAreaSchema).default([]),
+  // Phase 3: required for publish-worker; nullable until user configures
+  instagramUserId: z.string().nullable().default(null),
   // serverTimestamp sentinel; not validated through zod runtime
   updatedAt: z.unknown(),
 });

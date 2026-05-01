@@ -22,5 +22,10 @@ ENV NODE_ENV=production
 COPY --from=base /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
+
+# Phase 3: Playwright Chromium for /internal/render
+# --with-deps installs OS libs (libnss, fonts, etc.) needed by headless Chromium.
+RUN node_modules/.bin/playwright install --with-deps chromium
+
 EXPOSE 8080
 CMD ["node", "dist/server/index.js"]

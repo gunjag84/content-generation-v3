@@ -9,6 +9,8 @@ import { useActiveBrand } from '../store/activeBrand';
 import { useDebouncedAutoSave } from '../hooks/useDebouncedAutoSave';
 import { saveDraftDebounced } from '../lib/saveDraftDebounced';
 import { updateZone } from '../lib/zoneOps';
+import { useRenderJob } from '../lib/useRenderJob';
+import { api } from '../lib/api';
 import {
   EditorPreview,
   SlidePanel,
@@ -39,6 +41,10 @@ export default function Editor() {
   const [photoPool, setPhotoPool] = useState<{ id: string; url: string }[]>([]);
   const [photoTransforms, setPhotoTransforms] = useState<Record<string, { rotation: number; scale: number }>>({});
   const [syncGradient, setSyncGradient] = useState(false);
+  const [renderJobId, setRenderJobId] = useState<string | null>(null);
+  const [renderError, setRenderError] = useState<string | null>(null);
+  const [rendering, setRendering] = useState(false);
+  const renderJob = useRenderJob(brandId, renderJobId);
 
   // Snapshot of aiSnapshot at load time, used by the dev-only invariance guard.
   const aiSnapshotAtLoad = useRef<PostShape['aiSnapshot'] | null>(null);
@@ -129,6 +135,32 @@ export default function Editor() {
     }
   }
 
+  async function startRender() {
+    if (!brandId || !postId || rendering) return;
+    setRenderError(null);
+    setRendering(true);
+    try {
+      const res = await api(`/api/render-jobs`, {
+        method: 'POST',
+        body: JSON.stringify({ brandId, postId }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((body as { error?: string }).error ?? `Fehler ${res.status}`);
+      setRenderJobId((body as { jobId: string }).jobId);
+    } catch (err) {
+      setRenderError((err as Error).message);
+      setRendering(false);
+    }
+  }
+
+  // Reset rendering flag when the job lands on a terminal state.
+  useEffect(() => {
+    if (renderJob.status === 'done' || renderJob.status === 'error') {
+      setRendering(false);
+      if (renderJob.status === 'error' && renderJob.error) setRenderError(renderJob.error);
+    }
+  }, [renderJob.status, renderJob.error]);
+
   async function fakeUpload(_e: React.ChangeEvent<HTMLInputElement>) {
     // Phase 02: photo pool management lives in /settings/photos.
     // Inline upload from the editor side panel is deferred; the input is rendered
@@ -158,9 +190,33 @@ export default function Editor() {
             {f}
           </button>
         ))}
-        <span className="ml-auto font-mono text-[10px] text-zinc-600">
+        <span className="ml-4 font-mono text-[10px] text-zinc-600">
           Slide {activeSlideIdx + 1} / {slides.length}
         </span>
+        <div className="ml-auto flex items-center gap-3">
+          {renderJob.status === 'rendering' && (
+            <span className="font-mono text-[10px] text-amber-400">
+              Rendere {renderJob.completedSlides} / {slides.length} …
+            </span>
+          )}
+          {renderJob.status === 'done' && (
+            <span className="font-mono text-[10px] text-emerald-400">
+              ✓ Render fertig ({renderJob.slideUrls.length} PNGs)
+            </span>
+          )}
+          {renderError && (
+            <span className="font-mono text-[10px] text-red-400" title={renderError}>
+              Fehler beim Rendern
+            </span>
+          )}
+          <button
+            onClick={startRender}
+            disabled={rendering || renderJob.status === 'rendering'}
+            className="px-3 py-1 font-mono text-[10px] uppercase tracking-widest border border-amber-500 text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {renderJob.status === 'done' ? 'Erneut rendern' : 'Rendern'}
+          </button>
+        </div>
       </div>
 
       {/* Left rail */}

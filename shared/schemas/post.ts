@@ -3,6 +3,16 @@ import { z } from 'zod';
 export const PostStatusSchema = z.enum(['draft', 'scheduled', 'publishing', 'published']);
 export type PostStatus = z.infer<typeof PostStatusSchema>;
 
+export const IgStatsSchema = z.object({
+  reach: z.number().optional(),
+  impressions: z.number().optional(),
+  likes: z.number().optional(),
+  comments: z.number().optional(),
+  saves: z.number().optional(),
+  syncedAt: z.unknown().optional(),
+}).nullable();
+export type IgStats = z.infer<typeof IgStatsSchema>;
+
 export const PostSchema = z.object({
   status: PostStatusSchema,
   aiSnapshot: z.object({
@@ -17,6 +27,18 @@ export const PostSchema = z.object({
   situationText: z.string(),
   situationId: z.string().nullable(),
   photoUrls: z.record(z.string()), // map: { all: '...', '1': '...' }
+  // Phase 3 additions:
+  renderedSlideUrls: z.array(z.string()).nullable().optional(), // PNG paths in Storage after render
+  scheduledAt: z.unknown().nullable().optional(), // Firestore Timestamp; set when status='scheduled'
+  publishingStartedAt: z.unknown().nullable().optional(), // lock for publish-worker; >10min = stale
+  publishedAt: z.unknown().nullable().optional(), // when status flipped to 'published'
+  publishedSnapshot: z.object({
+    slides: z.array(z.unknown()),
+    caption: z.string(),
+  }).nullable().optional(), // captured at publish-time, drives Phase-4 learning loop
+  igMediaId: z.string().nullable().optional(),
+  igPermalink: z.string().nullable().optional(),
+  igStats: IgStatsSchema.optional(),
   createdAt: z.unknown(),
   updatedAt: z.unknown(),
 });
