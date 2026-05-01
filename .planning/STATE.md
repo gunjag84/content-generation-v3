@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 1 deployed live to contentai-78bfb; Phase 2 prod smoke pending Tim
-last_updated: "2026-05-01T20:00:00.000Z"
-last_activity: 2026-05-01 - Phase 1 deployed end-to-end (Cloud Run, Tasks, KMS, Scheduler, Functions, Hosting). Auth + Allowlist + Magic-Link verified live.
+stopped_at: Phase 3 deployed live to contentai-78bfb; user-facing prod smoke pending Tim
+last_updated: "2026-05-01T22:30:00.000Z"
+last_activity: 2026-05-01 evening - Phase 3 (Render + Posts + Publish) implemented via 3-Sonnet-agent fan-out, deployed live. Backend smoke probes green.
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
-  percent: 40
+  completed_phases: 3
+  total_plans: 9
+  completed_plans: 9
+  percent: 60
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-26)
 
 **Core value:** A non-technical user can sign in, generate a carousel, edit it, and publish to Instagram from any browser - with first-shot quality silently improving over time.
-**Current focus:** Phase 1 deployed live (project contentai-78bfb). Phase 2 prod smoke (sign-in → /create → /editor with aiSnapshot persistence) pending Tim. Phase 3 (server PNG render + publish) next.
+**Current focus:** Phase 3 deployed live (project contentai-78bfb). User-facing smoke pending Tim (sign-in → /create → /editor render → /posts schedule + publish). Phase 4 (Learning loop + Dashboard polish) next.
 
 ## Current Position
 
-Phase: 1 deployed live; 2 of 5 complete code-side (Brand Settings + Create + Editor)
-Plan: 6 of 6 written; Phase 1 verified end-to-end against contentai-78bfb
-Status: Phase 1 live deploy verified (auth, OIDC, kill-switch trip, magic-link, hosting rewrite). Phase 2 prod smoke pending.
-Last activity: 2026-05-01 - Live deploy session: Cloud Run + bootstrap.sh + Functions + Rules + Hosting deployed to contentai-78bfb; 8/10 user-facing probes A-J green.
+Phase: 3 of 5 deployed live; render + posts UI + publish-worker functional
+Plan: 9 of 9 implemented; Phase 3 dispatched via 3-Sonnet-subagent parallel fan-out
+Status: Backend smoke green - /internal/publish-worker OIDC tick returns clean,/internal/render validates body. User-facing flow needs Tim browser smoke before Phase-3-closure.
+Last activity: 2026-05-01 evening - Sonnet agents A/B/C delivered render-worker + posts-UI + publish-worker in parallel; orchestrator integrated 4 router mounts + 5 Firestore composite indexes + Playwright in Dockerfile + signBlob IAM grant.
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
@@ -92,13 +92,21 @@ Last session: 2026-05-01T20:00:00.000Z
 Stopped at: Phase 1 deployed live to contentai-78bfb; Phase 2 prod smoke pending Tim
 Resume file: .planning/phases/02-brand-settings-create/02-03-SUMMARY.md
 
-## Live Deploy Anchors (Phase 1)
+## Live Deploy Anchors
 
 - Project: `contentai-78bfb` (europe-west1)
 - Hosting: https://contentai-78bfb.web.app
 - Cloud Run: https://content-gen-23953893533.europe-west1.run.app
-- Quirks fixed during deploy:
-  - `tsconfig.server.json` outDir `dist/server` → `dist` (Dockerfile CMD path alignment)
-  - `web/postcss.config.js` + `web/tailwind.config.js` need explicit absolute paths (cwd vs config-dir mismatch with vite-from-root)
-  - `/healthz` GFE-intercepted; use `/healthz/` for external probes
-  - OIDC tokens via `gcloud print-identity-token` need `--include-email` flag
+- Live revisions: content-gen-00004-lrf (Phase 3), budgetKillswitch + igStatsSync functions
+
+### Phase-1 deploy quirks (locked in)
+- `tsconfig.server.json` outDir `dist/server` → `dist` (Dockerfile CMD path alignment)
+- `web/postcss.config.js` + `web/tailwind.config.js` need explicit absolute paths (cwd vs config-dir mismatch with vite-from-root)
+- `/healthz` GFE-intercepted; use `/healthz/` for external probes
+- OIDC tokens via `gcloud print-identity-token` need `--include-email` flag
+
+### Phase-3 deploy quirks (new)
+- Cloud Run image now ~600MB due to Playwright Chromium + system deps. Deploy-time: ~5-10min on Cloud Build.
+- 5 Firestore composite indexes deployed for posts collection-group + per-collection queries
+- IAM: `content-gen-sa` granted `roles/iam.serviceAccountTokenCreator` on itself for `getSignedUrl` blob signing
+- Render output: 7-day signed Storage URLs (re-sign helper deferred)
