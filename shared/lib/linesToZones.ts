@@ -59,7 +59,11 @@ export function linesToZones(slide: SocialSlide): Zone[] {
   // Reference canvas is 1080x1080 (post). Editor scales for portrait/story.
   const margin = 80;
   const width = 1080 - 2 * margin; // 920
-  const totalH = seeds.reduce((acc, s) => acc + Math.round(s.fontSize * 1.4) + 24, 0);
+  // Compute zone heights at lineHeight 1.5 + generous padding so the auto-grow
+  // logic in ZoneCanvas never triggers and pushes zones into each other.
+  const heightOf = (fontSize: number) => Math.round(fontSize * 1.5) + 24;
+  const gap = 32; // visual breathing room; prevents overlap on auto-grow
+  const totalH = seeds.reduce((acc, s) => acc + heightOf(s.fontSize) + gap, 0) - gap;
   const startY =
     slide.textPosition === 'top'
       ? margin
@@ -69,7 +73,7 @@ export function linesToZones(slide: SocialSlide): Zone[] {
 
   let cursorY = startY;
   return seeds.map((seed) => {
-    const h = Math.round(seed.fontSize * 1.4) + 16;
+    const h = heightOf(seed.fontSize);
     const z: Zone = {
       id: zoneId(),
       label: seed.isLogo ? 'Brand' : `Text ${seed.fontSize}`,
@@ -90,7 +94,7 @@ export function linesToZones(slide: SocialSlide): Zone[] {
       rotation: 0,
       isLogo: seed.isLogo,
     };
-    cursorY += h + 16;
+    cursorY += h + gap;
     return z;
   });
 }

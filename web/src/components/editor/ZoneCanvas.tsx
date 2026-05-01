@@ -120,6 +120,10 @@ export function ZoneCanvas({
   useEffect(() => {
     const zones = slide.zones;
     if (!zones) return;
+    // Find any single zone that needs to grow this tick. Fix one per render
+    // to avoid thrash; if more zones still need growth, the next render handles
+    // the next one. After growing zone N, push every later zone (by y) down by
+    // the same delta so stacked layouts never collapse into each other.
     for (const zone of zones) {
       if (zone.isLogo) continue;
       const el = zoneRefs.current[zone.id];
@@ -128,7 +132,17 @@ export function ZoneCanvas({
       const padding = 16;
       const minH = needed + padding;
       if (minH > zone.h + 2) {
+        const delta = Math.ceil(minH) - zone.h;
         onZoneChange({ ...zone, h: Math.ceil(minH) });
+        // Push any zone whose top is at or below this zone's bottom edge.
+        const zoneBottom = zone.y + zone.h;
+        for (const other of zones) {
+          if (other.id === zone.id) continue;
+          if (other.y >= zoneBottom - 2) {
+            onZoneChange({ ...other, y: other.y + delta });
+          }
+        }
+        break;
       }
     }
   });
@@ -268,7 +282,9 @@ export function SlideThumbnail({ slide, format, active, index, onClick }: SlideT
   const bgStyle: React.CSSProperties = {
     width: thumbW, height: thumbH, position: 'relative', overflow: 'hidden', flexShrink: 0,
     backgroundImage: slide.imageUrl ? `url(${slide.imageUrl})` : undefined,
-    backgroundSize: `${(slide.imageScale ?? 1) * 100}%`,
+    // Match main preview: show whole photo (no zoom).
+    backgroundSize: 'contain',
+    backgroundRepeat: 'no-repeat',
     backgroundPosition: `${slide.imageX ?? 50}% ${slide.imageY ?? 50}%`,
     backgroundColor: slide.type === 'cta' ? '#0f1f16' : '#1c1c2e',
     cursor: 'pointer',
