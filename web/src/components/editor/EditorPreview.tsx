@@ -23,16 +23,18 @@ export function EditorPreview({
     if (!wrapRef.current) return;
     const el = wrapRef.current;
     const compute = () => {
-      const w = el.clientWidth;
-      // Leave a little padding so the canvas doesn't kiss the rail edges.
-      const target = Math.max(120, w - 32);
-      setScale(target / REF_W);
+      const padding = 32;
+      const w = Math.max(120, el.clientWidth - padding);
+      const h = Math.max(120, el.clientHeight - padding);
+      const refH = FORMAT_HEIGHTS[format];
+      // Fit canvas inside both width and height of the cell.
+      setScale(Math.min(w / REF_W, h / refH));
     };
     compute();
     const ro = new ResizeObserver(compute);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [format]);
 
   if (!slide) {
     return (
