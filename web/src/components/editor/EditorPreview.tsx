@@ -23,11 +23,11 @@ export function EditorPreview({
     if (!wrapRef.current) return;
     const el = wrapRef.current;
     const compute = () => {
-      const padding = 32;
-      const w = Math.max(120, el.clientWidth - padding);
-      const h = Math.max(120, el.clientHeight - padding);
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w <= 0 || h <= 0) return;
       const refH = FORMAT_HEIGHTS[format];
-      // Fit canvas inside both width and height of the cell.
+      // Fit canvas inside both width and height of the cell, no scroll.
       setScale(Math.min(w / REF_W, h / refH));
     };
     compute();
@@ -38,14 +38,14 @@ export function EditorPreview({
 
   if (!slide) {
     return (
-      <div ref={wrapRef} className="h-full w-full flex items-center justify-center text-zinc-500 font-mono text-[11px]">
+      <div ref={wrapRef} className="h-full w-full flex items-center justify-center text-zinc-500 font-mono text-[11px] bg-zinc-900">
         No slide selected
       </div>
     );
   }
 
   return (
-    <div ref={wrapRef} className="h-full w-full overflow-auto p-4 flex justify-center items-start bg-zinc-900">
+    <div ref={wrapRef} className="h-full w-full overflow-hidden flex justify-center items-center bg-zinc-900 min-h-0">
       <div style={{ width: REF_W * scale, height: FORMAT_HEIGHTS[format] * scale }} className="relative">
         <ZoneCanvas
           slide={slide}
