@@ -268,6 +268,7 @@ export function SlideThumbnail({ slide, format, active, index, onClick }: SlideT
   return (
     <div
       onClick={onClick}
+      style={{ width: thumbW, height: thumbH }}
       className={`relative transition-all ${active ? 'ring-2 ring-amber-500' : 'ring-1 ring-zinc-700 opacity-55 hover:opacity-90'}`}
     >
       <div style={bgStyle}>
