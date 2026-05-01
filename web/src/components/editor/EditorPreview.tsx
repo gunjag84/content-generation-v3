@@ -23,11 +23,13 @@ export function EditorPreview({
     if (!wrapRef.current) return;
     const el = wrapRef.current;
     const compute = () => {
-      const w = el.clientWidth;
-      const h = el.clientHeight;
+      // Leave a small inset so the slide has visible breathing room at the
+      // bottom (matches the wrapper's pb-3 padding) and doesn't kiss the rails.
+      const inset = 12;
+      const w = el.clientWidth - inset;
+      const h = el.clientHeight - inset;
       if (w <= 0 || h <= 0) return;
       const refH = FORMAT_HEIGHTS[format];
-      // Fit canvas inside both width and height of the cell, no scroll.
       setScale(Math.min(w / REF_W, h / refH));
     };
     compute();
@@ -45,10 +47,10 @@ export function EditorPreview({
   }
 
   return (
-    <div ref={wrapRef} className="h-full w-full overflow-hidden flex justify-center items-center bg-zinc-900 min-h-0">
+    <div ref={wrapRef} className="h-full w-full overflow-hidden flex justify-center items-center bg-zinc-900 min-h-0 pb-3">
       <div
         style={{ width: REF_W * scale, height: FORMAT_HEIGHTS[format] * scale }}
-        className="relative overflow-hidden"
+        className="relative overflow-hidden ring-1 ring-zinc-700 shadow-[0_8px_24px_rgba(0,0,0,0.4)]"
       >
         <div
           style={{
