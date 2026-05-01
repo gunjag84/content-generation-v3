@@ -46,16 +46,28 @@ export function EditorPreview({
 
   return (
     <div ref={wrapRef} className="h-full w-full overflow-hidden flex justify-center items-center bg-zinc-900 min-h-0">
-      <div style={{ width: REF_W * scale, height: FORMAT_HEIGHTS[format] * scale }} className="relative">
-        <ZoneCanvas
-          slide={slide}
-          format={format}
-          selectedId={selectedZoneId}
-          onSelect={onSelectZone}
-          scale={scale}
-          showGrid={showGrid}
-          onZoneChange={onZoneChange}
-        />
+      <div
+        style={{ width: REF_W * scale, height: FORMAT_HEIGHTS[format] * scale }}
+        className="relative overflow-hidden"
+      >
+        <div
+          style={{
+            width: REF_W,
+            height: FORMAT_HEIGHTS[format],
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+          }}
+        >
+          <ZoneCanvas
+            slide={slide}
+            format={format}
+            selectedId={selectedZoneId}
+            onSelect={onSelectZone}
+            scale={scale}
+            showGrid={showGrid}
+            onZoneChange={onZoneChange}
+          />
+        </div>
       </div>
     </div>
   );

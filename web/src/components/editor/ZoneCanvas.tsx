@@ -46,7 +46,8 @@ export function ZoneCanvas({
   const bgStyle: React.CSSProperties = {
     position: 'absolute', inset: 0,
     backgroundImage: slide.imageUrl ? `url(${slide.imageUrl})` : undefined,
-    backgroundSize: `${(slide.imageScale ?? 1) * 100}%`,
+    // Show the whole photo (letterboxed if needed) instead of zoomed-in crop.
+    backgroundSize: 'contain',
     backgroundPosition: `${slide.imageX ?? 50}% ${slide.imageY ?? 50}%`,
     backgroundRepeat: 'no-repeat',
     backgroundColor: slide.type === 'cta' ? '#0f1f16' : '#1c1c2e',
@@ -253,8 +254,16 @@ interface SlideThumbnailProps {
 
 export function SlideThumbnail({ slide, format, active, index, onClick }: SlideThumbnailProps) {
   const refH = FORMAT_HEIGHTS[format];
-  const thumbW = 56;
-  const thumbH = Math.round(thumbW * refH / REF_W);
+  // Keep thumbs visible inside ~180px-wide rail across post/portrait/story.
+  const thumbWMax = 160;
+  const thumbHMax = 220;
+  const aspect = REF_W / refH;
+  let thumbW = thumbWMax;
+  let thumbH = thumbW / aspect;
+  if (thumbH > thumbHMax) {
+    thumbH = thumbHMax;
+    thumbW = thumbH * aspect;
+  }
 
   const bgStyle: React.CSSProperties = {
     width: thumbW, height: thumbH, position: 'relative', overflow: 'hidden', flexShrink: 0,

@@ -13,13 +13,13 @@ export function buildSlideHtml(
   brandColors?: BrandColors,
 ): string {
   const bgColor = slide.type === 'cta' ? '#0f1f16' : '#1c1c2e';
-  const imageScale = slide.imageScale ?? 1;
   const imageX = slide.imageX ?? 50;
   const imageY = slide.imageY ?? 50;
 
+  // Match editor preview: show the whole photo (contain), not zoomed-cover crop.
   const bgCss = photoUrl
     ? `background-image: url('${escapeAttr(photoUrl)}');
-       background-size: ${imageScale * 100}%;
+       background-size: contain;
        background-position: ${imageX}% ${imageY}%;
        background-repeat: no-repeat;
        background-color: ${bgColor};`
