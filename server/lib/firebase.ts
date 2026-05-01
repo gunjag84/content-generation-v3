@@ -8,3 +8,6 @@ if (getApps().length === 0) {
 
 export const auth = getAuth();
 export const db = getFirestore();
+// Allow undefined fields to pass through as missing (matches client SDK semantics
+// and avoids fatal "Cannot use undefined" errors on optional slide/zone fields).
+db.settings({ ignoreUndefinedProperties: true });
