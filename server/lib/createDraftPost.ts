@@ -5,6 +5,7 @@
 import { db } from './firebase.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { SocialSlide } from '../../shared/types/slide.js';
+import { linesToZones } from '../../shared/lib/linesToZones.js';
 
 export interface CreateDraftPostInput {
   uid: string;
@@ -20,7 +21,12 @@ export interface CreateDraftPostInput {
 }
 
 export async function createDraftPost(input: CreateDraftPostInput): Promise<string> {
-  const { uid, brandId, slides, caption } = input;
+  const { uid, brandId, slides: rawSlides, caption } = input;
+
+  // parseSlidesMd leaves zones[] empty; populate them from lines so the editor
+  // renders text on first load. aiSnapshot captures the zone-filled version too
+  // so future edit-diff comparisons are apples-to-apples.
+  const slides = rawSlides.map((s) => ({ ...s, zones: linesToZones(s) }));
 
   const ref = db.collection(`users/${uid}/brands/${brandId}/posts`).doc();
   await ref.set({
