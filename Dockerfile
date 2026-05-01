@@ -21,6 +21,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=base /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/server/prompts ./server/prompts
 COPY package.json ./
 
 # Phase 3: Playwright Chromium for /internal/render
