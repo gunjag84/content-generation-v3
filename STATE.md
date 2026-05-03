@@ -113,21 +113,73 @@ Decisions locked during execution that override or extend the source-of-truth pl
 
 ## Remaining Work (Phase 4 + 5)
 
-### Phase 4: Learning & Polish
+Phase 4 split into 4a (Layer 1 silent learning), 4b (Layer 2 read-only dashboard + polish), 4c (deferred auto-analysis). Confirmed 2026-05-03.
 
-**Goal:** Each publish silently teaches the prompt, dashboard surfaces useful state, calendar is parked behind a placeholder.
+### Phase 4a: Silent Edit-Diff Learning Loop (Layer 1)
 
-**Plan:**
-- `/internal/learning-worker` triggered post-publish - port `computeEditDiff` from v2, async pattern extraction via Claude Haiku, idempotency key `{postId}_{diffHash}`, `learnedPatterns` sub-collection write, inject-block in `server/routes/generate.ts` (Top-N=20 by recency × confidence, `<learned_patterns>` XML block).
-- Dashboard widgets: Recent Posts list, Scheduled count, BrandSwitcher highlight, Create CTA.
-- Calendar route: "Coming Soon" placeholder.
+**Goal:** Every publish silently teaches the next generate prompt by diffing AI-baseline vs published-output and extracting structural patterns. Brand identity is NEVER auto-mutated.
+
+**Schema** - new sub-collection `users/{uid}/brands/{brandId}/learnedPatterns/{patternId}`:
+
+```ts
+{
+  description: string,        // 1-2 sentences, structural pattern
+  confidence: number,         // 0-1, from extractor
+  zone: 'hook' | 'body' | 'cta' | 'caption',
+  sourcePostId: string,
+  sourceMethod: 'story' | 'liste' | 'vorher-nachher' | 'zitat',
+  sourceMode: 'create-demand' | 'convert-demand',
+  idempotencyKey: string,     // `{postId}_{diffHash}` - prevents dup writes
+  createdAt: Timestamp,
+  lastUsedAt: Timestamp | null,
+  useCount: number
+}
+```
+
+Also add to post doc on publish: `editStats: { editRatioByZone: {hook, body, cta, caption}, totalEditRatio }` (cheap, drives 4b dashboard).
+
+**Implementation:**
+- Port `editDiff.ts` from v2 (Levenshtein-based per-zone diff, threshold 0.15 to skip noise).
+- Cloud Function `onPostPublished` - Firestore `onDocumentUpdated` trigger, filter `before.status != 'published' && after.status == 'published'`.
+- Worker computes diff, writes `editStats` to post, then for each zone with diff > 0.15 calls Claude Haiku (~1200 in / 300 out tokens) with JSON-schema-validated output.
+- Idempotency-keyed write to `learnedPatterns` sub-collection. On 2nd trigger same `{postId}_{diffHash}`: no-op.
+- `server/lib/assembleSystemPrompt.ts` - inject `<learned_patterns>` XML block, top N=20 ordered by `recency × confidence` (recency = exp decay over days since `lastUsedAt`).
 
 **Success criteria:**
-1. After 5 publishes with edits, `brand.learnedPatterns` contains extracted patterns and next generate prompt includes the `<learned_patterns>` block (verifiable in network trace).
-2. Replaying pattern extraction on the same publish does not duplicate patterns.
-3. No learning UI visible in normal navigation.
-4. Dashboard shows widgets, not empty state.
-5. `/calendar` loads with Coming Soon card.
+1. After 3 publishes with meaningful edits, `learnedPatterns` sub-collection contains extracted patterns; next generate request shows the XML block in network trace.
+2. Re-running pattern extraction on the same publish (manual re-trigger) writes zero new docs.
+3. No learning UI visible in normal navigation. Optional `/learning` debug route Tim-only.
+4. Brand identity fields (`voice`, `persona`, etc.) untouched by the worker.
+
+### Phase 4b: Performance Dashboard + Polish (Layer 2 read-only)
+
+**Goal:** Surface igStats + edit hot-spots so humans can spot patterns. No LLM calls. No auto-learning until enough data exists.
+
+**Implementation:**
+- Posts page enrichment - each published post card displays `{reach, impressions, likes, comments, saves, engagement_rate}` from existing `igStats`. `engagement_rate = (likes + comments + saves) / reach`.
+- Dashboard widgets:
+  - Recent Posts list (last 5)
+  - Scheduled count
+  - Top-performing post (last 30d, by engagement_rate)
+  - Per-method aggregate (avg engagement, avg edit ratio, post count) - only show buckets with N>=3
+  - Per-day-of-week aggregate - only show buckets with N>=3
+  - Edit hot-spots widget (which zone gets edited most across last 10 posts)
+  - BrandSwitcher highlight + Create CTA
+- `/calendar` route - "Coming Soon" placeholder card.
+- All aggregations are pure Firestore queries + frontend math. No Cloud Function, no Claude calls.
+
+**Success criteria:**
+1. Each published post card shows the 5 igStats + engagement_rate.
+2. Dashboard renders all widgets; aggregates respect N>=3 floor (no widget with 1-2 datapoints).
+3. Edit hot-spots widget surfaces zone with highest avg edit ratio.
+4. `/calendar` loads with Coming Soon card.
+5. Zero new Cloud Functions, zero Claude calls in this phase.
+
+### Phase 4c: Automated Performance Learning (DEFERRED)
+
+**Trigger to revisit:** when N>=20 published posts exist with igStats, OR Tim explicitly requests earlier.
+
+**Sketch (not built):** Cloud Function reads top-N posts by engagement_rate, Claude Haiku extracts qualitative themes (high-performing hook patterns, CTA patterns), writes to a separate `performancePatterns` sub-collection, injected into prompt as `<performance_patterns>` block alongside `<learned_patterns>`. Same injection mechanism, different signal source.
 
 ### Phase 5: Cutover
 
@@ -158,8 +210,9 @@ Decisions locked during execution that override or extend the source-of-truth pl
 | CREATE-01..08 | Mode/method/focus/situation/photo selection, photo pool, NDJSON streaming, post auto-create with immutable aiSnapshot, prompt assembly with learnedPatterns block, abort-on-disconnect | 2 | Live |
 | RENDER-01..05 | render-jobs enqueue, Playwright per-request, sub-collection updates, 2s polling, <10s cold-start | 3 | Live |
 | POST-01..07 | 3-tab Posts page, draft->scheduled->published transitions, Cloud Scheduler tick, transaction lock, stale-lock sweep, igMediaId link, igStats sync | 3 | Live |
-| LEARN-01..05 | computeEditDiff, Claude Haiku pattern extract, idempotency, learnedPatterns injection, invisible UI | 4 | Pending |
-| POLISH-01..02 | Dashboard widgets, Calendar placeholder | 4 | Pending |
+| LEARN-01..05 | computeEditDiff, Claude Haiku pattern extract, idempotency, learnedPatterns injection, invisible UI | 4a | Pending |
+| POLISH-01..02 + igStats display + edit hot-spots | Dashboard widgets, Calendar placeholder, per-post igStats, per-method/day-of-week aggregates (N>=3 floor) | 4b | Pending |
+| LEARN-V2-* (auto-perf-learning) | Defer until N>=20 published posts | 4c | Deferred |
 | LAUNCH-01..06 | Hosting deployed, Cloud Run + Tasks + Scheduler active, final security rules, fresh onboarding, first real post, v2 README archive | 5 | Pending |
 
 ---
