@@ -3,7 +3,7 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
 if (getApps().length === 0) {
-  initializeApp({ credential: applicationDefault() });
+  initializeApp({ credential: applicationDefault(), storageBucket: 'contentai-78bfb.firebasestorage.app' });
 }
 
 export const auth = getAuth();
