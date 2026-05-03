@@ -2,52 +2,47 @@
  * Integration test: approve pattern → zone-wide cleanup (F1)
  *
  * Requires the Firestore emulator running on localhost:8081.
- * Start with: pnpm emulators
+ * Run: FIRESTORE_EMULATOR_HOST=localhost:8081 pnpm test:integration
  *
- * Skipped when FIRESTORE_EMULATOR_HOST is not set.
- *
- * Tests the /api/patterns/:patternId/approve handler in isolation by calling
- * the route logic directly (no HTTP layer needed for this assertion).
- *
- * F1 assertion: when a pattern is approved, ALL active patterns in the same
- * zone are deleted (zone-wide cleanup). The approved pattern is also deleted
- * (it was merged into brand.identity). brand.identity[target] is updated.
+ * Tests the F1 zone-wide cleanup logic in isolation by replaying the same
+ * batch operations the route handler performs. When a pattern is approved,
+ * ALL active patterns in the same zone are deleted (zone-wide cleanup).
+ * brand.identity[target] is updated with the merged text.
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { initializeTestEnvironment, RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, setDoc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { FieldValue } from 'firebase-admin/firestore';
+import { getTestDb, clearCollection, TEST_PROJECT_ID } from './setup.js';
 
 const EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST;
 const run = EMULATOR_HOST ? it : it.skip;
 
 const UID = 'test-uid-approve';
 const BRAND_ID = 'test-brand-approve';
+const COL = `users/${UID}/brands/${BRAND_ID}/learnedPatterns`;
+const BRAND_DOC = `users/${UID}/brands/${BRAND_ID}`;
 
-let testEnv: RulesTestEnvironment;
+let db: FirebaseFirestore.Firestore;
 
 beforeAll(async () => {
   if (!EMULATOR_HOST) return;
-  testEnv = await initializeTestEnvironment({
-    projectId: 'contentai-test',
-    firestore: {
-      host: 'localhost',
-      port: 8081,
-    },
-  });
+  process.env.GCLOUD_PROJECT = TEST_PROJECT_ID;
+  db = await getTestDb();
 });
 
-afterAll(async () => {
-  if (testEnv) await testEnv.cleanup();
+beforeEach(async () => {
+  if (!EMULATOR_HOST) return;
+  await clearCollection(db, COL);
+  // Reset brand doc to a known state.
+  await db.doc(BRAND_DOC).set(
+    { name: 'Test Brand', identity: { voice: '', persona: '' } },
+    { merge: false },
+  );
 });
 
 describe('approve pattern - zone-wide cleanup (F1)', () => {
   run(
     'deletes approved pattern + all active zone siblings; updates brand.identity.voice',
     async () => {
-      const adminCtx = testEnv.authenticatedContext(UID);
-      const patternCol = `users/${UID}/brands/${BRAND_ID}/learnedPatterns`;
-      const brandDocPath = `users/${UID}/brands/${BRAND_ID}`;
-
       const hookBase = {
         confidence: 0.8,
         zone: 'hook',
@@ -63,83 +58,63 @@ describe('approve pattern - zone-wide cleanup (F1)', () => {
 
       // 4 active hook patterns
       const approvedId = 'pat-to-approve';
-      await setDoc(doc(adminCtx.firestore(), patternCol, approvedId), {
+      await db.doc(`${COL}/${approvedId}`).set({
         ...hookBase,
         description: 'Use short punchy sentences.',
         idempotencyKey: 'post-4_aaa_hook',
       });
-      await setDoc(doc(adminCtx.firestore(), patternCol, 'pat-sibling-1'), {
+      await db.doc(`${COL}/pat-sibling-1`).set({
         ...hookBase,
         description: 'Start with a bold claim.',
         idempotencyKey: 'post-4_bbb_hook',
       });
-      await setDoc(doc(adminCtx.firestore(), patternCol, 'pat-sibling-2'), {
+      await db.doc(`${COL}/pat-sibling-2`).set({
         ...hookBase,
         description: 'Ask a provocative question.',
         idempotencyKey: 'post-4_ccc_hook',
       });
-      await setDoc(doc(adminCtx.firestore(), patternCol, 'pat-sibling-3'), {
+      await db.doc(`${COL}/pat-sibling-3`).set({
         ...hookBase,
         description: 'Lead with the outcome.',
         idempotencyKey: 'post-4_ddd_hook',
       });
 
-      // Write brand doc so assertBrandOwnership passes
-      await setDoc(doc(adminCtx.firestore(), brandDocPath), {
-        name: 'Test Brand',
-        identity: { voice: '', persona: '' },
-      });
-
-      // Call approve logic via the server lib directly (bypasses HTTP auth middleware).
-      // We simulate what the route handler does: update brand.identity + delete approved +
-      // delete zone siblings.
-      // This tests the Firestore side, not the HTTP routing.
-      const { db } = await import('../../server/lib/firebase.js');
-      const { FieldValue } = await import('firebase-admin/firestore');
-
+      // Replay the route's two-batch sequence:
+      // Step 1: update brand identity + delete approved
       const mergedText = 'Use short punchy sentences. Start with a bold claim.';
-      const patternRef = db.doc(`${patternCol}/${approvedId}`);
-      const brandRef = db.doc(brandDocPath);
-
-      // Step 1: update brand + delete approved (mirrors route batch)
       const batch1 = db.batch();
-      batch1.update(brandRef, {
+      batch1.update(db.doc(BRAND_DOC), {
         'identity.voice': mergedText,
         updatedAt: FieldValue.serverTimestamp(),
       });
-      batch1.delete(patternRef);
+      batch1.delete(db.doc(`${COL}/${approvedId}`));
       await batch1.commit();
 
-      // Step 2: zone-wide cleanup (mirrors route F1 logic)
+      // Step 2: F1 zone-wide cleanup
       const zoneSnap = await db
-        .collection(patternCol)
+        .collection(COL)
         .where('status', '==', 'active')
         .where('zone', '==', 'hook')
         .limit(100)
         .get();
       const batch2 = db.batch();
-      let deletedCount = 0;
+      let deleted = 0;
       for (const d of zoneSnap.docs) {
         if (d.id !== approvedId) {
           batch2.delete(d.ref);
-          deletedCount++;
+          deleted++;
         }
       }
-      if (deletedCount > 0) await batch2.commit();
+      if (deleted > 0) await batch2.commit();
 
       // Assertions
-      // brand.identity.voice updated
-      const brandSnap = await getDoc(doc(adminCtx.firestore(), brandDocPath));
+      const brandSnap = await db.doc(BRAND_DOC).get();
       expect(brandSnap.data()?.identity?.voice).toBe(mergedText);
 
-      // All 4 hook patterns gone (approved + 3 siblings)
-      const remainingSnap = await getDocs(collection(adminCtx.firestore(), patternCol));
+      const remainingSnap = await db.collection(COL).get();
       const remainingHookPatterns = remainingSnap.docs.filter(
         (d) => d.data().zone === 'hook',
       );
-      // F1: zone-wide cleanup - all hook patterns should be deleted
-      // NOTE: If this assertion fails, the F1 fix in patterns.ts is not yet active.
-      // Lane A (parallel implementation) is responsible for verifying F1 end-to-end.
       expect(remainingHookPatterns).toHaveLength(0);
     },
   );

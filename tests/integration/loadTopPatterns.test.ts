@@ -2,42 +2,33 @@
  * Integration test: loadTopPatterns
  *
  * Requires the Firestore emulator running on localhost:8081.
- * Start with: pnpm emulators
- *
- * Skipped when FIRESTORE_EMULATOR_HOST is not set.
+ * Run: FIRESTORE_EMULATOR_HOST=localhost:8081 pnpm test:integration
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { initializeTestEnvironment, RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, setDoc } from 'firebase/firestore';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { getTestDb, clearCollection, TEST_PROJECT_ID } from './setup.js';
 
 const EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST;
 const run = EMULATOR_HOST ? it : it.skip;
 
 const UID = 'test-uid-loadtop';
 const BRAND_ID = 'test-brand-loadtop';
+const COL = `users/${UID}/brands/${BRAND_ID}/learnedPatterns`;
 
-let testEnv: RulesTestEnvironment;
+let db: FirebaseFirestore.Firestore;
 
 beforeAll(async () => {
   if (!EMULATOR_HOST) return;
-  testEnv = await initializeTestEnvironment({
-    projectId: 'contentai-test',
-    firestore: {
-      host: 'localhost',
-      port: 8081,
-    },
-  });
+  process.env.GCLOUD_PROJECT = TEST_PROJECT_ID;
+  db = await getTestDb();
 });
 
-afterAll(async () => {
-  if (testEnv) await testEnv.cleanup();
+beforeEach(async () => {
+  if (!EMULATOR_HOST) return;
+  await clearCollection(db, COL);
 });
 
 describe('loadTopPatterns (integration)', () => {
   run('returns only active patterns, excludes dismissed', async () => {
-    const adminCtx = testEnv.authenticatedContext(UID);
-    const col = `users/${UID}/brands/${BRAND_ID}/learnedPatterns`;
-
     const base = {
       description: 'Pattern',
       confidence: 0.8,
@@ -52,18 +43,17 @@ describe('loadTopPatterns (integration)', () => {
       useCount: 1,
     };
 
-    // Write 3 patterns: 2 active, 1 dismissed
-    await setDoc(doc(adminCtx.firestore(), col, 'pat-active-1'), {
+    await db.doc(`${COL}/pat-active-1`).set({
       ...base,
       description: 'Active pattern one.',
       status: 'active',
     });
-    await setDoc(doc(adminCtx.firestore(), col, 'pat-dismissed'), {
+    await db.doc(`${COL}/pat-dismissed`).set({
       ...base,
       description: 'Dismissed pattern.',
       status: 'dismissed',
     });
-    await setDoc(doc(adminCtx.firestore(), col, 'pat-active-2'), {
+    await db.doc(`${COL}/pat-active-2`).set({
       ...base,
       description: 'Active pattern two.',
       status: 'active',

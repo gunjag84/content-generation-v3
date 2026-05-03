@@ -9,6 +9,12 @@ export default defineConfig({
     // Unit tests are fast; integration tests require the Firestore emulator.
     // Run them separately via test:unit / test:integration scripts.
     testTimeout: 10000,
+    // GCLOUD_PROJECT must be set BEFORE server/lib/firebase.ts is loaded so
+    // its initializeApp picks up the right project ID. Harmless for unit
+    // tests (they never touch Firestore).
+    env: {
+      GCLOUD_PROJECT: 'contentai-test',
+    },
   },
   resolve: {
     alias: {

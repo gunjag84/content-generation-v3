@@ -4,13 +4,11 @@
  * Requires the Firestore emulator running on localhost:8081.
  * Start with: pnpm emulators
  *
- * These tests are skipped when FIRESTORE_EMULATOR_HOST is not set so they
- * do not fail in CI without the emulator. To run locally:
- *   FIRESTORE_EMULATOR_HOST=localhost:8081 pnpm test:integration
+ * Run: FIRESTORE_EMULATOR_HOST=localhost:8081 pnpm test:integration
+ * Skipped when FIRESTORE_EMULATOR_HOST is not set.
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { initializeTestEnvironment, RulesTestEnvironment } from '@firebase/rules-unit-testing';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { getTestDb, clearCollection, TEST_PROJECT_ID } from './setup.js';
 import type { LoadedPattern } from '../../server/lib/learnedPatterns.js';
 
 const EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST;
@@ -18,25 +16,19 @@ const run = EMULATOR_HOST ? it : it.skip;
 
 const UID = 'test-uid-markused';
 const BRAND_ID = 'test-brand-markused';
+const COL = `users/${UID}/brands/${BRAND_ID}/learnedPatterns`;
 
-let testEnv: RulesTestEnvironment;
-// We use the admin firestore (bypasses rules) for test setup and assertion.
-// For the actual call under test we import markPatternsUsed which uses
-// firebase-admin pointed at the emulator via FIRESTORE_EMULATOR_HOST env var.
+let db: FirebaseFirestore.Firestore;
 
 beforeAll(async () => {
   if (!EMULATOR_HOST) return;
-  testEnv = await initializeTestEnvironment({
-    projectId: 'contentai-test',
-    firestore: {
-      host: 'localhost',
-      port: 8081,
-    },
-  });
+  process.env.GCLOUD_PROJECT = TEST_PROJECT_ID;
+  db = await getTestDb();
 });
 
-afterAll(async () => {
-  if (testEnv) await testEnv.cleanup();
+beforeEach(async () => {
+  if (!EMULATOR_HOST) return;
+  await clearCollection(db, COL);
 });
 
 describe('markPatternsUsed (integration)', () => {
@@ -61,16 +53,9 @@ describe('markPatternsUsed (integration)', () => {
         useCount: 2,
       };
 
-      // Write via admin context (rules-bypassing)
-      const adminCtx = testEnv.authenticatedContext(UID);
-      const patternRef = doc(
-        adminCtx.firestore(),
-        `users/${UID}/brands/${BRAND_ID}/learnedPatterns/${patternId}`,
-      );
-      await setDoc(patternRef, patternData);
+      const ref = db.doc(`${COL}/${patternId}`);
+      await ref.set(patternData);
 
-      // Call the function under test via the server lib.
-      // firebase-admin must be pointed at the emulator (FIRESTORE_EMULATOR_HOST is set).
       const { markPatternsUsed } = await import('../../server/lib/learnedPatterns.js');
       const pattern: LoadedPattern = {
         id: patternId,
@@ -78,9 +63,8 @@ describe('markPatternsUsed (integration)', () => {
       };
       await markPatternsUsed(UID, BRAND_ID, [pattern]);
 
-      // Assert via admin read
-      const snap = await getDoc(patternRef);
-      expect(snap.exists()).toBe(true);
+      const snap = await ref.get();
+      expect(snap.exists).toBe(true);
       const data = snap.data()!;
       expect(data.useCount).toBe(3);
       expect(data.promotionCandidate).toBe(true);
@@ -107,12 +91,8 @@ describe('markPatternsUsed (integration)', () => {
         useCount: 0,
       };
 
-      const adminCtx = testEnv.authenticatedContext(UID);
-      const patternRef = doc(
-        adminCtx.firestore(),
-        `users/${UID}/brands/${BRAND_ID}/learnedPatterns/${patternId}`,
-      );
-      await setDoc(patternRef, patternData);
+      const ref = db.doc(`${COL}/${patternId}`);
+      await ref.set(patternData);
 
       const { markPatternsUsed } = await import('../../server/lib/learnedPatterns.js');
       const pattern: LoadedPattern = {
@@ -121,7 +101,7 @@ describe('markPatternsUsed (integration)', () => {
       };
       await markPatternsUsed(UID, BRAND_ID, [pattern]);
 
-      const snap = await getDoc(patternRef);
+      const snap = await ref.get();
       const data = snap.data()!;
       expect(data.useCount).toBe(1);
       expect(data.promotionCandidate).toBe(false);
