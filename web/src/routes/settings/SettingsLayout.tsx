@@ -8,6 +8,7 @@ const TABS = [
   { to: '/settings/photos', label: 'Photos' },
   { to: '/settings/methods', label: 'Methods' },
   { to: '/settings/api-keys', label: 'API Keys' },
+  { to: '/settings/instagram', label: 'Instagram' },
 ];
 
 export function SettingsLayout() {
