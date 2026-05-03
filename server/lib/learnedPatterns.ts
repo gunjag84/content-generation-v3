@@ -1,6 +1,8 @@
 // Loads top-N learned patterns for a brand and renders them as an XML block
 // for injection into the system prompt. Patterns are scored by
 // confidence × recency (exp-decay over days since lastUsedAt or createdAt).
+//
+// Filters out 'dismissed' patterns - the user has explicitly rejected those.
 
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './firebase.js';
@@ -12,6 +14,10 @@ const TOP_N = 20;
 const RECENCY_HALF_LIFE_DAYS = 30;
 // Hard read cap to keep loadTopPatterns cheap; brands won't exceed this in practice.
 const MAX_FETCH = 200;
+// Promotion-candidate thresholds. Pattern crossing both becomes a "Suggested
+// update" in Settings. Tunable - start strict, loosen if no candidates appear.
+const PROMOTION_USE_COUNT = 3;
+const PROMOTION_CONFIDENCE = 0.7;
 
 export interface LoadedPattern extends LearnedPattern {
   id: string;
@@ -33,18 +39,35 @@ export async function loadTopPatterns(
 
   if (snap.empty) return [];
 
-  const scored = snap.docs.map((d) => {
-    const data = d.data() as LearnedPattern;
-    const lastUsed = (data.lastUsedAt as { toMillis?: () => number } | null)?.toMillis?.() ?? null;
-    const created =
-      (data.createdAt as { toMillis?: () => number } | undefined)?.toMillis?.() ?? Date.now();
-    const reference = lastUsed ?? created;
-    const score = data.confidence * recencyWeight(reference);
-    return { id: d.id, data, score };
-  });
+  const scored = snap.docs
+    .map((d) => ({ id: d.id, data: d.data() as LearnedPattern }))
+    .filter((p) => (p.data.status ?? 'active') === 'active')
+    .map(({ id, data }) => {
+      const lastUsed = (data.lastUsedAt as { toMillis?: () => number } | null)?.toMillis?.() ?? null;
+      const created =
+        (data.createdAt as { toMillis?: () => number } | undefined)?.toMillis?.() ?? Date.now();
+      const reference = lastUsed ?? created;
+      const score = data.confidence * recencyWeight(reference);
+      return { id, data, score };
+    });
 
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, TOP_N).map((s) => ({ id: s.id, ...s.data }));
+}
+
+// Reads ALL dismissed patterns for the brand. Used by the extractor to tell
+// Haiku "user has rejected these rules; do not propose similar". Returns
+// description strings only (the rest is irrelevant for anti-dup).
+export async function loadDismissedPatternDescriptions(
+  uid: string,
+  brandId: string,
+): Promise<string[]> {
+  const snap = await db
+    .collection(`users/${uid}/brands/${brandId}/learnedPatterns`)
+    .where('status', '==', 'dismissed')
+    .limit(MAX_FETCH)
+    .get();
+  return snap.docs.map((d) => (d.data().description as string) ?? '').filter(Boolean);
 }
 
 export function renderPatternsBlock(patterns: LoadedPattern[]): string {
@@ -74,20 +97,47 @@ export function renderPatternsBlock(patterns: LoadedPattern[]): string {
 }
 
 // Mark a set of patterns as used after a successful generate. Bumps useCount
-// + lastUsedAt so the recency-weighted score reflects active usage.
+// + lastUsedAt so the recency-weighted score reflects active usage. Also
+// flips promotionCandidate=true on patterns that cross the threshold this run.
 export async function markPatternsUsed(
   uid: string,
   brandId: string,
-  patternIds: string[],
+  patterns: LoadedPattern[],
 ): Promise<void> {
-  if (patternIds.length === 0) return;
+  if (patterns.length === 0) return;
   const batch = db.batch();
-  for (const id of patternIds) {
-    const ref = db.doc(`users/${uid}/brands/${brandId}/learnedPatterns/${id}`);
-    batch.update(ref, {
+  for (const p of patterns) {
+    const ref = db.doc(`users/${uid}/brands/${brandId}/learnedPatterns/${p.id}`);
+    const update: Record<string, unknown> = {
       lastUsedAt: FieldValue.serverTimestamp(),
       useCount: FieldValue.increment(1),
-    });
+    };
+    // Threshold check: useCount AFTER this increment is p.useCount + 1.
+    // If we cross the bar AND the pattern's confidence already meets the
+    // bar AND we haven't already flagged it, set the flag.
+    const nextUseCount = (p.useCount ?? 0) + 1;
+    if (
+      !p.promotionCandidate &&
+      nextUseCount >= PROMOTION_USE_COUNT &&
+      p.confidence >= PROMOTION_CONFIDENCE
+    ) {
+      update.promotionCandidate = true;
+    }
+    batch.update(ref, update);
   }
   await batch.commit();
+}
+
+// List active promotion candidates for the brand (Settings UI).
+export async function loadPromotionCandidates(
+  uid: string,
+  brandId: string,
+): Promise<LoadedPattern[]> {
+  const snap = await db
+    .collection(`users/${uid}/brands/${brandId}/learnedPatterns`)
+    .where('status', '==', 'active')
+    .where('promotionCandidate', '==', true)
+    .limit(50)
+    .get();
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as LearnedPattern) }));
 }

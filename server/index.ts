@@ -9,6 +9,7 @@ import renderJobsRouter from './routes/renderJobs.js';
 import renderWorkerRouter from './routes/renderWorker.js';
 import postsActionsRouter from './routes/postsActions.js';
 import publishWorkerRouter from './routes/publishWorker.js';
+import patternsRouter from './routes/patterns.js';
 import './lib/firebase.js';
 
 const app = express();
@@ -24,6 +25,7 @@ app.use('/api/settings', settingsRouter);
 app.use('/api', generateRouter);
 app.use('/api', renderJobsRouter);
 app.use('/api', postsActionsRouter);
+app.use('/api', patternsRouter);
 
 // /internal/* - OIDC audience + invoker SA
 app.use('/internal', killSwitchGate, requireOidc);

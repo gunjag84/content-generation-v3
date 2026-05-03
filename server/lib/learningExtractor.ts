@@ -15,6 +15,7 @@ import {
   type LearnedPattern,
 } from '../../shared/schemas/learnedPattern.js';
 import type { SocialSlide } from '../../shared/types/slide.js';
+import { loadDismissedPatternDescriptions } from './learnedPatterns.js';
 
 // Below this ratio the edit is treated as noise (typo, single-word swap).
 // 0.15 = ~15% Levenshtein distance over max(original, edited) length.
@@ -35,16 +36,22 @@ interface PublishedPostShape {
 function buildExtractionPrompt(
   zone: DiffZone,
   examples: { original: string; edited: string }[],
+  rejectedRules: string[],
 ): string {
   const examplesBlock = examples
     .map((e, i) => `Example ${i + 1}:\nAI baseline: ${e.original}\nPublished: ${e.edited}`)
     .join('\n\n');
 
+  const rejectedBlock =
+    rejectedRules.length > 0
+      ? `\n\nThe user has previously REJECTED the following rules. Do NOT propose anything semantically similar (rephrasing the same idea counts as similar):\n${rejectedRules.map((r) => `- ${r}`).join('\n')}`
+      : '';
+
   return `You are analyzing how an AI-generated Instagram carousel was edited before publishing. The author kept the post structure but rewrote specific parts. Identify ONE structural rule the next AI first-shot for this brand should follow to land closer to what the author actually wants.
 
 Zone analyzed: ${zone}
 
-${examplesBlock}
+${examplesBlock}${rejectedBlock}
 
 Output a single JSON object with no surrounding text:
 { "description": string, "confidence": number }
@@ -59,9 +66,10 @@ async function extractPattern(
   apiKey: string,
   zone: DiffZone,
   examples: { original: string; edited: string }[],
+  rejectedRules: string[],
 ): Promise<{ description: string; confidence: number } | null> {
   const client = makeAnthropicClient(apiKey);
-  const prompt = buildExtractionPrompt(zone, examples);
+  const prompt = buildExtractionPrompt(zone, examples, rejectedRules);
 
   const tryParse = (text: string): { description: string; confidence: number } | null => {
     const cleaned = text
@@ -159,6 +167,18 @@ export async function runLearningExtraction(input: PublishedPostShape): Promise<
     return;
   }
 
+  // Anti-duplication: feed dismissed patterns into Haiku as "do not propose
+  // similar". Single read for the whole extraction (re-used across zones).
+  let dismissedRules: string[] = [];
+  try {
+    dismissedRules = await loadDismissedPatternDescriptions(uid, brandId);
+  } catch (err) {
+    console.error(
+      '[learningExtractor] failed to load dismissed patterns:',
+      (err as Error).message,
+    );
+  }
+
   for (const zone of meaningfulZones) {
     const idempotencyKey = `${postId}_${diff.diffHash}_${zone}`;
     try {
@@ -179,7 +199,7 @@ export async function runLearningExtraction(input: PublishedPostShape): Promise<
       continue;
     }
 
-    const extracted = await extractPattern(apiKey, zone, grouped[zone]);
+    const extracted = await extractPattern(apiKey, zone, grouped[zone], dismissedRules);
     if (!extracted) {
       console.log('[learningExtractor] no pattern extracted for', zone, postId);
       continue;
@@ -196,6 +216,8 @@ export async function runLearningExtraction(input: PublishedPostShape): Promise<
       sourceMethod: method,
       sourceMode: mode,
       idempotencyKey,
+      status: 'active',
+      promotionCandidate: false,
       createdAt: FieldValue.serverTimestamp(),
       lastUsedAt: null,
       useCount: 0,
