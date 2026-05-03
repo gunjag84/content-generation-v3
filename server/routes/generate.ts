@@ -17,6 +17,10 @@ import { getAnthropicKey } from '../lib/getAnthropicKey.js';
 import { createDraftPost } from '../lib/createDraftPost.js';
 import { buildZitatCarousel } from '../lib/zitatShortcircuit.js';
 import type { MethodSlug } from '../lib/methodResolution.js';
+import { loadTopPatterns, renderPatternsBlock, markPatternsUsed } from '../lib/learnedPatterns.js';
+import { auditAndPersistPatternMatch } from '../lib/patternAudit.js';
+import { db } from '../lib/firebase.js';
+import type { BrandIdentity } from '../../shared/schemas/brand.js';
 
 const router = express.Router();
 
@@ -87,10 +91,37 @@ router.post('/generate', async (req: Request, res: Response) => {
   }
 
   const client = makeAnthropicClient(apiKey);
+
+  // Phase 4a: load brand identity (voice + persona only - UVP/POV/competitor
+  // are dead code) and learned patterns. Both feed assembleSystemPrompt.
+  // Both failures are non-fatal (cold-start brands have neither).
+  let identity: Pick<BrandIdentity, 'voice' | 'persona'> = { voice: '', persona: '' };
+  try {
+    const brandSnap = await db.doc(`users/${uid}/brands/${body.brandId}`).get();
+    const id = (brandSnap.data()?.identity ?? {}) as Partial<BrandIdentity>;
+    identity = {
+      voice: typeof id.voice === 'string' ? id.voice : '',
+      persona: typeof id.persona === 'string' ? id.persona : '',
+    };
+  } catch (err) {
+    console.error('[generate] brand identity load failed:', (err as Error).message);
+  }
+
+  let topPatterns: Awaited<ReturnType<typeof loadTopPatterns>> = [];
+  let patternsBlock = '';
+  try {
+    topPatterns = await loadTopPatterns(uid, body.brandId);
+    patternsBlock = renderPatternsBlock(topPatterns);
+  } catch (err) {
+    console.error('[generate] pattern load failed:', (err as Error).message);
+  }
+
   const systemPrompt = assembleSystemPrompt(
     body.method as MethodSlug,
     body.slideCount,
     body.mode,
+    patternsBlock,
+    identity,
   );
 
   const countInstruction =
@@ -183,6 +214,28 @@ router.post('/generate', async (req: Request, res: Response) => {
     caption: parsed.caption,
   });
   res.end();
+
+  // Mark patterns as used (recency + useCount bump; flips promotionCandidate
+  // when threshold crossed). Fire-and-forget; never blocks the response.
+  if (topPatterns.length > 0) {
+    void markPatternsUsed(uid, body.brandId, topPatterns).catch((err) => {
+      console.error('[generate] markPatternsUsed failed:', (err as Error).message);
+    });
+
+    // Post-generate Haiku audit: did the model actually follow the patterns?
+    // Fire-and-forget; persists patternAudit on the post doc for editor
+    // advisory warnings (Phase 4b) and as enforcement-quality signal.
+    void auditAndPersistPatternMatch({
+      uid,
+      brandId: body.brandId,
+      postId,
+      apiKey,
+      patterns: topPatterns,
+      output: { slides: parsed.slides, caption: parsed.caption },
+    }).catch((err) => {
+      console.error('[generate] patternAudit failed:', (err as Error).message);
+    });
+  }
 });
 
 export default router;

@@ -39,6 +39,50 @@ export const PostSchema = z.object({
   igMediaId: z.string().nullable().optional(),
   igPermalink: z.string().nullable().optional(),
   igStats: IgStatsSchema.optional(),
+  // Phase 4a: per-zone Levenshtein edit ratios captured at publish-time.
+  // Drives Phase 4b dashboard's edit hot-spots widget. Null until first publish.
+  editStats: z
+    .object({
+      editRatioByZone: z.object({
+        hook: z.number().min(0),
+        body: z.number().min(0),
+        cta: z.number().min(0),
+        caption: z.number().min(0),
+      }),
+      totalEditRatio: z.number().min(0),
+    })
+    .nullable()
+    .optional(),
+  // Phase 4a enforcement: post-generate Haiku audit of pattern compliance.
+  // Score = followedCount / totalPatterns. Null until first generate with patterns.
+  patternAudit: z
+    .object({
+      score: z.number().min(0).max(1),
+      totalPatterns: z.number().int().min(0),
+      followedCount: z.number().int().min(0),
+      results: z.array(
+        z.object({
+          patternId: z.string(),
+          zone: z.enum(['hook', 'body', 'cta', 'caption']),
+          followed: z.boolean(),
+          evidence: z.string(),
+        }),
+      ),
+      auditedAt: z.unknown(),
+    })
+    .nullable()
+    .optional(),
+  // Phase 4a observability: structured failure record from learningExtractor
+  // / patternAudit / approvalLedger. Set when a step fails so the dashboard
+  // can surface 'this post couldn't learn'. Null on the happy path.
+  learningError: z
+    .object({
+      step: z.enum(['diff', 'editStats', 'apiKey', 'extract', 'audit', 'persist', 'ledger']),
+      message: z.string(),
+      at: z.unknown(),
+    })
+    .nullable()
+    .optional(),
   createdAt: z.unknown(),
   updatedAt: z.unknown(),
 });

@@ -254,7 +254,7 @@ export function ZoneCanvas({
                   fontWeight: 700, color: '#fff', letterSpacing: '0.12em',
                   border: '1px solid rgba(255,255,255,0.2)',
                 }}>
-                  LEBEN.LIEBEN
+                  {zone.text}
                 </div>
               </div>
             ) : (
@@ -391,7 +391,7 @@ export function SlideThumbnail({ slide, format, active, index, onClick, backgrou
                     fontWeight: 700, color: '#fff', letterSpacing: '0.12em',
                     border: '1px solid rgba(255,255,255,0.2)',
                   }}>
-                    LEBEN.LIEBEN
+                    {zone.text}
                   </div>
                 </div>
               </div>

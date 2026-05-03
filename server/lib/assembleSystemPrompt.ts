@@ -77,10 +77,43 @@ export function filterModeByMethod(content: string, method: MethodSlug): string 
   return out.replace(/\n{3,}/g, '\n\n').trim();
 }
 
+export interface BrandIdentityForPrompt {
+  voice: string;
+  persona: string;
+}
+
+function renderBrandIdentityBlock(identity?: BrandIdentityForPrompt): string {
+  if (!identity) return '';
+  const voice = identity.voice?.trim() ?? '';
+  const persona = identity.persona?.trim() ?? '';
+  if (!voice && !persona) return '';
+  const lines: string[] = ['<brand_identity>'];
+  if (voice) {
+    lines.push('  <voice>');
+    lines.push(`    ${voice}`);
+    lines.push('  </voice>');
+  }
+  if (persona) {
+    lines.push('  <persona>');
+    lines.push(`    ${persona}`);
+    lines.push('  </persona>');
+  }
+  lines.push('</brand_identity>');
+  return lines.join('\n');
+}
+
 export function assembleSystemPrompt(
   method: MethodSlug,
   slideCount: number,
   mode: Mode,
+  // Phase 4a: optional <learned_patterns> XML block. Appended as the final
+  // layer when present so the model sees it as the most-specific guidance.
+  // Empty string or undefined = no block emitted (cold-start brand).
+  patternsBlock?: string,
+  // Phase 4a: user-edited brand identity (voice + persona only). Inserted as
+  // Layer 3.5, after product but before method/mode, so it sets the voice
+  // baseline. UVP / point_of_view / competitive_landscape are dead code.
+  brandIdentity?: BrandIdentityForPrompt,
 ): string {
   const isConvert = mode === 'convert-demand';
   const isCreate = mode === 'create-demand';
@@ -123,6 +156,10 @@ export function assembleSystemPrompt(
     blocks.push(readPrompt('product.md').trim());
   }
 
+  // Layer 3.5: brand identity (voice + persona, user-edited)
+  const identityBlock = renderBrandIdentityBlock(brandIdentity);
+  if (identityBlock) blocks.push(identityBlock);
+
   // Layer 4: method (zitat is shortcircuited upstream and never reaches here)
   const tc = closestTemplateCount(method, slideCount);
   let methodContent = readPrompt('methods', `${method}-${tc}.md`);
@@ -134,6 +171,11 @@ export function assembleSystemPrompt(
   let modeContent = readPrompt('modes', modeFile);
   modeContent = filterModeByMethod(modeContent, method);
   blocks.push(modeContent.trim());
+
+  // Layer 6 (optional): brand-specific learned patterns from prior edits.
+  if (patternsBlock && patternsBlock.trim().length > 0) {
+    blocks.push(patternsBlock.trim());
+  }
 
   return blocks.join('\n\n---\n\n');
 }

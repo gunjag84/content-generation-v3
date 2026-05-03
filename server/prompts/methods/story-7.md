@@ -58,7 +58,7 @@ BASE: Wenn Du heute Abend wieder denkst, es war nicht genug: Deine Kinder rufen 
 ACCENT: Nach Dir.
 
 SLIDE 7 | type: cta
-BRAND: LEBEN.LIEBEN
+BRAND: <MARKENNAME>
 DIVIDER
 ACCENT: Speicher Dir das für den nächsten schweren Abend.
 BASE: Und schick es der Freundin, die es gerade auch braucht.
@@ -66,5 +66,5 @@ BASE: Und schick es der Freundin, die es gerade auch braucht.
 CAPTION:
 Mittwochabend, 21 Uhr. Kinder schlafen, Laptop auf, Präsentationsfolien. Und in meinem Kopf die Stimme: Das reicht nicht. Nicht genug Mama, nicht genug im Job, nicht genug für mich. Dann hat Leo im Schlaf nach mir gerufen. Einfach nur "Mama." Nicht weil er etwas brauchte. Weil ich da war. In dem Moment habe ich verstanden: Ich bin genug. Nicht weil ich alles schaffe, sondern weil er sich bei mir sicher fühlt. Geht es Dir auch so, dass Du abends immer denkst: das hat heute nicht gereicht?
 
-#lebenlieben #familienleben #mamaleben #genugsein #workingmom #berufundkinder #mamaalltag
+#<hashtag1> #<hashtag2> #<hashtag3>
 </example>
