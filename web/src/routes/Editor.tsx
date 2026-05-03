@@ -18,6 +18,7 @@ import {
   ZonePanel,
 } from '../components/editor';
 import type { Format, SocialSlide, Zone } from '../../../shared/types/slide';
+import type { BrandDesign } from '../../../shared/schemas/brand';
 
 interface PostShape {
   slides: SocialSlide[];
@@ -45,6 +46,19 @@ export default function Editor() {
   const [renderError, setRenderError] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
   const renderJob = useRenderJob(brandId, renderJobId);
+  const [brandBgColor, setBrandBgColor] = useState<string | undefined>(undefined);
+
+  // Load the brand's configured background color so canvas + thumbnails reflect it.
+  useEffect(() => {
+    if (!uid || !brandId) return;
+    let cancelled = false;
+    void getDoc(doc(db, 'users', uid, 'brands', brandId)).then((snap) => {
+      if (cancelled) return;
+      const design = (snap.data()?.design ?? {}) as Partial<BrandDesign>;
+      setBrandBgColor(design.backgroundColor);
+    });
+    return () => { cancelled = true; };
+  }, [uid, brandId]);
 
   // Snapshot of aiSnapshot at load time, used by the dev-only invariance guard.
   const aiSnapshotAtLoad = useRef<PostShape['aiSnapshot'] | null>(null);
@@ -220,7 +234,13 @@ export default function Editor() {
       </div>
 
       {/* Left rail */}
-      <SlideStrip slides={slides} format={format} activeIdx={activeSlideIdx} onSelect={(i) => { setActiveSlideIdx(i); setSelectedZoneId(null); }} />
+      <SlideStrip
+        slides={slides}
+        format={format}
+        activeIdx={activeSlideIdx}
+        onSelect={(i) => { setActiveSlideIdx(i); setSelectedZoneId(null); }}
+        backgroundColor={brandBgColor}
+      />
 
       {/* Canvas */}
       <EditorPreview
@@ -229,6 +249,7 @@ export default function Editor() {
         selectedZoneId={selectedZoneId}
         onSelectZone={setSelectedZoneId}
         onZoneChange={changeZone}
+        backgroundColor={brandBgColor}
       />
 
       {/* Right rail: SlidePanel (slide-level) + ZonePanel (zone-level) + caption */}

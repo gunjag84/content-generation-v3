@@ -54,37 +54,40 @@ interface ZoneSeed {
 
 export interface LinesToZonesOptions {
   zoneDefaults?: ZoneDefaults;
-  primaryColor?: string;
-  secondaryColor?: string;
+  standardTextColor?: string;
+  accentTextColor?: string;
 }
 
 function resolveColor(
   role: ZoneRole | null,
   zoneDefaults: ZoneDefaults | undefined,
-  primaryColor: string,
-  secondaryColor: string,
+  standardTextColor: string,
+  accentTextColor: string,
 ): string {
-  if (!role || !zoneDefaults) return secondaryColor;
+  if (!role || !zoneDefaults) return standardTextColor;
   const def = zoneDefaults[role];
-  if (!def) return secondaryColor;
-  return def.color === 'primary' ? primaryColor : secondaryColor;
+  if (!def) return standardTextColor;
+  return def.color === 'accent' ? accentTextColor : standardTextColor;
 }
 
 function lineSeeds(lines: SlideContentLine[], opts: LinesToZonesOptions): ZoneSeed[] {
-  const primary = opts.primaryColor ?? '#000000';
-  const secondary = opts.secondaryColor ?? '#ffffff';
+  const standard = opts.standardTextColor ?? '#ffffff';
+  const accent = opts.accentTextColor ?? '#f59e0b';
   const seeds: ZoneSeed[] = [];
   for (const line of lines) {
     if (line.type === 'DIVIDER') continue;
     if (!line.text.trim()) continue;
-    const role = line.type as ZoneRole; // ACCENT|BASE|SUBTLE|BRAND
-    const def = opts.zoneDefaults?.[role];
+    // Only ACCENT and BASE are configurable roles; SUBTLE and BRAND lines
+    // use hardcoded defaults and the standard text color.
+    const role: ZoneRole | null =
+      line.type === 'ACCENT' || line.type === 'BASE' ? line.type : null;
+    const def = role ? opts.zoneDefaults?.[role] : undefined;
     seeds.push({
       text: line.text,
       fontSize: line.fontSize ?? def?.fontSize ?? FONT_SIZE_BY_TYPE[line.type],
       fontWeight: FONT_WEIGHT_BY_TYPE[line.type],
       fontFamily: def?.fontFamily ?? FONT_FAMILY_BY_TYPE[line.type],
-      color: resolveColor(role, opts.zoneDefaults, primary, secondary),
+      color: resolveColor(role, opts.zoneDefaults, standard, accent),
       label: LABEL_BY_TYPE[line.type],
       isLogo: line.type === 'BRAND',
     });

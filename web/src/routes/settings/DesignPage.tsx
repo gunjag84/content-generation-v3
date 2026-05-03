@@ -8,15 +8,14 @@ import { FONT_FAMILIES, ensureFontLoaded } from '../../lib/font-loader';
 import { ColorInput } from '../../components/ColorInput';
 
 const ZONE_ROLES: { key: ZoneRole; label: string; description: string; fallback: ZoneDefault }[] = [
-  { key: 'ACCENT', label: 'Hook', description: 'Größte Headline (Aufmerksamkeit)', fallback: { color: 'secondary', fontFamily: 'Inter', fontSize: 88 } },
-  { key: 'BASE', label: 'Body', description: 'Standard-Fließtext', fallback: { color: 'secondary', fontFamily: 'Inter', fontSize: 56 } },
-  { key: 'SUBTLE', label: 'Subtle', description: 'Subline / Detail', fallback: { color: 'secondary', fontFamily: 'Inter', fontSize: 36 } },
-  { key: 'BRAND', label: 'Brand', description: 'Logo / Marken-Stempel', fallback: { color: 'secondary', fontFamily: 'Josefin Sans', fontSize: 80 } },
+  { key: 'ACCENT', label: 'Hook', description: 'Größte Headline (Aufmerksamkeit)', fallback: { color: 'standard', fontFamily: 'Inter', fontSize: 88 } },
+  { key: 'BASE', label: 'Body', description: 'Standard-Fließtext', fallback: { color: 'standard', fontFamily: 'Inter', fontSize: 56 } },
 ];
 
 const EMPTY: BrandDesign = {
-  primaryColor: '#000000',
-  secondaryColor: '#ffffff',
+  backgroundColor: '#1c1c2e',
+  standardTextColor: '#ffffff',
+  accentTextColor: '#f59e0b',
   logoUrl: null,
   igHandle: '',
   zoneDefaults: {},
@@ -90,24 +89,38 @@ export function DesignPage() {
         <p className="text-sm text-gray-500">Farben, Logo und Instagram-Handle der Marke.</p>
       </header>
 
-      <div className="grid grid-cols-2 gap-4">
+      <section className="space-y-3">
         <div>
-          <span className="block text-sm font-medium mb-1">Primärfarbe</span>
-          <ColorInput
-            variant="light"
-            value={design.primaryColor}
-            onChange={(v) => update('primaryColor', v)}
-          />
+          <h2 className="text-lg font-semibold">Farben</h2>
+          <p className="text-sm text-gray-500">Hintergrund + zwei Text-Farben für die Slide-Komposition.</p>
         </div>
-        <div>
-          <span className="block text-sm font-medium mb-1">Sekundärfarbe</span>
-          <ColorInput
-            variant="light"
-            value={design.secondaryColor}
-            onChange={(v) => update('secondaryColor', v)}
-          />
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <span className="block text-sm font-medium mb-1">Primary Color (Background)</span>
+            <ColorInput
+              variant="light"
+              value={design.backgroundColor}
+              onChange={(v) => update('backgroundColor', v)}
+            />
+          </div>
+          <div>
+            <span className="block text-sm font-medium mb-1">Standard Text</span>
+            <ColorInput
+              variant="light"
+              value={design.standardTextColor}
+              onChange={(v) => update('standardTextColor', v)}
+            />
+          </div>
+          <div>
+            <span className="block text-sm font-medium mb-1">Accent Text</span>
+            <ColorInput
+              variant="light"
+              value={design.accentTextColor}
+              onChange={(v) => update('accentTextColor', v)}
+            />
+          </div>
         </div>
-      </div>
+      </section>
 
       <label className="block">
         <span className="block text-sm font-medium mb-1">Logo</span>
@@ -156,7 +169,7 @@ export function DesignPage() {
                     </td>
                     <td className="pr-3">
                       <div className="flex gap-1">
-                        {(['primary', 'secondary'] as const).map((opt) => (
+                        {(['standard', 'accent'] as const).map((opt) => (
                           <button
                             key={opt}
                             type="button"
@@ -167,10 +180,10 @@ export function DesignPage() {
                                 : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
                             }`}
                           >
-                            {opt === 'primary' ? 'Primär' : 'Sekundär'}
+                            {opt === 'standard' ? 'Standard' : 'Accent'}
                             <span
                               className="inline-block w-3 h-3 ml-1.5 rounded-sm border border-black/20 align-middle"
-                              style={{ backgroundColor: opt === 'primary' ? design.primaryColor : design.secondaryColor }}
+                              style={{ backgroundColor: opt === 'standard' ? design.standardTextColor : design.accentTextColor }}
                             />
                           </button>
                         ))}

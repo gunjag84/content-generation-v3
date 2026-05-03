@@ -9,11 +9,14 @@ export const BrandIdentitySchema = z.object({
   competitive_landscape: z.string().default(''),
 });
 
-export const ZoneRoleSchema = z.enum(['ACCENT', 'BASE', 'SUBTLE', 'BRAND']);
+// Only ACCENT (Hook) and BASE (Body) are user-configurable defaults.
+// SUBTLE and BRAND lines from generated content fall back to hardcoded
+// defaults in linesToZones.
+export const ZoneRoleSchema = z.enum(['ACCENT', 'BASE']);
 export type ZoneRole = z.infer<typeof ZoneRoleSchema>;
 
 export const ZoneDefaultSchema = z.object({
-  color: z.enum(['primary', 'secondary']),
+  color: z.enum(['standard', 'accent']),
   fontFamily: z.string().min(1),
   fontSize: z.number().int().positive(),
 });
@@ -25,21 +28,19 @@ export const ZoneDefaultsSchema = z
   .object({
     ACCENT: ZoneDefaultSchema,
     BASE: ZoneDefaultSchema,
-    SUBTLE: ZoneDefaultSchema,
-    BRAND: ZoneDefaultSchema,
   })
   .partial();
 export type ZoneDefaults = z.infer<typeof ZoneDefaultsSchema>;
 
+const HEX = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+
 export const BrandDesignSchema = z.object({
-  primaryColor: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/)
-    .default('#000000'),
-  secondaryColor: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/)
-    .default('#ffffff'),
+  // Background color used for non-CTA slide canvases (editor + preview + render).
+  backgroundColor: HEX.default('#1c1c2e'),
+  // Default text color for "standard" zones.
+  standardTextColor: HEX.default('#ffffff'),
+  // Highlight text color for "accent" zones.
+  accentTextColor: HEX.default('#f59e0b'),
   logoUrl: z.string().url().nullable().default(null),
   igHandle: z.string().default(''),
   zoneDefaults: ZoneDefaultsSchema.default({}),

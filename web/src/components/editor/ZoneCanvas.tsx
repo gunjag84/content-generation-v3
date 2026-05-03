@@ -30,10 +30,12 @@ interface ZoneCanvasProps {
   showGrid?: boolean;
   scale: number;
   onZoneChange: (z: Zone) => void;
+  /** Brand-configured background color for non-CTA slides. */
+  backgroundColor?: string;
 }
 
 export function ZoneCanvas({
-  slide, format, selectedId, onSelect, showGrid = false, scale, onZoneChange,
+  slide, format, selectedId, onSelect, showGrid = false, scale, onZoneChange, backgroundColor,
 }: ZoneCanvasProps) {
   const refH = FORMAT_HEIGHTS[format];
 
@@ -46,7 +48,7 @@ export function ZoneCanvas({
 
   const bgStyle: React.CSSProperties = {
     position: 'absolute', inset: 0,
-    backgroundColor: slide.type === 'cta' ? '#0f1f16' : '#1c1c2e',
+    backgroundColor: slide.type === 'cta' ? '#0f1f16' : (backgroundColor ?? '#1c1c2e'),
   };
   // Photo as <img> with object-fit:contain (whole photo fits at scale 1)
   // and CSS transform:scale() so the Zoom slider works relative to contain baseline.
@@ -298,9 +300,10 @@ interface SlideThumbnailProps {
   active: boolean;
   index: number;
   onClick: () => void;
+  backgroundColor?: string;
 }
 
-export function SlideThumbnail({ slide, format, active, index, onClick }: SlideThumbnailProps) {
+export function SlideThumbnail({ slide, format, active, index, onClick, backgroundColor }: SlideThumbnailProps) {
   const refH = FORMAT_HEIGHTS[format];
   // Slightly smaller than before (was 160x220) — keeps ~3 portrait thumbs visible
   // in the 200px-wide rail without scrolling.
@@ -315,7 +318,7 @@ export function SlideThumbnail({ slide, format, active, index, onClick }: SlideT
   }
   const scale = thumbW / REF_W;
 
-  const bgColor = slide.type === 'cta' ? '#0f1f16' : '#1c1c2e';
+  const bgColor = slide.type === 'cta' ? '#0f1f16' : (backgroundColor ?? '#1c1c2e');
   const imgStyle: React.CSSProperties = slide.imageUrl
     ? {
         position: 'absolute', inset: 0,

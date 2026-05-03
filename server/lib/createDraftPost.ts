@@ -24,14 +24,14 @@ export interface CreateDraftPostInput {
 export async function createDraftPost(input: CreateDraftPostInput): Promise<string> {
   const { uid, brandId, slides: rawSlides, caption } = input;
 
-  // Load brand design so per-zone-role defaults (color/font/size) and the
-  // brand's primary/secondary colors flow into the initial zone layout.
+  // Load brand design so per-zone-role defaults (font/size + standard|accent
+  // color choice) and the configured text colors flow into the initial zone layout.
   const brandSnap = await db.doc(`users/${uid}/brands/${brandId}`).get();
   const design = (brandSnap.data()?.design ?? {}) as Partial<BrandDesign>;
   const linesOpts = {
     zoneDefaults: design.zoneDefaults,
-    primaryColor: design.primaryColor,
-    secondaryColor: design.secondaryColor,
+    standardTextColor: design.standardTextColor,
+    accentTextColor: design.accentTextColor,
   };
 
   // parseSlidesMd leaves zones[] empty; populate them from lines so the editor
