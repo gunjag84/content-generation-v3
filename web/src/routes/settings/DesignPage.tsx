@@ -3,13 +3,22 @@ import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useActiveBrand } from '../../store/activeBrand';
 import { uploadPhoto } from '../../lib/uploadPhoto';
-import { BrandDesignSchema, type BrandDesign } from '../../../../shared/schemas/brand';
+import { BrandDesignSchema, type BrandDesign, type ZoneRole, type ZoneDefault } from '../../../../shared/schemas/brand';
+import { FONT_FAMILIES, ensureFontLoaded } from '../../lib/font-loader';
+
+const ZONE_ROLES: { key: ZoneRole; label: string; description: string; fallback: ZoneDefault }[] = [
+  { key: 'ACCENT', label: 'Hook', description: 'Größte Headline (Aufmerksamkeit)', fallback: { color: 'secondary', fontFamily: 'Inter', fontSize: 88 } },
+  { key: 'BASE', label: 'Body', description: 'Standard-Fließtext', fallback: { color: 'secondary', fontFamily: 'Inter', fontSize: 56 } },
+  { key: 'SUBTLE', label: 'Subtle', description: 'Subline / Detail', fallback: { color: 'secondary', fontFamily: 'Inter', fontSize: 36 } },
+  { key: 'BRAND', label: 'Brand', description: 'Logo / Marken-Stempel', fallback: { color: 'secondary', fontFamily: 'Josefin Sans', fontSize: 80 } },
+];
 
 const EMPTY: BrandDesign = {
   primaryColor: '#000000',
   secondaryColor: '#ffffff',
   logoUrl: null,
   igHandle: '',
+  zoneDefaults: {},
 };
 
 export function DesignPage() {
@@ -52,6 +61,14 @@ export function DesignPage() {
     setDesign(next);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => save(next), 1500);
+  }
+
+  function updateZoneDefault(role: ZoneRole, patch: Partial<ZoneDefault>) {
+    const fallback = ZONE_ROLES.find((r) => r.key === role)!.fallback;
+    const current = design.zoneDefaults?.[role] ?? fallback;
+    const merged: ZoneDefault = { ...current, ...patch };
+    if (patch.fontFamily) ensureFontLoaded(patch.fontFamily);
+    update('zoneDefaults', { ...design.zoneDefaults, [role]: merged });
   }
 
   async function onLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -112,6 +129,87 @@ export function DesignPage() {
           className="w-full border border-gray-300 rounded p-2 text-sm"
         />
       </label>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Text-Defaults pro Zone</h2>
+          <p className="text-sm text-gray-500">Standardwerte für neu generierte Slides. Im Editor pro Zone überschreibbar.</p>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-separate border-spacing-y-2">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
+                <th className="pr-3">Zone</th>
+                <th className="pr-3">Farbe</th>
+                <th className="pr-3">Font</th>
+                <th className="pr-3">Größe (px)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ZONE_ROLES.map((row) => {
+                const current = design.zoneDefaults?.[row.key] ?? row.fallback;
+                return (
+                  <tr key={row.key} className="align-top">
+                    <td className="pr-3 pt-1.5">
+                      <div className="font-medium">{row.label}</div>
+                      <div className="text-xs text-gray-500">{row.description}</div>
+                    </td>
+                    <td className="pr-3">
+                      <div className="flex gap-1">
+                        {(['primary', 'secondary'] as const).map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => updateZoneDefault(row.key, { color: opt })}
+                            className={`px-2 py-1 text-xs border rounded ${
+                              current.color === opt
+                                ? 'bg-gray-900 text-white border-gray-900'
+                                : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                            }`}
+                          >
+                            {opt === 'primary' ? 'Primär' : 'Sekundär'}
+                            <span
+                              className="inline-block w-3 h-3 ml-1.5 rounded-sm border border-black/20 align-middle"
+                              style={{ backgroundColor: opt === 'primary' ? design.primaryColor : design.secondaryColor }}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="pr-3">
+                      <select
+                        value={current.fontFamily}
+                        onChange={(e) => updateZoneDefault(row.key, { fontFamily: e.target.value })}
+                        className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
+                      >
+                        {FONT_FAMILIES.map((f) => (
+                          <option key={f} value={f} style={{ fontFamily: f }}>
+                            {f}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="pr-3">
+                      <input
+                        type="number"
+                        min={12}
+                        max={400}
+                        value={current.fontSize}
+                        onChange={(e) => {
+                          const v = parseInt(e.target.value, 10);
+                          if (Number.isFinite(v) && v > 0) updateZoneDefault(row.key, { fontSize: v });
+                        }}
+                        className="w-20 border border-gray-300 rounded px-2 py-1 text-sm tabular-nums"
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
       <div className="flex items-center gap-3">
         <button

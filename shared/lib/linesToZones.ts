@@ -8,6 +8,7 @@
 // CTA slides (BRAND lines) get a centered logo-style zone instead.
 
 import type { SlideContentLine, SocialSlide, Zone, AlignH } from '../types/slide.js';
+import type { ZoneDefaults, ZoneRole } from '../schemas/brand.js';
 
 const FONT_SIZE_BY_TYPE: Record<SlideContentLine['type'], number> = {
   ACCENT: 88,
@@ -25,22 +26,66 @@ const FONT_WEIGHT_BY_TYPE: Record<SlideContentLine['type'], number> = {
   DIVIDER: 400,
 };
 
+const FONT_FAMILY_BY_TYPE: Record<SlideContentLine['type'], string> = {
+  ACCENT: 'Inter',
+  BASE: 'Inter',
+  SUBTLE: 'Inter',
+  BRAND: 'Josefin Sans',
+  DIVIDER: 'Inter',
+};
+
+const LABEL_BY_TYPE: Record<SlideContentLine['type'], string> = {
+  ACCENT: 'Hook',
+  BASE: 'Body',
+  SUBTLE: 'Subtle',
+  BRAND: 'Brand',
+  DIVIDER: 'Divider',
+};
+
 interface ZoneSeed {
   text: string;
   fontSize: number;
   fontWeight: number;
+  fontFamily: string;
+  color: string;
+  label: string;
   isLogo?: boolean;
 }
 
-function lineSeeds(lines: SlideContentLine[]): ZoneSeed[] {
+export interface LinesToZonesOptions {
+  zoneDefaults?: ZoneDefaults;
+  primaryColor?: string;
+  secondaryColor?: string;
+}
+
+function resolveColor(
+  role: ZoneRole | null,
+  zoneDefaults: ZoneDefaults | undefined,
+  primaryColor: string,
+  secondaryColor: string,
+): string {
+  if (!role || !zoneDefaults) return secondaryColor;
+  const def = zoneDefaults[role];
+  if (!def) return secondaryColor;
+  return def.color === 'primary' ? primaryColor : secondaryColor;
+}
+
+function lineSeeds(lines: SlideContentLine[], opts: LinesToZonesOptions): ZoneSeed[] {
+  const primary = opts.primaryColor ?? '#000000';
+  const secondary = opts.secondaryColor ?? '#ffffff';
   const seeds: ZoneSeed[] = [];
   for (const line of lines) {
     if (line.type === 'DIVIDER') continue;
     if (!line.text.trim()) continue;
+    const role = line.type as ZoneRole; // ACCENT|BASE|SUBTLE|BRAND
+    const def = opts.zoneDefaults?.[role];
     seeds.push({
       text: line.text,
-      fontSize: line.fontSize ?? FONT_SIZE_BY_TYPE[line.type],
+      fontSize: line.fontSize ?? def?.fontSize ?? FONT_SIZE_BY_TYPE[line.type],
       fontWeight: FONT_WEIGHT_BY_TYPE[line.type],
+      fontFamily: def?.fontFamily ?? FONT_FAMILY_BY_TYPE[line.type],
+      color: resolveColor(role, opts.zoneDefaults, primary, secondary),
+      label: LABEL_BY_TYPE[line.type],
       isLogo: line.type === 'BRAND',
     });
   }
@@ -51,9 +96,9 @@ function zoneId(): string {
   return `z_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`;
 }
 
-export function linesToZones(slide: SocialSlide): Zone[] {
+export function linesToZones(slide: SocialSlide, opts: LinesToZonesOptions = {}): Zone[] {
   if (slide.zones && slide.zones.length > 0) return slide.zones;
-  const seeds = lineSeeds(slide.lines);
+  const seeds = lineSeeds(slide.lines, opts);
   if (seeds.length === 0) return [];
 
   // Reference canvas is 1080x1080 (post). Editor scales for portrait/story.
@@ -76,16 +121,16 @@ export function linesToZones(slide: SocialSlide): Zone[] {
     const h = heightOf(seed.fontSize);
     const z: Zone = {
       id: zoneId(),
-      label: seed.isLogo ? 'Brand' : `Text ${seed.fontSize}`,
+      label: seed.label,
       x: margin,
       y: cursorY,
       w: width,
       h,
       text: seed.text,
       fontSize: seed.fontSize,
-      fontFamily: seed.isLogo ? 'Josefin Sans' : 'Inter',
+      fontFamily: seed.fontFamily,
       fontWeight: seed.fontWeight,
-      color: '#ffffff',
+      color: seed.color,
       alignH,
       alignV: 'top',
       italic: false,

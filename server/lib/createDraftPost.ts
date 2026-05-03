@@ -6,6 +6,7 @@ import { db } from './firebase.js';
 import { FieldValue } from 'firebase-admin/firestore';
 import type { SocialSlide } from '../../shared/types/slide.js';
 import { linesToZones } from '../../shared/lib/linesToZones.js';
+import type { BrandDesign } from '../../shared/schemas/brand.js';
 
 export interface CreateDraftPostInput {
   uid: string;
@@ -23,10 +24,20 @@ export interface CreateDraftPostInput {
 export async function createDraftPost(input: CreateDraftPostInput): Promise<string> {
   const { uid, brandId, slides: rawSlides, caption } = input;
 
+  // Load brand design so per-zone-role defaults (color/font/size) and the
+  // brand's primary/secondary colors flow into the initial zone layout.
+  const brandSnap = await db.doc(`users/${uid}/brands/${brandId}`).get();
+  const design = (brandSnap.data()?.design ?? {}) as Partial<BrandDesign>;
+  const linesOpts = {
+    zoneDefaults: design.zoneDefaults,
+    primaryColor: design.primaryColor,
+    secondaryColor: design.secondaryColor,
+  };
+
   // parseSlidesMd leaves zones[] empty; populate them from lines so the editor
   // renders text on first load. aiSnapshot captures the zone-filled version too
   // so future edit-diff comparisons are apples-to-apples.
-  const slides = rawSlides.map((s) => ({ ...s, zones: linesToZones(s) }));
+  const slides = rawSlides.map((s) => ({ ...s, zones: linesToZones(s, linesOpts) }));
 
   const ref = db.collection(`users/${uid}/brands/${brandId}/posts`).doc();
   await ref.set({
