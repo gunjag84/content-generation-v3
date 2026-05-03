@@ -18,7 +18,27 @@ import {
   ZonePanel,
 } from '../components/editor';
 import type { Format, SocialSlide, Zone } from '../../../shared/types/slide';
+import { FORMAT_HEIGHTS, REF_W } from '../../../shared/types/slide';
 import type { BrandDesign } from '../../../shared/schemas/brand';
+
+// Load natural pixel dimensions of an image URL.
+function loadImageDims(url: string): Promise<{ w: number; h: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+// Scale factor that turns object-fit:contain into cover for the given canvas.
+// = max(photoRatio, canvasRatio) / min(photoRatio, canvasRatio).
+function coverScale(imgW: number, imgH: number, canvasW: number, canvasH: number): number {
+  if (imgW <= 0 || imgH <= 0 || canvasW <= 0 || canvasH <= 0) return 1;
+  const arP = imgW / imgH;
+  const arC = canvasW / canvasH;
+  return Math.max(arP, arC) / Math.min(arP, arC);
+}
 
 interface PostShape {
   slides: SocialSlide[];
@@ -27,7 +47,7 @@ interface PostShape {
   photoUrls?: Record<string, string>;
 }
 
-const FORMATS: Format[] = ['post', 'portrait', 'story'];
+const FORMATS: Format[] = ['portrait', 'post', 'story'];
 
 export default function Editor() {
   const { postId } = useParams<{ postId: string }>();
@@ -37,7 +57,7 @@ export default function Editor() {
   const [caption, setCaption] = useState('');
   const [activeSlideIdx, setActiveSlideIdx] = useState(0);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
-  const [format, setFormat] = useState<Format>('post');
+  const [format, setFormat] = useState<Format>('portrait');
   const [loading, setLoading] = useState(true);
   const [photoPool, setPhotoPool] = useState<{ id: string; url: string }[]>([]);
   const [photoTransforms, setPhotoTransforms] = useState<Record<string, { rotation: number; scale: number }>>({});
@@ -113,19 +133,66 @@ export default function Editor() {
   }
 
   function changeSlide(s: SocialSlide) {
-    setSlides((prev) => prev.map((x, i) => (i === activeSlideIdx ? s : x)));
+    setSlides((prev) =>
+      prev.map((x, i) => {
+        if (i !== activeSlideIdx) return x;
+        // If the caller changed the image transform (Zoom/X/Y), mark this slide
+        // as manually adjusted so the auto-fit no longer touches it.
+        const transformChanged =
+          s.imageScale !== x.imageScale || s.imageX !== x.imageX || s.imageY !== x.imageY;
+        return transformChanged ? { ...s, imageManualAdjust: true } : s;
+      }),
+    );
   }
 
   function applyImageToAll() {
     if (!activeSlide) return;
-    const { imageScale, imageX, imageY, imageUrl } = activeSlide;
-    setSlides((prev) => prev.map((s) => ({ ...s, imageScale, imageX, imageY, imageUrl })));
+    const { imageScale, imageX, imageY, imageUrl, imageManualAdjust } = activeSlide;
+    setSlides((prev) =>
+      prev.map((s) => ({
+        ...s,
+        imageScale,
+        imageX,
+        imageY,
+        imageUrl,
+        // Propagating values from a manually adjusted slide is itself a manual act.
+        imageManualAdjust: imageManualAdjust ?? false,
+      })),
+    );
   }
 
-  function assignPhoto(photoId: string | null) {
+  // Compute cover-fit scale for a given slide+url and apply it unless the slide
+  // has been manually adjusted in the meantime.
+  async function autoFitSlide(slideIdx: number, imageUrl: string, fmt: Format) {
+    try {
+      const { w, h } = await loadImageDims(imageUrl);
+      const scale = coverScale(w, h, REF_W, FORMAT_HEIGHTS[fmt]);
+      setSlides((prev) =>
+        prev.map((s, i) => {
+          if (i !== slideIdx) return s;
+          if (s.imageManualAdjust) return s;
+          return { ...s, imageScale: scale, imageX: 50, imageY: 50 };
+        }),
+      );
+    } catch {
+      // ignore image load failures; slide just keeps its current values
+    }
+  }
+
+  async function assignPhoto(photoId: string | null) {
     if (!activeSlide) return;
     const url = photoId ? photoPool.find((p) => p.id === photoId)?.url : undefined;
-    changeSlide({ ...activeSlide, imageUrl: url, photo: photoId ?? undefined });
+    // Reset the manual flag on photo change so auto-fit can take over again.
+    // Update directly via setSlides to bypass the transform-change detection in changeSlide.
+    const idx = activeSlideIdx;
+    setSlides((prev) =>
+      prev.map((s, i) =>
+        i !== idx
+          ? s
+          : { ...s, imageUrl: url, photo: photoId ?? undefined, imageManualAdjust: false },
+      ),
+    );
+    if (url) await autoFitSlide(idx, url, format);
   }
 
   function rotatePhoto(photoId: string, dir: 90 | -90) {
@@ -174,6 +241,44 @@ export default function Editor() {
       if (renderJob.status === 'error' && renderJob.error) setRenderError(renderJob.error);
     }
   }, [renderJob.status, renderJob.error]);
+
+  // Recompute auto-fit for every slide that hasn't been manually adjusted
+  // whenever the canvas format changes. Slides with imageManualAdjust=true keep
+  // the user's Zoom/X/Y values as-is.
+  const slidesRef = useRef<SocialSlide[]>(slides);
+  useEffect(() => {
+    slidesRef.current = slides;
+  });
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const refH = FORMAT_HEIGHTS[format];
+      const current = slidesRef.current;
+      const updates: { idx: number; scale: number }[] = [];
+      for (let i = 0; i < current.length; i++) {
+        const s = current[i];
+        if (!s.imageUrl || s.imageManualAdjust) continue;
+        try {
+          const { w, h } = await loadImageDims(s.imageUrl);
+          const scale = coverScale(w, h, REF_W, refH);
+          updates.push({ idx: i, scale });
+        } catch {
+          // skip failed image loads
+        }
+      }
+      if (cancelled || updates.length === 0) return;
+      setSlides((prev) =>
+        prev.map((s, i) => {
+          const u = updates.find((x) => x.idx === i);
+          if (!u || s.imageManualAdjust) return s;
+          return { ...s, imageScale: u.scale, imageX: 50, imageY: 50 };
+        }),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [format]);
 
   async function fakeUpload(_e: React.ChangeEvent<HTMLInputElement>) {
     // Phase 02: photo pool management lives in /settings/photos.

@@ -53,6 +53,10 @@ export interface SocialSlide {
   imageX: number;
   imageY: number;
   overlayOpacity: number;
+  // True once the user has manually changed Zoom/X/Y for this slide.
+  // While false, the editor auto-fits the photo (cover) on photo assignment
+  // and on format change. Manual edits are sticky from then on.
+  imageManualAdjust?: boolean;
 }
 
 export const FORMAT_HEIGHTS: Record<Format, number> = {
