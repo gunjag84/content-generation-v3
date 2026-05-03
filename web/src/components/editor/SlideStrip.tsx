@@ -8,9 +8,10 @@ interface SlideStripProps {
   format: Format;
   activeIdx: number;
   onSelect: (idx: number) => void;
+  backgroundColor?: string;
 }
 
-export function SlideStrip({ slides, format, activeIdx, onSelect }: SlideStripProps) {
+export function SlideStrip({ slides, format, activeIdx, onSelect, backgroundColor }: SlideStripProps) {
   return (
     <aside className="h-full w-[200px] overflow-y-auto bg-zinc-950 border-r border-zinc-800 p-2 space-y-2">
       {slides.map((slide, i) => (
@@ -21,6 +22,7 @@ export function SlideStrip({ slides, format, activeIdx, onSelect }: SlideStripPr
           active={i === activeIdx}
           index={i}
           onClick={() => onSelect(i)}
+          backgroundColor={backgroundColor}
         />
       ))}
       {slides.length === 0 && (
