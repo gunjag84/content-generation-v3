@@ -39,6 +39,20 @@ export const PostSchema = z.object({
   igMediaId: z.string().nullable().optional(),
   igPermalink: z.string().nullable().optional(),
   igStats: IgStatsSchema.optional(),
+  // Phase 4a: per-zone Levenshtein edit ratios captured at publish-time.
+  // Drives Phase 4b dashboard's edit hot-spots widget. Null until first publish.
+  editStats: z
+    .object({
+      editRatioByZone: z.object({
+        hook: z.number().min(0),
+        body: z.number().min(0),
+        cta: z.number().min(0),
+        caption: z.number().min(0),
+      }),
+      totalEditRatio: z.number().min(0),
+    })
+    .nullable()
+    .optional(),
   createdAt: z.unknown(),
   updatedAt: z.unknown(),
 });

@@ -17,6 +17,7 @@ import { getAnthropicKey } from '../lib/getAnthropicKey.js';
 import { createDraftPost } from '../lib/createDraftPost.js';
 import { buildZitatCarousel } from '../lib/zitatShortcircuit.js';
 import type { MethodSlug } from '../lib/methodResolution.js';
+import { loadTopPatterns, renderPatternsBlock, markPatternsUsed } from '../lib/learnedPatterns.js';
 
 const router = express.Router();
 
@@ -87,10 +88,24 @@ router.post('/generate', async (req: Request, res: Response) => {
   }
 
   const client = makeAnthropicClient(apiKey);
+
+  // Phase 4a: load learned patterns and inject as final prompt layer.
+  // Failure here is non-fatal - cold-start brands have no patterns and we
+  // never want pattern-load to break a generate.
+  let topPatterns: Awaited<ReturnType<typeof loadTopPatterns>> = [];
+  let patternsBlock = '';
+  try {
+    topPatterns = await loadTopPatterns(uid, body.brandId);
+    patternsBlock = renderPatternsBlock(topPatterns);
+  } catch (err) {
+    console.error('[generate] pattern load failed:', (err as Error).message);
+  }
+
   const systemPrompt = assembleSystemPrompt(
     body.method as MethodSlug,
     body.slideCount,
     body.mode,
+    patternsBlock,
   );
 
   const countInstruction =
@@ -183,6 +198,18 @@ router.post('/generate', async (req: Request, res: Response) => {
     caption: parsed.caption,
   });
   res.end();
+
+  // Mark patterns as used (recency + useCount bump). Fire-and-forget; never
+  // blocks the response or affects the generate's perceived latency.
+  if (topPatterns.length > 0) {
+    void markPatternsUsed(
+      uid,
+      body.brandId,
+      topPatterns.map((p) => p.id),
+    ).catch((err) => {
+      console.error('[generate] markPatternsUsed failed:', (err as Error).message);
+    });
+  }
 });
 
 export default router;

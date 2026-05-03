@@ -11,6 +11,8 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/firebase.js';
 import { getMetaToken } from '../lib/getMetaToken.js';
 import { publishCarousel } from '../lib/instagram.js';
+import { runLearningExtraction } from '../lib/learningExtractor.js';
+import type { SocialSlide } from '../../shared/types/slide.js';
 
 const router = Router();
 
@@ -150,11 +152,12 @@ router.post('/publish-worker', async (_req: Request, res: Response) => {
         caption,
       });
 
+      const publishedSlides: SocialSlide[] = postData.slides ?? [];
       await doc.ref.update({
         status: 'published',
         publishedAt: FieldValue.serverTimestamp(),
         publishedSnapshot: {
-          slides: postData.slides ?? [],
+          slides: publishedSlides,
           caption,
         },
         igMediaId,
@@ -164,6 +167,30 @@ router.post('/publish-worker', async (_req: Request, res: Response) => {
       });
 
       processed++;
+
+      // Phase 4a: fire-and-forget learning extraction. Never blocks the loop;
+      // never throws into the response. Container stays warm via
+      // min-instances=1 so the call has time to complete.
+      const aiSnapshot = postData.aiSnapshot as
+        | { slides: SocialSlide[]; caption: string }
+        | undefined;
+      if (aiSnapshot) {
+        void runLearningExtraction({
+          uid,
+          brandId,
+          postId: doc.id,
+          mode: postData.mode,
+          method: postData.method,
+          aiSnapshot,
+          publishedSnapshot: { slides: publishedSlides, caption },
+        }).catch((err) => {
+          console.error(
+            '[publish-worker] learningExtraction failed for',
+            doc.ref.path,
+            err,
+          );
+        });
+      }
     } catch (err) {
       console.error('[publish-worker] publish failed for', doc.ref.path, err);
       try {
