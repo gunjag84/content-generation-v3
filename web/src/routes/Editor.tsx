@@ -11,6 +11,7 @@ import { saveDraftDebounced } from '../lib/saveDraftDebounced';
 import { updateZone } from '../lib/zoneOps';
 import { useRenderJob } from '../lib/useRenderJob';
 import { api } from '../lib/api';
+import { usePhotoPool } from '../hooks/usePhotoPool';
 import {
   EditorPreview,
   SlidePanel,
@@ -47,6 +48,8 @@ export default function Editor() {
   const [rendering, setRendering] = useState(false);
   const renderJob = useRenderJob(brandId, renderJobId);
   const [brandBgColor, setBrandBgColor] = useState<string | undefined>(undefined);
+  const [uploading, setUploading] = useState(false);
+  const { upload: uploadToPool } = usePhotoPool(brandId);
 
   // Load the brand's configured background color so canvas + thumbnails reflect it.
   useEffect(() => {
@@ -175,11 +178,30 @@ export default function Editor() {
     }
   }, [renderJob.status, renderJob.error]);
 
-  async function fakeUpload(_e: React.ChangeEvent<HTMLInputElement>) {
-    // Phase 02: photo pool management lives in /settings/photos.
-    // Inline upload from the editor side panel is deferred; the input is rendered
-    // by the SlidePanel port but we keep the behavior a no-op here.
-    void _e;
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !brandId) return;
+    setUploading(true);
+    try {
+      let lastUrl: string | undefined;
+      let lastId: string | undefined;
+      for (const file of Array.from(files)) {
+        const item = await uploadToPool(file, 'editor');
+        lastUrl = item.downloadUrl;
+        lastId = item.id;
+        // Show in the editor's local photo pool immediately so the picker reflects it.
+        setPhotoPool((prev) => [...prev, { id: item.id, url: item.downloadUrl }]);
+      }
+      // Auto-assign the most recent upload to the active slide so the preview updates.
+      if (lastUrl && lastId && activeSlide) {
+        changeSlide({ ...activeSlide, imageUrl: lastUrl, photo: lastId });
+      }
+    } catch (err) {
+      console.error('upload failed', err);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
   }
 
   if (loading) return <div className="p-8 text-gray-500">Lade Editor …</div>;
@@ -265,8 +287,8 @@ export default function Editor() {
             onAssignPhoto={assignPhoto}
             onRotatePhoto={rotatePhoto}
             onScalePhoto={scalePhoto}
-            onUpload={fakeUpload}
-            uploading={false}
+            onUpload={handleUpload}
+            uploading={uploading}
             syncGradientColor={syncGradient}
             onSyncGradientColorChange={syncGradientChange}
           />
