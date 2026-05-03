@@ -72,6 +72,17 @@ export const PostSchema = z.object({
     })
     .nullable()
     .optional(),
+  // Phase 4a observability: structured failure record from learningExtractor
+  // / patternAudit / approvalLedger. Set when a step fails so the dashboard
+  // can surface 'this post couldn't learn'. Null on the happy path.
+  learningError: z
+    .object({
+      step: z.enum(['diff', 'editStats', 'apiKey', 'extract', 'audit', 'persist', 'ledger']),
+      message: z.string(),
+      at: z.unknown(),
+    })
+    .nullable()
+    .optional(),
   createdAt: z.unknown(),
   updatedAt: z.unknown(),
 });

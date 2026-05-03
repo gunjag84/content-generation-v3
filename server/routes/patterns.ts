@@ -10,6 +10,7 @@ import { Router, type Request, type Response } from 'express';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/firebase.js';
 import { loadPromotionCandidates } from '../lib/learnedPatterns.js';
+import { recordApproval } from '../lib/approvalLedger.js';
 import type { LearnedPattern } from '../../shared/schemas/learnedPattern.js';
 
 const router = Router();
@@ -84,20 +85,49 @@ router.post('/patterns/:patternId/approve', async (req: Request, res: Response) 
   });
   batch.delete(patternRef);
 
-  // Cleanup: delete any other ACTIVE patterns with byte-identical description
-  // (same lesson, different source post). Dismissed/promoted are left alone.
-  const dupSnap = await db
-    .collection(`users/${uid(req)}/brands/${brandId}/learnedPatterns`)
-    .where('status', '==', 'active')
-    .where('description', '==', pattern.description)
-    .limit(50)
-    .get();
-  for (const d of dupSnap.docs) {
-    if (d.id !== patternId) batch.delete(d.ref);
+  await batch.commit();
+
+  // F2: record approval event for ledger tracking (fire-and-forget).
+  recordApproval({
+    uid: uid(req),
+    brandId,
+    patternId,
+    patternDescription: pattern.description,
+    zone: pattern.zone,
+    target,
+    mergedText,
+  }).catch(console.error);
+
+  // F1 + F4: zone-wide cleanup of all active siblings in the same zone.
+  // Runs as a second batch so a cleanup failure never rolls back the approval.
+  let deletedSiblingCount = 0;
+  let cleanupError: string | undefined;
+  try {
+    const zoneSnap = await db
+      .collection(`users/${uid(req)}/brands/${brandId}/learnedPatterns`)
+      .where('status', '==', 'active')
+      .where('zone', '==', pattern.zone)
+      .limit(100)
+      .get();
+    const cleanupBatch = db.batch();
+    for (const d of zoneSnap.docs) {
+      if (d.id !== patternId) {
+        cleanupBatch.delete(d.ref);
+        deletedSiblingCount++;
+      }
+    }
+    if (deletedSiblingCount > 0) await cleanupBatch.commit();
+  } catch (err) {
+    console.error('[patterns] zone-wide cleanup failed:', (err as Error).message, { brandId, zone: pattern.zone });
+    cleanupError = (err as Error).message;
   }
 
-  await batch.commit();
-  res.json({ ok: true, deletedSiblingCount: Math.max(0, dupSnap.size - 1) });
+  const response: { ok: true; deletedSiblingCount: number; cleanupError?: string } = {
+    ok: true,
+    deletedSiblingCount,
+  };
+  if (cleanupError !== undefined) response.cleanupError = cleanupError;
+  res.json(response);
 });
 
 // ── POST /patterns/:patternId/dismiss ───────────────────────────────────────

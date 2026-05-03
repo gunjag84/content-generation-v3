@@ -16,12 +16,12 @@ import {
 } from '../../shared/schemas/learnedPattern.js';
 import type { SocialSlide } from '../../shared/types/slide.js';
 import { loadDismissedPatternDescriptions } from './learnedPatterns.js';
-
-// Below this ratio the edit is treated as noise (typo, single-word swap).
-// 0.15 = ~15% Levenshtein distance over max(original, edited) length.
-const EDIT_RATIO_THRESHOLD = 0.15;
-const HAIKU_MODEL = 'claude-haiku-4-5';
-const HAIKU_MAX_TOKENS = 400;
+import {
+  EDIT_RATIO_THRESHOLD,
+  HAIKU_MODEL,
+  HAIKU_EXTRACT_MAX_TOKENS,
+} from './learningConfig.js';
+import { updateApprovalLedgerForPublish } from './approvalLedger.js';
 
 interface PublishedPostShape {
   uid: string;
@@ -94,7 +94,7 @@ async function extractPattern(
     try {
       const resp = await client.messages.create({
         model: HAIKU_MODEL,
-        max_tokens: HAIKU_MAX_TOKENS,
+        max_tokens: HAIKU_EXTRACT_MAX_TOKENS,
         messages: [{ role: 'user', content: finalPrompt }],
       });
       for (const block of resp.content) {
@@ -114,17 +114,33 @@ async function extractPattern(
 export async function runLearningExtraction(input: PublishedPostShape): Promise<void> {
   const { uid, brandId, postId, aiSnapshot, publishedSnapshot, mode, method } = input;
 
+  const postRef = db.doc(`users/${uid}/brands/${brandId}/posts/${postId}`);
+
+  const writeLearningError = (
+    step: 'diff' | 'editStats' | 'apiKey' | 'extract' | 'audit' | 'persist' | 'ledger',
+    err: Error,
+  ): void => {
+    postRef
+      .update({
+        learningError: { step, message: err.message, at: FieldValue.serverTimestamp() },
+      })
+      .catch((writeErr: Error) =>
+        console.error('[learningExtractor] learningError write failed:', writeErr.message),
+      );
+  };
+
   let diff: EditDiff;
   try {
     diff = computeEditDiff(aiSnapshot, publishedSnapshot);
   } catch (err) {
     console.error('[learningExtractor] diff failed:', (err as Error).message);
+    writeLearningError('diff', err as Error);
     return;
   }
 
   // Always write editStats - drives Phase 4b dashboard even when no patterns extracted.
   try {
-    await db.doc(`users/${uid}/brands/${brandId}/posts/${postId}`).update({
+    await postRef.update({
       editStats: {
         editRatioByZone: {
           hook: diff.byZone.hook.ratio,
@@ -138,7 +154,16 @@ export async function runLearningExtraction(input: PublishedPostShape): Promise<
     });
   } catch (err) {
     console.error('[learningExtractor] editStats write failed:', (err as Error).message);
+    writeLearningError('editStats', err as Error);
   }
+
+  // F2: update approval ledger with this publish's edit ratio (fire-and-forget).
+  updateApprovalLedgerForPublish({ uid, brandId, postEditRatio: diff.totalRatio }).catch(
+    (err: Error) => {
+      console.error('[learningExtractor] ledger update failed:', err.message);
+      writeLearningError('ledger', err);
+    },
+  );
 
   const grouped: Record<DiffZone, { original: string; edited: string }[]> = {
     hook: [],
@@ -164,6 +189,7 @@ export async function runLearningExtraction(input: PublishedPostShape): Promise<
     apiKey = await getAnthropicKey(uid);
   } catch (err) {
     console.error('[learningExtractor] no anthropic key for', uid, (err as Error).message);
+    writeLearningError('apiKey', err as Error);
     return;
   }
 
@@ -196,6 +222,7 @@ export async function runLearningExtraction(input: PublishedPostShape): Promise<
         '[learningExtractor] idempotency check failed:',
         (err as Error).message,
       );
+      writeLearningError('persist', err as Error);
       continue;
     }
 
@@ -236,6 +263,7 @@ export async function runLearningExtraction(input: PublishedPostShape): Promise<
         '[learningExtractor] pattern save failed:',
         (err as Error).message,
       );
+      writeLearningError('persist', err as Error);
     }
   }
 }

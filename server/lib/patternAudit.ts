@@ -14,9 +14,7 @@ import { db } from './firebase.js';
 import { makeAnthropicClient } from './anthropic.js';
 import type { LoadedPattern } from './learnedPatterns.js';
 import type { SocialSlide } from '../../shared/types/slide.js';
-
-const AUDIT_MODEL = 'claude-haiku-4-5';
-const AUDIT_MAX_TOKENS = 1500;
+import { HAIKU_MODEL, AUDIT_MAX_TOKENS } from './learningConfig.js';
 
 const AuditResultSchema = z.object({
   results: z.array(
@@ -85,13 +83,25 @@ export async function auditAndPersistPatternMatch(input: AuditInput): Promise<vo
   const { uid, brandId, postId, apiKey, patterns, output } = input;
   if (patterns.length === 0) return;
 
+  const postRef = db.doc(`users/${uid}/brands/${brandId}/posts/${postId}`);
+
+  const writeLearningError = (err: Error): void => {
+    postRef
+      .update({
+        learningError: { step: 'audit', message: err.message, at: FieldValue.serverTimestamp() },
+      })
+      .catch((writeErr: Error) =>
+        console.error('[patternAudit] learningError write failed:', writeErr.message),
+      );
+  };
+
   const client = makeAnthropicClient(apiKey);
   const prompt = buildAuditPrompt(patterns, output);
 
   let text = '';
   try {
     const resp = await client.messages.create({
-      model: AUDIT_MODEL,
+      model: HAIKU_MODEL,
       max_tokens: AUDIT_MAX_TOKENS,
       messages: [{ role: 'user', content: prompt }],
     });
@@ -100,6 +110,7 @@ export async function auditAndPersistPatternMatch(input: AuditInput): Promise<vo
     }
   } catch (err) {
     console.error('[patternAudit] anthropic call failed:', (err as Error).message);
+    writeLearningError(err as Error);
     return;
   }
 
@@ -113,6 +124,7 @@ export async function auditAndPersistPatternMatch(input: AuditInput): Promise<vo
     parsed = AuditResultSchema.parse(JSON.parse(cleaned));
   } catch (err) {
     console.error('[patternAudit] invalid JSON from haiku:', (err as Error).message);
+    writeLearningError(err as Error);
     return;
   }
 
@@ -137,7 +149,7 @@ export async function auditAndPersistPatternMatch(input: AuditInput): Promise<vo
   const score = total > 0 ? Math.round((followedCount / total) * 1000) / 1000 : 0;
 
   try {
-    await db.doc(`users/${uid}/brands/${brandId}/posts/${postId}`).update({
+    await postRef.update({
       patternAudit: {
         score,
         totalPatterns: total,
@@ -152,5 +164,6 @@ export async function auditAndPersistPatternMatch(input: AuditInput): Promise<vo
     );
   } catch (err) {
     console.error('[patternAudit] write failed:', (err as Error).message);
+    writeLearningError(err as Error);
   }
 }

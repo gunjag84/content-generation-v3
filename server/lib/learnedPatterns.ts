@@ -7,17 +7,13 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './firebase.js';
 import type { LearnedPattern, PatternZone } from '../../shared/schemas/learnedPattern.js';
-
-const TOP_N = 20;
-// Pattern weight halves every 30 days since last use. Keeps fresh signal
-// dominant; aged patterns fade rather than disappearing abruptly.
-const RECENCY_HALF_LIFE_DAYS = 30;
-// Hard read cap to keep loadTopPatterns cheap; brands won't exceed this in practice.
-const MAX_FETCH = 200;
-// Promotion-candidate thresholds. Pattern crossing both becomes a "Suggested
-// update" in Settings. Tunable - start strict, loosen if no candidates appear.
-const PROMOTION_USE_COUNT = 3;
-const PROMOTION_CONFIDENCE = 0.7;
+import {
+  TOP_N,
+  RECENCY_HALF_LIFE_DAYS,
+  MAX_FETCH,
+  PROMOTION_USE_COUNT,
+  PROMOTION_CONFIDENCE,
+} from './learningConfig.js';
 
 export interface LoadedPattern extends LearnedPattern {
   id: string;
