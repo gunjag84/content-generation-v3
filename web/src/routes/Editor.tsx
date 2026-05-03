@@ -7,6 +7,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { useActiveBrand } from '../store/activeBrand';
 import { useDebouncedAutoSave } from '../hooks/useDebouncedAutoSave';
+import { usePhotoPool } from '../hooks/usePhotoPool';
 import { saveDraftDebounced } from '../lib/saveDraftDebounced';
 import { updateZone } from '../lib/zoneOps';
 import { useRenderJob } from '../lib/useRenderJob';
@@ -67,6 +68,9 @@ export default function Editor() {
   const [rendering, setRendering] = useState(false);
   const renderJob = useRenderJob(brandId, renderJobId);
   const [brandBgColor, setBrandBgColor] = useState<string | undefined>(undefined);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const { upload: uploadToBrandPool } = usePhotoPool(brandId);
 
   // Load the brand's configured background color so canvas + thumbnails reflect it.
   useEffect(() => {
@@ -289,11 +293,26 @@ export default function Editor() {
     };
   }, [format]);
 
-  async function fakeUpload(_e: React.ChangeEvent<HTMLInputElement>) {
-    // Phase 02: photo pool management lives in /settings/photos.
-    // Inline upload from the editor side panel is deferred; the input is rendered
-    // by the SlidePanel port but we keep the behavior a no-op here.
-    void _e;
+  // Upload directly from the editor side panel into the brand-wide photo pool.
+  // The new entries appear in the local photoPool immediately so the user can
+  // pick them in the same session, AND they persist via Firestore so they show
+  // up in Settings → Photos and on future Generate runs.
+  async function realUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      for (const file of Array.from(files)) {
+        const item = await uploadToBrandPool(file, 'all');
+        setPhotoPool((prev) => [...prev, { id: item.id, url: item.downloadUrl }]);
+      }
+    } catch (err) {
+      setUploadError((err as Error).message);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
   }
 
   if (loading) return <div className="p-8 text-gray-500">Lade Editor …</div>;
@@ -379,8 +398,9 @@ export default function Editor() {
             onAssignPhoto={assignPhoto}
             onRotatePhoto={rotatePhoto}
             onScalePhoto={scalePhoto}
-            onUpload={fakeUpload}
-            uploading={false}
+            onUpload={realUpload}
+            uploading={uploading}
+            uploadError={uploadError}
             syncGradientColor={syncGradient}
             onSyncGradientColorChange={syncGradientChange}
           />

@@ -63,6 +63,7 @@ interface SlidePanelProps {
   onScalePhoto: (photoId: string, scale: number) => void;
   onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   uploading: boolean;
+  uploadError?: string | null;
   syncGradientColor: boolean;
   onSyncGradientColorChange: (v: boolean) => void;
 }
@@ -71,7 +72,7 @@ export function SlidePanel({
   slide, onChange, onApplyImageToAll,
   photoPool, slidePhotoId, photoTransforms,
   onAssignPhoto, onRotatePhoto,
-  onUpload, uploading,
+  onUpload, uploading, uploadError,
   syncGradientColor, onSyncGradientColorChange,
 }: SlidePanelProps) {
   const s = (p: Partial<SocialSlide>) => onChange({ ...slide, ...p });
@@ -93,68 +94,71 @@ export function SlidePanel({
         </div>
       </div>
 
-      {needsPhoto && (
-        <>
-          <Divider />
-          <div>
-            <Label>Photo</Label>
-            {photoPool.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {photoPool.map(photo => {
-                  const isSelected = slidePhotoId === photo.id;
-                  const pt = photoTransforms[photo.id] || { rotation: 0, scale: 1 };
-                  return (
-                    <div key={photo.id} className="flex flex-col items-center gap-1">
-                      <button
-                        onClick={() => onAssignPhoto(isSelected ? null : photo.id)}
-                        className={`relative w-12 h-14 overflow-hidden border-2 ${
-                          isSelected ? 'border-amber-500' : 'border-zinc-700 hover:border-zinc-500'
-                        }`}
-                      >
-                        <img
-                          src={photo.url}
-                          alt=""
-                          className="w-full h-full object-cover"
-                          style={{ transform: `rotate(${pt.rotation}deg) scale(${pt.scale})` }}
-                        />
-                        {isSelected && (
-                          <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center">
-                            <span className="text-amber-500 text-[14px] font-bold">&#10003;</span>
-                          </div>
-                        )}
-                      </button>
-                      {isSelected && (
-                        <div className="flex items-center gap-0.5">
-                          <button onClick={() => onRotatePhoto(photo.id, -90)}
-                            className="w-4 h-4 bg-zinc-800 border border-zinc-700 text-[9px] text-zinc-400 hover:text-zinc-50 flex items-center justify-center"
-                            title="Rotate left">&#8634;</button>
-                          <button onClick={() => onRotatePhoto(photo.id, 90)}
-                            className="w-4 h-4 bg-zinc-800 border border-zinc-700 text-[9px] text-zinc-400 hover:text-zinc-50 flex items-center justify-center"
-                            title="Rotate right">&#8635;</button>
-                        </div>
-                      )}
+      <Divider />
+      <div>
+        <Label>Photo</Label>
+        {needsPhoto && photoPool.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {photoPool.map(photo => {
+              const isSelected = slidePhotoId === photo.id;
+              const pt = photoTransforms[photo.id] || { rotation: 0, scale: 1 };
+              return (
+                <div key={photo.id} className="flex flex-col items-center gap-1">
+                  <button
+                    onClick={() => onAssignPhoto(isSelected ? null : photo.id)}
+                    className={`relative w-12 h-14 overflow-hidden border-2 ${
+                      isSelected ? 'border-amber-500' : 'border-zinc-700 hover:border-zinc-500'
+                    }`}
+                  >
+                    <img
+                      src={photo.url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      style={{ transform: `rotate(${pt.rotation}deg) scale(${pt.scale})` }}
+                    />
+                    {isSelected && (
+                      <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center">
+                        <span className="text-amber-500 text-[14px] font-bold">&#10003;</span>
+                      </div>
+                    )}
+                  </button>
+                  {isSelected && (
+                    <div className="flex items-center gap-0.5">
+                      <button onClick={() => onRotatePhoto(photo.id, -90)}
+                        className="w-4 h-4 bg-zinc-800 border border-zinc-700 text-[9px] text-zinc-400 hover:text-zinc-50 flex items-center justify-center"
+                        title="Rotate left">&#8634;</button>
+                      <button onClick={() => onRotatePhoto(photo.id, 90)}
+                        className="w-4 h-4 bg-zinc-800 border border-zinc-700 text-[9px] text-zinc-400 hover:text-zinc-50 flex items-center justify-center"
+                        title="Rotate right">&#8635;</button>
                     </div>
-                  );
-                })}
-              </div>
-            )}
-
-            <label className={`
-              mt-2 flex items-center gap-1.5 px-2 py-1.5 cursor-pointer font-mono text-[10px] uppercase tracking-widest transition-colors
-              ${uploading ? 'bg-zinc-800 text-zinc-600' : 'bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'}
-            `}>
-              <Ico d={I.image} size={10} />
-              {uploading ? 'Uploading...' : photoPool.length > 0 ? '+ Add Photos' : 'Upload Photos'}
-              <input type="file" accept="image/png,image/jpeg,image/webp" multiple
-                onChange={onUpload} className="hidden" disabled={uploading} />
-            </label>
-
-            {photoPool.length > 0 && !slidePhotoId && (
-              <div className="text-[10px] text-zinc-600 mt-1">Using first photo as default</div>
-            )}
+                  )}
+                </div>
+              );
+            })}
           </div>
-        </>
-      )}
+        )}
+
+        <label className={`
+          mt-2 flex items-center gap-1.5 px-2 py-1.5 cursor-pointer font-mono text-[10px] uppercase tracking-widest transition-colors
+          ${uploading ? 'bg-zinc-800 text-zinc-600' : 'bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600'}
+        `}>
+          <Ico d={I.image} size={10} />
+          {uploading ? 'Uploading...' : photoPool.length > 0 ? '+ Add Photos' : 'Upload Photos'}
+          <input type="file" accept="image/png,image/jpeg,image/webp" multiple
+            onChange={onUpload} className="hidden" disabled={uploading} />
+        </label>
+
+        {uploadError && (
+          <div className="mt-1 font-mono text-[10px] text-red-400">{uploadError}</div>
+        )}
+
+        {needsPhoto && photoPool.length > 0 && !slidePhotoId && (
+          <div className="text-[10px] text-zinc-600 mt-1">Using first photo as default</div>
+        )}
+        {!needsPhoto && (
+          <div className="text-[10px] text-zinc-600 mt-1">CTA slide — uploads add to the brand pool for use on photo/overlay slides.</div>
+        )}
+      </div>
 
       {(slide.type === 'photo' || slide.type === 'overlay') && (
         <>
