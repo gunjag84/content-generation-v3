@@ -1,150 +1,309 @@
-import { useEffect, useState } from 'react';
-import {
-  collection,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-  type Timestamp,
-} from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { useMemo, useState } from 'react';
 import { useActiveBrand } from '../../store/activeBrand';
-import { engagementRate } from '../../../../shared/lib/stats';
-import type { IgStats } from '../../../../shared/schemas/post';
+import { usePublishedPosts, type PublishedPostWithId } from '../../hooks/usePublishedPosts';
+import {
+  engagementRate,
+  freshestSyncedAt,
+  safePublishedAt,
+} from '../../../../shared/lib/stats';
+import { formatDate, formatNumber, timeAgo } from '../../lib/format';
+import { StatCard } from '../../components/posts/StatCard';
+import { SortHeader } from '../../components/posts/SortHeader';
+import {
+  DateRangeFilter,
+  DATE_RANGE_DAYS,
+  type DateRange,
+} from '../../components/posts/DateRangeFilter';
 
-interface PostRow {
-  id: string;
-  title: string;
-  thumb: string | null;
-  publishedAt: Timestamp | null;
-  igPermalink: string | null;
-  igMediaId: string | null;
-  igStats: IgStats | null;
+type SortField =
+  | 'publishedAt'
+  | 'reach'
+  | 'impressions'
+  | 'likes'
+  | 'comments'
+  | 'saves'
+  | 'engagement';
+
+interface Row {
+  post: PublishedPostWithId;
+  publishedDate: Date | null;
+  reach: number | null;
+  impressions: number | null;
+  likes: number | null;
+  comments: number | null;
+  saves: number | null;
+  engagement: number | null;
 }
 
-const fmt = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
-
-function formatTs(ts: Timestamp | null): string {
-  if (!ts) return '';
-  return fmt.format(ts.toDate());
-}
-
-function thumb(data: Record<string, unknown>): string | null {
-  const urls = data['renderedSlideUrls'];
-  if (Array.isArray(urls) && urls.length > 0 && typeof urls[0] === 'string') return urls[0];
-  const photoUrls = data['photoUrls'] as Record<string, string> | undefined;
+function thumb(post: PublishedPostWithId): string | null {
+  if (Array.isArray(post.renderedSlideUrls) && post.renderedSlideUrls.length > 0) {
+    const first = post.renderedSlideUrls[0];
+    if (typeof first === 'string') return first;
+  }
+  const photoUrls = post.photoUrls;
   if (photoUrls) return photoUrls['all'] ?? photoUrls['1'] ?? null;
   return null;
 }
 
-function hookTitle(data: Record<string, unknown>): string {
-  const slides = data['slides'] as Array<{ zones?: Array<{ text?: string }> }> | undefined;
+function hookTitle(post: PublishedPostWithId): string {
+  const slides = post.slides as Array<{ zones?: Array<{ text?: string }> }> | undefined;
   if (slides && slides.length > 0) {
-    const first = slides[0];
-    const zone = first?.zones?.find((z) => z.text);
-    if (zone?.text) return zone.text.slice(0, 80);
+    const zone = slides[0]?.zones?.find((z) => z.text);
+    if (zone?.text) return zone.text;
   }
-  return 'Kein Titel';
+  const cap = post.publishedSnapshot?.caption ?? post.caption ?? '';
+  return cap || 'Kein Titel';
 }
 
-function igLink(row: PostRow): string | null {
-  if (row.igPermalink) return row.igPermalink;
-  if (row.igMediaId) return `https://www.instagram.com/p/${row.igMediaId}/`;
+function igLink(post: PublishedPostWithId): string | null {
+  if (post.igPermalink) return post.igPermalink;
+  if (post.igMediaId) return `https://www.instagram.com/p/${post.igMediaId}/`;
   return null;
 }
 
-function PostStatsLine({ stats }: { stats: IgStats | null }) {
-  if (!stats) return null;
-  const er = engagementRate(stats);
-  const cells: string[] = [];
-  if (typeof stats.reach === 'number') cells.push(`${stats.reach.toLocaleString('de-DE')} Reach`);
-  if (typeof stats.likes === 'number') cells.push(`${stats.likes.toLocaleString('de-DE')} Likes`);
-  if (typeof stats.comments === 'number') cells.push(`${stats.comments.toLocaleString('de-DE')} Kommentare`);
-  if (typeof stats.saves === 'number') cells.push(`${stats.saves.toLocaleString('de-DE')} Saves`);
-  if (er !== null) cells.push(`${(er * 100).toFixed(1)}% Engagement`);
-  if (cells.length === 0) return null;
-  return <p className="text-[11px] text-gray-400 mt-0.5">{cells.join(' · ')}</p>;
+function buildRow(post: PublishedPostWithId): Row {
+  const stats = post.igStats ?? null;
+  return {
+    post,
+    publishedDate: safePublishedAt(post),
+    reach: stats?.reach ?? null,
+    impressions: stats?.impressions ?? null,
+    likes: stats?.likes ?? null,
+    comments: stats?.comments ?? null,
+    saves: stats?.saves ?? null,
+    engagement: engagementRate(stats),
+  };
+}
+
+function sortRows(rows: Row[], field: SortField, order: 'asc' | 'desc'): Row[] {
+  const dir = order === 'desc' ? -1 : 1;
+  const out = [...rows];
+  out.sort((a, b) => {
+    const av = field === 'publishedAt' ? (a.publishedDate?.getTime() ?? 0) : (a[field] ?? -Infinity);
+    const bv = field === 'publishedAt' ? (b.publishedDate?.getTime() ?? 0) : (b[field] ?? -Infinity);
+    if (av === bv) return 0;
+    return av < bv ? -1 * dir : 1 * dir;
+  });
+  return out;
+}
+
+function inRange(row: Row, range: DateRange): boolean {
+  const days = DATE_RANGE_DAYS[range];
+  if (days === null) return true;
+  if (!row.publishedDate) return false;
+  const cutoff = Date.now() - days * 86400000;
+  return row.publishedDate.getTime() >= cutoff;
 }
 
 export function HistoryTab() {
   const { uid, brandId } = useActiveBrand();
-  const [posts, setPosts] = useState<PostRow[]>([]);
+  const { posts, loading, error } = usePublishedPosts(brandId);
 
-  useEffect(() => {
-    if (!uid || !brandId) return;
-    const q = query(
-      collection(db, 'users', uid, 'brands', brandId, 'posts'),
-      where('status', '==', 'published'),
-      orderBy('publishedAt', 'desc'),
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      setPosts(
-        snap.docs.slice(0, 50).map((d) => {
-          const data = d.data() as Record<string, unknown>;
-          return {
-            id: d.id,
-            title: hookTitle(data),
-            thumb: thumb(data),
-            publishedAt: (data['publishedAt'] as Timestamp | null) ?? null,
-            igPermalink: (data['igPermalink'] as string | null) ?? null,
-            igMediaId: (data['igMediaId'] as string | null) ?? null,
-            igStats: (data['igStats'] as IgStats | undefined) ?? null,
-          };
-        }),
-      );
-    });
-    return unsub;
-  }, [uid, brandId]);
+  const [range, setRange] = useState<DateRange>('all');
+  const [sort, setSort] = useState<SortField>('publishedAt');
+  const [order, setOrder] = useState<'asc' | 'desc'>('desc');
+
+  const allRows = useMemo(() => posts.map(buildRow), [posts]);
+
+  const counts: Record<DateRange, number> = useMemo(
+    () => ({
+      '7d': allRows.filter((r) => inRange(r, '7d')).length,
+      '30d': allRows.filter((r) => inRange(r, '30d')).length,
+      '90d': allRows.filter((r) => inRange(r, '90d')).length,
+      all: allRows.length,
+    }),
+    [allRows],
+  );
+
+  const filteredRows = useMemo(
+    () => allRows.filter((r) => inRange(r, range)),
+    [allRows, range],
+  );
+
+  const sortedRows = useMemo(
+    () => sortRows(filteredRows, sort, order),
+    [filteredRows, sort, order],
+  );
+
+  const totals = useMemo(() => {
+    let count = 0;
+    let reach = 0;
+    let reachN = 0;
+    let impressions = 0;
+    let impressionsN = 0;
+    let likes = 0;
+    let likesN = 0;
+    let comments = 0;
+    let commentsN = 0;
+    let saves = 0;
+    let savesN = 0;
+    for (const r of filteredRows) {
+      count += 1;
+      if (r.reach != null) { reach += r.reach; reachN += 1; }
+      if (r.impressions != null) { impressions += r.impressions; impressionsN += 1; }
+      if (r.likes != null) { likes += r.likes; likesN += 1; }
+      if (r.comments != null) { comments += r.comments; commentsN += 1; }
+      if (r.saves != null) { saves += r.saves; savesN += 1; }
+    }
+    return {
+      count,
+      reach: reachN > 0 ? reach : null,
+      reachAvg: reachN > 0 ? reach / reachN : null,
+      impressions: impressionsN > 0 ? impressions : null,
+      impressionsAvg: impressionsN > 0 ? impressions / impressionsN : null,
+      likes: likesN > 0 ? likes : null,
+      likesAvg: likesN > 0 ? likes / likesN : null,
+      comments: commentsN > 0 ? comments : null,
+      commentsAvg: commentsN > 0 ? comments / commentsN : null,
+      saves: savesN > 0 ? saves : null,
+      savesAvg: savesN > 0 ? saves / savesN : null,
+    };
+  }, [filteredRows]);
+
+  const lastSync = useMemo(() => freshestSyncedAt(posts), [posts]);
+
+  const handleSort = (field: SortField) => {
+    if (sort === field) {
+      setOrder(order === 'desc' ? 'asc' : 'desc');
+    } else {
+      setSort(field);
+      setOrder('desc');
+    }
+  };
 
   if (!uid || !brandId) return null;
 
+  if (loading && posts.length === 0) {
+    return <p className="p-8 text-sm text-gray-500">Lade ...</p>;
+  }
+
+  if (error) {
+    return <p className="p-8 text-sm text-red-600">{error}</p>;
+  }
+
   if (posts.length === 0) {
     return (
-      <p className="p-8 text-gray-500 text-sm">Noch nichts veröffentlicht.</p>
+      <p className="p-8 text-sm text-gray-500">Noch nichts veröffentlicht.</p>
     );
   }
 
+  const gridCols =
+    'grid-cols-[minmax(0,1fr)_72px_72px_72px_72px_72px_72px_24px]';
+
   return (
-    <ul className="divide-y divide-gray-200">
-      {posts.map((p) => {
-        const link = igLink(p);
-        return (
-          <li key={p.id} className="flex items-center gap-4 px-6 py-4">
-            {/* Thumbnail */}
-            <div className="shrink-0 w-12 h-12 rounded overflow-hidden bg-gray-100">
-              {p.thumb ? (
-                <img src={p.thumb} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <span className="flex items-center justify-center w-full h-full text-gray-400 text-xs">?</span>
-              )}
-            </div>
+    <div className="p-6 space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between">
+        <div className="text-xs text-gray-500">
+          {lastSync ? <>Stats {timeAgo(lastSync)} synchronisiert</> : 'Stats noch nicht synchronisiert'}
+        </div>
+        <DateRangeFilter active={range} counts={counts} onChange={setRange} />
+      </div>
 
-            {/* Title + date + stats */}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{p.title}</p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Veröffentlicht: {formatTs(p.publishedAt)}
-              </p>
-              <PostStatsLine stats={p.igStats} />
-            </div>
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+        <StatCard label="Posts" value={totals.count} />
+        <StatCard label="Reach" value={totals.reach} avg={totals.reachAvg} />
+        <StatCard label="Impressions" value={totals.impressions} avg={totals.impressionsAvg} />
+        <StatCard label="Likes" value={totals.likes} avg={totals.likesAvg} />
+        <StatCard label="Kommentare" value={totals.comments} avg={totals.commentsAvg} />
+        <StatCard label="Saves" value={totals.saves} avg={totals.savesAvg} />
+      </div>
 
-            {/* IG link */}
-            {link && (
-              <a
-                href={link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 text-gray-400 hover:text-indigo-600"
-                title="Auf Instagram ansehen"
+      {/* Table */}
+      <div className="border border-gray-200 rounded bg-white overflow-x-auto">
+        <div className="min-w-[820px]">
+          {/* Header row */}
+          <div className={`grid ${gridCols} gap-3 px-4 py-3 border-b border-gray-200`}>
+            <SortHeader field="publishedAt" label="Datum" active={sort} order={order} onSort={handleSort} />
+            <SortHeader field="reach" label="Reach" active={sort} order={order} onSort={handleSort} align="right" />
+            <SortHeader field="impressions" label="Impr." active={sort} order={order} onSort={handleSort} align="right" />
+            <SortHeader field="likes" label="Likes" active={sort} order={order} onSort={handleSort} align="right" />
+            <SortHeader field="comments" label="Komm." active={sort} order={order} onSort={handleSort} align="right" />
+            <SortHeader field="saves" label="Saves" active={sort} order={order} onSort={handleSort} align="right" />
+            <SortHeader field="engagement" label="Eng. %" active={sort} order={order} onSort={handleSort} align="right" />
+            <span />
+          </div>
+
+          {/* Rows */}
+          {sortedRows.map((r) => {
+            const link = igLink(r.post);
+            const hook = hookTitle(r.post);
+            const cap = r.post.publishedSnapshot?.caption ?? r.post.caption ?? '';
+            const t = thumb(r.post);
+            return (
+              <div
+                key={r.post.id}
+                className={`grid ${gridCols} gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 items-center`}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
-              </a>
-            )}
-          </li>
-        );
-      })}
-    </ul>
+                {/* Thumb + title + caption preview */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="shrink-0 w-10 h-10 rounded overflow-hidden bg-gray-100">
+                    {t ? (
+                      <img src={t} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="flex items-center justify-center w-full h-full text-gray-400 text-xs">?</span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-gray-900 truncate">
+                      {hook.length > 70 ? hook.slice(0, 70) + '…' : hook}
+                    </div>
+                    <div className="text-[11px] text-gray-500 mt-0.5">
+                      <span className="tabular-nums">{formatDate(r.publishedDate)}</span>
+                      {cap && (
+                        <span className="ml-2 truncate">
+                          · {cap.length > 60 ? cap.slice(0, 60) + '…' : cap}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-right text-sm text-gray-700 tabular-nums">
+                  {formatNumber(r.reach)}
+                </div>
+                <div className="text-right text-sm text-gray-700 tabular-nums">
+                  {formatNumber(r.impressions)}
+                </div>
+                <div className="text-right text-sm text-gray-700 tabular-nums">
+                  {formatNumber(r.likes)}
+                </div>
+                <div className="text-right text-sm text-gray-700 tabular-nums">
+                  {formatNumber(r.comments)}
+                </div>
+                <div className="text-right text-sm text-gray-700 tabular-nums">
+                  {formatNumber(r.saves)}
+                </div>
+                <div className="text-right text-sm text-gray-700 tabular-nums">
+                  {r.engagement != null ? (r.engagement * 100).toFixed(1) + '%' : '–'}
+                </div>
+
+                {/* IG link icon */}
+                <div className="text-right">
+                  {link ? (
+                    <a
+                      href={link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex text-gray-400 hover:text-indigo-600"
+                      title="Auf Instagram ansehen"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+
+          <div className="px-4 py-3 text-[11px] text-gray-500">
+            {sortedRows.length} {sortedRows.length === 1 ? 'Post' : 'Posts'}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
