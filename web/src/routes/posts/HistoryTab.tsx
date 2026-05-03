@@ -9,6 +9,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useActiveBrand } from '../../store/activeBrand';
+import { engagementRate } from '../../../../shared/lib/stats';
+import type { IgStats } from '../../../../shared/schemas/post';
 
 interface PostRow {
   id: string;
@@ -17,6 +19,7 @@ interface PostRow {
   publishedAt: Timestamp | null;
   igPermalink: string | null;
   igMediaId: string | null;
+  igStats: IgStats | null;
 }
 
 const fmt = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
@@ -50,6 +53,19 @@ function igLink(row: PostRow): string | null {
   return null;
 }
 
+function PostStatsLine({ stats }: { stats: IgStats | null }) {
+  if (!stats) return null;
+  const er = engagementRate(stats);
+  const cells: string[] = [];
+  if (typeof stats.reach === 'number') cells.push(`${stats.reach.toLocaleString('de-DE')} Reach`);
+  if (typeof stats.likes === 'number') cells.push(`${stats.likes.toLocaleString('de-DE')} Likes`);
+  if (typeof stats.comments === 'number') cells.push(`${stats.comments.toLocaleString('de-DE')} Kommentare`);
+  if (typeof stats.saves === 'number') cells.push(`${stats.saves.toLocaleString('de-DE')} Saves`);
+  if (er !== null) cells.push(`${(er * 100).toFixed(1)}% Engagement`);
+  if (cells.length === 0) return null;
+  return <p className="text-[11px] text-gray-400 mt-0.5">{cells.join(' · ')}</p>;
+}
+
 export function HistoryTab() {
   const { uid, brandId } = useActiveBrand();
   const [posts, setPosts] = useState<PostRow[]>([]);
@@ -72,6 +88,7 @@ export function HistoryTab() {
             publishedAt: (data['publishedAt'] as Timestamp | null) ?? null,
             igPermalink: (data['igPermalink'] as string | null) ?? null,
             igMediaId: (data['igMediaId'] as string | null) ?? null,
+            igStats: (data['igStats'] as IgStats | undefined) ?? null,
           };
         }),
       );
@@ -102,12 +119,13 @@ export function HistoryTab() {
               )}
             </div>
 
-            {/* Title + date */}
+            {/* Title + date + stats */}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">{p.title}</p>
               <p className="text-xs text-gray-500 mt-0.5">
                 Veröffentlicht: {formatTs(p.publishedAt)}
               </p>
+              <PostStatsLine stats={p.igStats} />
             </div>
 
             {/* IG link */}
