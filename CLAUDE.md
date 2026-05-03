@@ -1,4 +1,3 @@
-<!-- GSD:project-start source:PROJECT.md -->
 ## Project
 
 **Content-Generation v3**
@@ -17,35 +16,20 @@ Multi-user web app for AI-assisted Instagram carousel creation. Tim and Jule eac
 - **Dependencies**: Blaze plan required (Cloud Run, Tasks, KMS, Scheduler all need it)
 - **Performance**: Render is async via Cloud Tasks (`renderJobs` sub-collection, 2s client poll). Generate streams via Cloud Run 5min default timeout (no SSE workaround needed)
 - **Reuse**: Zone editor (`ZoneCanvas`, `SlidePanel`, `ZonePanel`), `parseSlidesMd`, `editDiff.ts`, `assembleSystemPrompt`, prompt files (`base.md`, `methods/*.md`) ported from v2
-<!-- GSD:project-end -->
 
-<!-- GSD:stack-start source:STACK.md -->
-## Technology Stack
+## Source-of-Truth References
 
-Technology stack not yet documented. Will populate after codebase mapping or first phase.
-<!-- GSD:stack-end -->
+- **Architecture / ADRs / scope:** `~/.claude/plans/modular-tumbling-sunrise.md` (v6 ISSUES_CLOSED 2026-04-26)
+- **Operational state, deploy anchors, locked patterns, remaining work, requirements traceability:** `STATE.md` (root)
+- **v2 source for verbatim ports:** `C:\webprojects\content-generation\client\src\components\social-club\`
 
-<!-- GSD:conventions-start source:CONVENTIONS.md -->
 ## Conventions
 
-Conventions not yet established. Will populate as patterns emerge during development.
-<!-- GSD:conventions-end -->
-
-<!-- GSD:architecture-start source:ARCHITECTURE.md -->
-## Architecture
-
-Architecture not yet mapped. Follow existing patterns found in the codebase.
-<!-- GSD:architecture-end -->
-
-<!-- GSD:skills-start source:skills/ -->
-## Project Skills
-
-No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.github/skills/`, or `.codex/skills/` with a `SKILL.md` index file.
-<!-- GSD:skills-end -->
-
-<!-- GSD:profile-start -->
-## Developer Profile
-
-> Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
-> This section is managed by `generate-claude-profile` -- do not edit manually.
-<!-- GSD:profile-end -->
+- **No GSD ceremony.** Direct execution: dispatch parallel sub-agents -> integrate -> deploy -> commit. Surface decisions only when ambiguous.
+- **Package manager: pnpm** (root + `server/functions/`). Dockerfile uses `npm ci` for Cloud Build remote (no local conflict).
+- **No em dashes.** Use `-` or rewrite.
+- **German Umlaute** as proper characters (ä, ö, ü, ß), not ae/oe/ue substitutions.
+- **Feature-branch + PR + Vercel/Firebase preview** is the safer default; direct-to-main only for docs-only commits.
+- **Verify after deploy via gh CLI:** `gh api repos/<owner>/<repo>/commits/<ref>/status` returns Vercel/CI state.
+- **Sub-agent fan-out pattern:** orchestrator pre-scaffolds shared types + installs deps, gives each agent a strict file-allowlist + read-only on `shared/*`, integrates router mounts + IAM bindings + schema additions after agents return.
+- **Live-verify any RLS / routing / build-config change in browser** before declaring done; type-check + unit tests do not exercise RLS, edge rewrites, or runtime asset paths.
