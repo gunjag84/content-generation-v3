@@ -187,6 +187,25 @@ router.post('/generate', async (req: Request, res: Response) => {
     return;
   }
 
+  // Guard: parseSlidesMd never throws but can return slides:[] for any output
+  // that doesn't contain `SLIDE N` markers (e.g. Claude went conversational,
+  // or the stream truncated before the first slide). Persisting slides:[] is
+  // the original B2 bug -- the editor then shows "Kein Post gefunden." on a
+  // post that exists but is unusable. Surface it as a hard error instead so
+  // the user sees an actionable message in the Create UI.
+  if (parsed.slides.length === 0) {
+    writeLine(res, {
+      type: 'error',
+      error:
+        'parse_failed: Claude-Antwort enthielt keine SLIDE-Marker. ' +
+        'Bitte erneut generieren. (Rohtext-Anfang: ' +
+        JSON.stringify(fullText.slice(0, 200)) +
+        ')',
+    });
+    res.end();
+    return;
+  }
+
   let postId: string;
   try {
     postId = await createDraftPost({
