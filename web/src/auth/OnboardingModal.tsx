@@ -76,7 +76,7 @@ export function OnboardingModal({ uid, userEmail, userDisplayName, existingActiv
           <div>
             <label className="block text-sm font-medium">Markenname</label>
             <input type="text" required value={brandName} onChange={(e) => setBrandName(e.target.value)}
-              placeholder="z. B. LEBEN.LIEBEN" disabled={!!savedBrandId}
+              placeholder="z. B. Meine Marke" disabled={!!savedBrandId}
               className="mt-1 w-full border rounded px-3 py-2" />
             <p className="text-xs text-gray-500 mt-1">Du kannst später weitere Marken anlegen.</p>
           </div>

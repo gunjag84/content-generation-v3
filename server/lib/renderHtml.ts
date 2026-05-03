@@ -70,7 +70,7 @@ export function buildSlideHtml(
       const accentColor = brandColors?.accent ?? '#fff';
       inner = `<div style="display:flex;align-items:center;justify-content:center;height:100%;">
         <div style="background:rgba(255,255,255,0.12);border-radius:4px;padding:8px 20px;font-family:system-ui,sans-serif;font-size:24px;font-weight:700;color:${escapeAttr(accentColor)};letter-spacing:0.12em;border:1px solid rgba(255,255,255,0.2);">
-          LEBEN.LIEBEN
+          ${escapeHtml(zone.text)}
         </div>
       </div>`;
     } else {

@@ -69,14 +69,14 @@ ACCENT: Es steckt eine Methode drin, die tiefer geht.
 BASE: Ich zeige sie Dir kostenlos. Link in Bio.
 
 CAPTION (ORGANISCH):
-Ich habe alles probiert. Apps, Routinen, Podcasts. Nichts davon blieb länger als drei Tage. Dann habe ich über lange Zeit etwas entwickelt, das geblieben ist. Ein analoges Abendritual, ein paar Minuten, alle 3-4 Tage. Es ist wissenschaftlich belegt und es hat eine Methode, die mich jedes Mal überrascht. Nicht weil sie kompliziert ist, sondern weil sie so einfach ist und trotzdem so tief geht. Das LEBEN.LIEBEN Journal gibt Dir Platz für 100 Gründe, warum Du Dein Leben liebst. Wenn Du wissen willst, wie die Methode funktioniert: Link in Bio. Ich schicke sie Dir in einer kostenlosen Email-Reihe.
+Ich habe alles probiert. Apps, Routinen, Podcasts. Nichts davon blieb länger als drei Tage. Dann habe ich über lange Zeit etwas entwickelt, das geblieben ist. Ein analoges Abendritual, ein paar Minuten, alle 3-4 Tage. Es ist wissenschaftlich belegt und es hat eine Methode, die mich jedes Mal überrascht. Nicht weil sie kompliziert ist, sondern weil sie so einfach ist und trotzdem so tief geht. Wenn Du wissen willst, wie die Methode funktioniert: Link in Bio. Ich schicke sie Dir in einer kostenlosen Email-Reihe.
 
-#lebenlieben #dankbarkeitstagebuch #mamaleben #workingmom #achtsamkeit #genugsein #journaling
+#<hashtag1> #<hashtag2> #<hashtag3>
 
 CAPTION (PAID AD):
-Achtsamkeits-Apps, Morgenroutinen, Podcasts: nichts davon bleibt länger als drei Tage. Das LEBEN.LIEBEN Journal funktioniert anders. Analog, abends, alle 3-4 Tage. Mit einer wissenschaftlich belegten Methode, die tiefer geht als Listen oder Affirmationen. 100 Einträge in einem Jahr. Link in Bio.
+Achtsamkeits-Apps, Morgenroutinen, Podcasts: nichts davon bleibt länger als drei Tage. Analog, abends, alle 3-4 Tage. Mit einer wissenschaftlich belegten Methode, die tiefer geht als Listen oder Affirmationen. Link in Bio.
 
-#lebenlieben #dankbarkeitstagebuch #mamaleben #workingmom #achtsamkeit #genugsein #journaling
+#<hashtag1> #<hashtag2> #<hashtag3>
 </example>
 
 ### Liste-Struktur
@@ -126,7 +126,7 @@ Die Caption ergänzt das Carousel - sie wiederholt es NICHT. Die Leserin hat die
 - **Direkte Ansprache**: Mit "Du", persönlich, warm.
 - Erster Satz ist der Hook - muss im Feed-Preview (125 Zeichen) neugierig machen.
 - Max 150 Wörter
-- Produkt explizit benennen (LEBEN.LIEBEN Journal)
+- Produkt explizit benennen (Markenname + Produktname aus brand_identity)
 - Ende mit "Link in Bio"
 - Pflicht-Hashtags aus Product-Context
 

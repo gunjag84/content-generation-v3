@@ -60,7 +60,7 @@ BASE: Wenn Du Dich gerade fragst, wo Deine Schlagfertigkeit geblieben ist: Sie i
 ACCENT: Sie kommt wieder.
 
 SLIDE 7 | type: cta
-BRAND: LEBEN.LIEBEN
+BRAND: <MARKENNAME>
 DIVIDER
 ACCENT: Speicher Dir das.
 BASE: Für den nächsten Moment, in dem Du Dich fragst, was mit Dir passiert ist.
@@ -68,5 +68,5 @@ BASE: Für den nächsten Moment, in dem Du Dich fragst, was mit Dir passiert ist
 CAPTION:
 Vor der Elternzeit hatte ich auf alles eine Antwort. Schnell, schlagfertig, immer parat. Und dann: gähnende Leere. Mitten im Gespräch. Ich dachte, ich hätte etwas verloren. Bis ich verstanden habe, dass mein Kopf nicht leerer geworden ist, sondern voller. Drei Kinder, Haushalt, Job im Hinterkopf, und dazwischen der Versuch, eine ganze Person zu bleiben. Geht es Dir auch so, dass Du manchmal denkst: früher konnte ich das besser?
 
-#lebenlieben #familienleben #mamaleben #mentalload #elternzeit #workingmom #mamaalltag
+#<hashtag1> #<hashtag2> #<hashtag3>
 </example>

@@ -4,10 +4,11 @@
 import type { SocialSlide } from '../../shared/types/slide.js';
 import type { ParsedCarousel } from '../../shared/lib/parseSlidesMd.js';
 
+// Generic captions — brand-specific hashtags and tone come from brand.identity per brand.
 export const ZITAT_CAPTIONS: string[] = [
-  'Manchmal trifft ein Satz mitten ins Gefühl. Speicher Dir das, wenn es Dir gerade auch so geht.\n\n#lebenlieben #familienleben #mamaleben',
-  'Ich lese diesen Satz immer wieder, wenn der Tag mich klein macht. Vielleicht hilft er Dir auch.\n\n#lebenlieben #familienleben #mamaleben',
-  'Ein Gedanke, den ich nicht mehr loswerde. Wenn er Dich auch trifft, schick ihn weiter an jemanden, der ihn heute braucht.\n\n#lebenlieben #familienleben #mamaleben',
+  'Manchmal trifft ein Satz mitten ins Gefühl. Speicher Dir das, wenn es Dir gerade auch so geht.',
+  'Ich lese diesen Satz immer wieder, wenn der Tag mich klein macht. Vielleicht hilft er Dir auch.',
+  'Ein Gedanke, den ich nicht mehr loswerde. Wenn er Dich auch trifft, schick ihn weiter an jemanden, der ihn heute braucht.',
 ];
 
 function pickCaption(situationText: string): string {
