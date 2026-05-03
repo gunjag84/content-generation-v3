@@ -27,15 +27,15 @@ Die Gesamtzahl der Slides ergibt sich aus: Hook + X Punkte + Pillar-abhängiger 
 Da Liste keinen Kontext-Slide hat, ist Slide 2 = Wahrheit 1. Dieser Punkt MUSS als eigenständiger Hook funktionieren (Instagram Re-Serve Algorithmus). Der stärkste Punkt kommt auf Slide 2.
 
 ## Hook-Typen für Liste
-"X Wahrheiten, die niemand über [Thema] ausspricht", "X Dinge, die ich als Mama zu spät gelernt habe", "X Lügen über [Thema]".
+Bevorzugte Hook-Muster (konkrete Formulierung kommt aus Situation und `brand_identity`): "X Wahrheiten, die niemand über [Thema] ausspricht", "X Dinge, die ich zu spät gelernt habe", "X Lügen über [Thema]". [Thema] und Ich-Perspektive nur, wenn `brand_identity` einen passenden Sprecher und Themenbezug etabliert.
 
 ## ACCENT-Regel für Listen-Punkte
 In Listen ist die ACCENT-Echo-Gefahr am größten. Deshalb gilt für jeden Punkt:
 - ACCENT darf NICHT der letzte Satzteil von BASE sein.
 - ACCENT ist eine emotionale Implikation, eine zeitliche Dimension, oder ein überraschender Zusatz.
-- SCHLECHT: BASE endet mit "...jongliert alles gleichzeitig." ACCENT: "Gleichzeitig."
-- GUT: BASE endet mit "...jongliert alles gleichzeitig." ACCENT: "Seit drei Jahren."
-- GUT: BASE: "Die Schlagfertigkeit steht in der Schlange." ACCENT: "Und niemand sieht es."
+- SCHLECHT: BASE endet mit "...alles gleichzeitig." ACCENT: "Gleichzeitig." (= bloße Wiederholung)
+- GUT: BASE endet mit "...alles gleichzeitig." ACCENT: "Seit drei Jahren." (= zeitliche Dimension)
+- GUT: ACCENT als Implikation oder Zusatz, der den BASE neu rahmt.
 
 ## Rules
 - Stärkster Punkt auf Slide 2 (= erste inhaltliche Slide, muss als 2nd Hook funktionieren)
@@ -43,4 +43,4 @@ In Listen ist die ACCENT-Echo-Gefahr am größten. Deshalb gilt für jeden Punkt
 - Jeder Punkt braucht gleiches Format: Statement + Einordnung
 - Visuelle Konsistenz: gleiches Layout pro Punkt-Slide
 - Nie erklären, immer zeigen
-- Caption-Regeln: siehe Pillar-Abschnitt
+- Caption-Regeln: siehe Mode-Abschnitt

@@ -6,7 +6,7 @@ Reichweite, Engagement, Follower-Wachstum. Kein Produkt-Pitch. Kein Link, kein J
 ## CTA Rules
 - Kein Produkt, kein Link, kein "Link in Bio"
 - Engagement-CTAs only: Speichern, Teilen, Folgen, Kommentieren
-- Formulierung: spezifisch statt generisch. "Speicher Dir das für den nächsten schweren Abend" statt "Speichern"
+- Formulierung: spezifisch statt generisch. Konkret an den Inhalt der vorherigen Slides knüpfen ("Speicher Dir das für [konkreter Moment aus den Slides]") statt "Speichern".
 
 ## Constraints
 - Hooks dürfen schärfer und provokanter sein als die Brand Voice
@@ -51,4 +51,4 @@ Stattdessen:
 - Erster Satz ist der Hook - er muss im Feed-Preview (erste 125 Zeichen vor "mehr") neugierig machen, ohne den Slide-Inhalt zu wiederholen.
 - Max 150 Wörter
 - Ende mit einer Frage, die Kommentare provoziert
-- 5-8 Hashtags, deutsch. Pflicht-Hashtags aus Product-Context.
+- 5-8 Hashtags, deutsch. Pflicht-Hashtags aus `brand_identity` (falls vorhanden).

@@ -17,10 +17,10 @@ Slides 1-2 brauchen Fortsetzungs-Cues: unterbrochene Gedanken oder "Und dann..."
 | 5 | CTA | Handlungsaufforderung | CTA folgt den Regeln aus dem Pillar-Abschnitt. | 40-80 |
 
 ## Hook-Typen für Story
-Bevorzugt: Beichte ("Ich war die schlechteste Mama im Raum"), Identifikation ("Ich dachte, das geht nur mir so"), Kühne Aussage ("Du brauchst keine Morgenroutine").
+Bevorzugte Hook-Muster (konkrete Formulierung kommt aus Situation und `brand_identity`): Beichte, Identifikation, Kühne Aussage (eine verbreitete Annahme umkehren).
 
 ## Rules
 - Komprimiertes Format. Jede Slide trägt doppelte Last.
 - Nur verwenden wenn die Geschichte einen klaren, einzelnen Wendepunkt hat.
 - Nie erklären, immer zeigen
-- Caption-Regeln: siehe Pillar-Abschnitt
+- Caption-Regeln: siehe Mode-Abschnitt

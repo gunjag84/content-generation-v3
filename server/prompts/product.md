@@ -17,4 +17,4 @@ Erfinde keinen Markennamen, kein Produkt und keine Hashtags. Wenn kein `brand_id
 Das Marken-Logo erscheint als BILD (nicht als Text) am unteren Rand der CTA-Slide. Es wird vom Renderer als Grafik eingesetzt, nicht als BASE/ACCENT-Text.
 
 ## Gescheiterte Alternativen (für die Lücken-Slide bei Convert-Demand)
-Formulierungen für "was vorher nicht funktioniert hat" kommen aus den Topic-Dateien (falls injiziert).
+Formulierungen für "was vorher nicht funktioniert hat" kommen aus der Eingabe-Situation oder aus `brand_identity` (falls dort definiert). Nicht erfinden.

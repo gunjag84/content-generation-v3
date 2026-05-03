@@ -17,9 +17,9 @@ Slide 1-2 brauchen Fortsetzungs-Cues. Slide 1 muss klar machen, dass eine Liste 
 | 5 | CTA + Share-Trigger | Handlungsaufforderung + Teilen-Impuls | CTA folgt den Regeln aus dem Pillar-Abschnitt. Baue Share-Trigger ein. | 40-80 |
 
 ## Hook-Typen für Liste
-Bevorzugt: Zahl + Versprechen ("3 Sätze, die alles verändern"), Mythos-Brecher, Identifikation + Zahl.
+Bevorzugte Hook-Muster (konkrete Formulierung kommt aus Situation und `brand_identity`): Zahl + Versprechen, Mythos-Brecher, Identifikation + Zahl.
 
 ## Rules
 - Kein Kontext, kein Zusammenfassen. Funktioniert nur bei extrem starken Einzelpunkten.
 - Nie erklären, immer zeigen
-- Caption-Regeln: siehe Pillar-Abschnitt
+- Caption-Regeln: siehe Mode-Abschnitt

@@ -19,54 +19,13 @@ Slides 1-3 brauchen Fortsetzungs-Cues. Besonders wichtig: der Übergang von Slid
 | 7 | CTA | Handlungsaufforderung | CTA folgt den Regeln aus dem Pillar-Abschnitt. | 40-80 |
 
 ## Hook-Typen für Vorher/Nachher
-Bevorzugt: Kontrast ("Vorher: 5 Uhr, Panik. Nachher: 5 Uhr, Ruhe."), Zeitsprung ("Vor einem Jahr hätte ich gelacht"), Identifikation ("Das war ich. Jeden Abend.").
+Bevorzugte Hook-Muster (konkrete Formulierung kommt aus Situation und `brand_identity`): Kontrast (zwei Zustände gegenüberstellen, ohne den Bruch zu nennen), Zeitsprung ("Vor einem Jahr hätte ich..."), Identifikation eines früheren Zustands.
 
 ## Rules
 - Vorher und Nachher müssen sich spiegeln: gleiches Thema, anderer Blickwinkel
-- Der Bruch (Slide 4) darf NICHT perfekt sein. "Dann las ich dieses Buch" = unglaubwürdig. Ehrliche, kleine Shifts.
+- Der Bruch (Slide 4) darf NICHT perfekt sein. Ein Buch oder eine App als Auslöser ist unglaubwürdig. Ehrliche, kleine Shifts.
 - Kein Vorher-Bashing: Das Vorher-Ich war nicht dumm, es hat sein Bestes gegeben
 - Nachher ist NICHT "jetzt ist alles perfekt" sondern "jetzt ist es anders"
 - Lektion-Slide (6) ist Save-Magnet + Share-Trigger: universelle Erkenntnis + direkte Ansprache
 - Nie erklären, immer zeigen
-- Caption-Regeln: siehe Pillar-Abschnitt
-
-## Beispiel
-
-<example>
-CAROUSEL: Vorher war ich schneller
-
-SLIDE 1 | type: text
-BASE: Vorher war ich
-ACCENT: schneller.
-
-SLIDE 2 | type: text
-BASE: Ich hatte auf alles eine Antwort. Im Meeting, am Telefon, beim Elternabend. Mein Kopf hat funktioniert wie eine Maschine.
-ACCENT: Und dann kam die Elternzeit.
-
-SLIDE 3 | type: text
-BASE: Plötzlich stand ich in Gesprächen und der Satz war weg. Einfach weg. Ich habe mich geschämt, als wäre ich weniger geworden.
-ACCENT: Weniger wert.
-
-SLIDE 4 | type: text
-BASE: Bis ich verstanden habe: Mein Kopf war nicht langsamer geworden. Er war voller geworden. Drei Kinder, tausend Entscheidungen, null Pause.
-ACCENT: Voll, nicht leer.
-
-SLIDE 5 | type: text
-BASE: Heute bin ich immer noch langsamer als vorher. Aber ich weiß jetzt, dass langsamer nicht weniger bedeutet. Es bedeutet: mehr auf dem Teller.
-ACCENT: Mehr, nicht weniger.
-
-SLIDE 6 | type: text
-BASE: Wenn Du Dich gerade fragst, wo Deine Schlagfertigkeit geblieben ist: Sie ist noch da. Unter drei Brotdosen und zwei Elternbriefen.
-ACCENT: Sie kommt wieder.
-
-SLIDE 7 | type: cta
-BRAND: <MARKENNAME>
-DIVIDER
-ACCENT: Speicher Dir das.
-BASE: Für den nächsten Moment, in dem Du Dich fragst, was mit Dir passiert ist.
-
-CAPTION:
-Vor der Elternzeit hatte ich auf alles eine Antwort. Schnell, schlagfertig, immer parat. Und dann: gähnende Leere. Mitten im Gespräch. Ich dachte, ich hätte etwas verloren. Bis ich verstanden habe, dass mein Kopf nicht leerer geworden ist, sondern voller. Drei Kinder, Haushalt, Job im Hinterkopf, und dazwischen der Versuch, eine ganze Person zu bleiben. Geht es Dir auch so, dass Du manchmal denkst: früher konnte ich das besser?
-
-#<hashtag1> #<hashtag2> #<hashtag3>
-</example>
+- Caption-Regeln: siehe Mode-Abschnitt

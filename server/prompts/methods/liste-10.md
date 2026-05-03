@@ -22,11 +22,11 @@ Slides 1-3 brauchen Fortsetzungs-Cues: Zähler, offene These, oder provokative B
 | 10 | CTA + Share-Trigger | Handlungsaufforderung + Teilen-Impuls | CTA folgt den Regeln aus dem Pillar-Abschnitt. Baue Share-Trigger ein. | 40-80 |
 
 ## Hook-Typen für Liste
-Bevorzugt: Zahl + Versprechen ("7 Lügen über Mütter"), Mythos-Brecher, Identifikation + Zahl.
+Bevorzugte Hook-Muster (konkrete Formulierung kommt aus Situation und `brand_identity`): Zahl + Versprechen, Mythos-Brecher, Identifikation + Zahl.
 
 ## Rules
 - 7 Punkte nur wenn jeder einzeln stark genug ist
 - Stärkster Punkt auf Slide 2 (= erste inhaltliche Slide, muss als 2nd Hook funktionieren)
 - Gleiches Format pro Punkt-Slide (visuell konsistent)
 - Nie erklären, immer zeigen
-- Caption-Regeln: siehe Pillar-Abschnitt
+- Caption-Regeln: siehe Mode-Abschnitt
