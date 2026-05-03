@@ -5,6 +5,7 @@ import { useActiveBrand } from '../../store/activeBrand';
 import { uploadPhoto } from '../../lib/uploadPhoto';
 import { BrandDesignSchema, type BrandDesign, type ZoneRole, type ZoneDefault } from '../../../../shared/schemas/brand';
 import { FONT_FAMILIES, ensureFontLoaded } from '../../lib/font-loader';
+import { ColorInput } from '../../components/ColorInput';
 
 const ZONE_ROLES: { key: ZoneRole; label: string; description: string; fallback: ZoneDefault }[] = [
   { key: 'ACCENT', label: 'Hook', description: 'Größte Headline (Aufmerksamkeit)', fallback: { color: 'secondary', fontFamily: 'Inter', fontSize: 88 } },
@@ -90,24 +91,22 @@ export function DesignPage() {
       </header>
 
       <div className="grid grid-cols-2 gap-4">
-        <label className="block">
+        <div>
           <span className="block text-sm font-medium mb-1">Primärfarbe</span>
-          <input
-            type="color"
+          <ColorInput
+            variant="light"
             value={design.primaryColor}
-            onChange={(e) => update('primaryColor', e.target.value)}
-            className="h-10 w-full"
+            onChange={(v) => update('primaryColor', v)}
           />
-        </label>
-        <label className="block">
+        </div>
+        <div>
           <span className="block text-sm font-medium mb-1">Sekundärfarbe</span>
-          <input
-            type="color"
+          <ColorInput
+            variant="light"
             value={design.secondaryColor}
-            onChange={(e) => update('secondaryColor', e.target.value)}
-            className="h-10 w-full"
+            onChange={(v) => update('secondaryColor', v)}
           />
-        </label>
+        </div>
       </div>
 
       <label className="block">

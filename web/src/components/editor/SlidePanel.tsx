@@ -7,6 +7,7 @@
 //   - ColorPicker swapped for a plain <input type="color"> (the v2 picker was
 //     a heavy popover dependency; v3 phase 2 keeps it minimal).
 import type { SocialSlide, SlideType } from '../../../../shared/types/slide';
+import { ColorInput } from '../ColorInput';
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.trim());
@@ -224,14 +225,11 @@ export function SlidePanel({
                 <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">All</span>
               </label>
             </div>
-            <div className="flex gap-2 mt-1 items-center">
-              <input
-                type="color"
+            <div className="mt-1">
+              <ColorInput
                 value={slide.gradientColor ?? '#000000'}
-                onChange={e => s({ gradientColor: e.target.value })}
-                className="w-8 h-8 cursor-pointer bg-transparent border border-zinc-700"
+                onChange={(v) => s({ gradientColor: v })}
               />
-              <span className="text-zinc-400 font-mono text-[11px]">{slide.gradientColor ?? '#000000'}</span>
             </div>
           </div>
           {slide.type === 'photo' && (

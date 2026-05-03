@@ -81,6 +81,10 @@ export function assembleSystemPrompt(
   method: MethodSlug,
   slideCount: number,
   mode: Mode,
+  // Phase 4a: optional <learned_patterns> XML block. Appended as the final
+  // layer when present so the model sees it as the most-specific guidance.
+  // Empty string or undefined = no block emitted (cold-start brand).
+  patternsBlock?: string,
 ): string {
   const isConvert = mode === 'convert-demand';
   const isCreate = mode === 'create-demand';
@@ -134,6 +138,11 @@ export function assembleSystemPrompt(
   let modeContent = readPrompt('modes', modeFile);
   modeContent = filterModeByMethod(modeContent, method);
   blocks.push(modeContent.trim());
+
+  // Layer 6 (optional): brand-specific learned patterns from prior edits.
+  if (patternsBlock && patternsBlock.trim().length > 0) {
+    blocks.push(patternsBlock.trim());
+  }
 
   return blocks.join('\n\n---\n\n');
 }
