@@ -301,9 +301,16 @@ interface SlideThumbnailProps {
   index: number;
   onClick: () => void;
   backgroundColor?: string;
+  /**
+   * Optional zone-correction callback. Mirrors ZoneCanvas's auto-grow useLayoutEffect
+   * so thumbnails render with the right (post-grow) zone heights on first paint.
+   * Without this, slide thumbnails show pre-grow positions (overlapping text)
+   * until each slide is clicked at least once and the active-canvas effect runs.
+   */
+  onZoneChange?: (z: Zone) => void;
 }
 
-export function SlideThumbnail({ slide, format, active, index, onClick, backgroundColor }: SlideThumbnailProps) {
+export function SlideThumbnail({ slide, format, active, index, onClick, backgroundColor, onZoneChange }: SlideThumbnailProps) {
   const refH = FORMAT_HEIGHTS[format];
   // Slightly smaller than before (was 160x220) — keeps ~3 portrait thumbs visible
   // in the 200px-wide rail without scrolling.
@@ -317,6 +324,63 @@ export function SlideThumbnail({ slide, format, active, index, onClick, backgrou
     thumbW = thumbH * aspect;
   }
   const scale = thumbW / REF_W;
+
+  const zoneRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Ensure brand fonts are loaded before measuring so scrollHeight uses the
+  // real font metrics, not a system fallback. Mirrors ZoneCanvas behavior.
+  useEffect(() => {
+    const families = new Set<string>();
+    for (const z of slide.zones) if (z.fontFamily) families.add(z.fontFamily);
+    families.forEach(ensureFontLoaded);
+  }, [slide.zones]);
+
+  // Auto-grow + downstream-shift pass, identical to the one inside ZoneCanvas.
+  // Without this, thumbnails render with the un-grown zone heights/positions
+  // (overlapping text) until the user clicks a slide and the active-canvas
+  // effect persists corrections. Running it here too means every slide is
+  // corrected on first thumbnail paint, regardless of which slide is active.
+  // Idempotent: once persisted values fit, the effect early-returns.
+  useLayoutEffect(() => {
+    if (!onZoneChange) return;
+    const zones = slide.zones;
+    if (!zones || zones.length === 0) return;
+    const padding = 16;
+    const ordered = zones.map((z) => ({ z, top: z.y })).sort((a, b) => a.top - b.top);
+    const yShift: Record<string, number> = {};
+    const newH: Record<string, number> = {};
+    for (let i = 0; i < ordered.length; i++) {
+      const { z } = ordered[i];
+      if (z.isLogo) continue;
+      const el = zoneRefs.current[z.id];
+      if (!el) continue;
+      const minH = Math.ceil(el.scrollHeight + padding);
+      const effectiveH = newH[z.id] ?? z.h;
+      if (minH > effectiveH + 2) {
+        const delta = minH - effectiveH;
+        newH[z.id] = minH;
+        const zoneBottom = z.y + effectiveH;
+        for (let j = i + 1; j < ordered.length; j++) {
+          const other = ordered[j].z;
+          if (other.y + (yShift[other.id] ?? 0) >= zoneBottom - 2) {
+            yShift[other.id] = (yShift[other.id] ?? 0) + delta;
+          }
+        }
+      }
+    }
+    if (Object.keys(newH).length === 0 && Object.keys(yShift).length === 0) return;
+    for (const z of zones) {
+      const grew = newH[z.id];
+      const shifted = yShift[z.id];
+      if (grew !== undefined || shifted !== undefined) {
+        onZoneChange({
+          ...z,
+          h: grew ?? z.h,
+          y: shifted !== undefined ? z.y + shifted : z.y,
+        });
+      }
+    }
+  });
 
   const bgColor = slide.type === 'cta' ? '#0f1f16' : (backgroundColor ?? '#1c1c2e');
   const imgStyle: React.CSSProperties = slide.imageUrl
@@ -411,7 +475,7 @@ export function SlideThumbnail({ slide, format, active, index, onClick, backgrou
           };
           return (
             <div key={zone.id} style={zStyle}>
-              <div style={txtStyle}>{zone.text}</div>
+              <div ref={el => { zoneRefs.current[zone.id] = el; }} style={txtStyle}>{zone.text}</div>
             </div>
           );
         })}

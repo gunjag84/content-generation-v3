@@ -139,6 +139,12 @@ export default function Editor() {
     setSlides((prev) => updateZone(prev, activeSlideIdx, z));
   }
 
+  // Used by SlideStrip thumbnails so the auto-grow pass can persist y/h
+  // corrections for any slide, not just the active one.
+  function changeZoneAt(slideIdx: number, z: Zone) {
+    setSlides((prev) => updateZone(prev, slideIdx, z));
+  }
+
   function changeSlide(s: SocialSlide) {
     setSlides((prev) =>
       prev.map((x, i) => {
@@ -413,6 +419,7 @@ export default function Editor() {
         onSelect={(i) => { setActiveSlideIdx(i); setSelectedZoneId(null); }}
         onDelete={(i) => setDeleteSlideIdx(i)}
         onReorder={reorderSlides}
+        onZoneChangeAt={changeZoneAt}
         backgroundColor={brandBgColor}
       />
 

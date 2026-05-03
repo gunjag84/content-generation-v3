@@ -2,7 +2,7 @@
 // so the mini-preview shares the same render code as the main canvas.
 import { useState } from 'react';
 import { SlideThumbnail } from './ZoneCanvas';
-import type { Format, SocialSlide } from '../../../../shared/types/slide';
+import type { Format, SocialSlide, Zone } from '../../../../shared/types/slide';
 
 interface SlideStripProps {
   slides: SocialSlide[];
@@ -11,6 +11,9 @@ interface SlideStripProps {
   onSelect: (idx: number) => void;
   onDelete?: (idx: number) => void;
   onReorder?: (from: number, to: number) => void;
+  /** Per-thumbnail zone correction, used by the auto-grow pass that runs in
+   *  every SlideThumbnail (not just the active one). */
+  onZoneChangeAt?: (slideIdx: number, z: Zone) => void;
   backgroundColor?: string;
 }
 
@@ -21,6 +24,7 @@ export function SlideStrip({
   onSelect,
   onDelete,
   onReorder,
+  onZoneChangeAt,
   backgroundColor,
 }: SlideStripProps) {
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -76,6 +80,7 @@ export function SlideStrip({
               index={i}
               onClick={() => onSelect(i)}
               backgroundColor={backgroundColor}
+              onZoneChange={onZoneChangeAt ? (z) => onZoneChangeAt(i, z) : undefined}
             />
             {canDelete && (
               <button
