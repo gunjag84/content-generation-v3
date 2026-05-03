@@ -257,7 +257,7 @@ export default function Editor() {
       const updates: { idx: number; scale: number }[] = [];
       for (let i = 0; i < current.length; i++) {
         const s = current[i];
-        if (!s.imageUrl || s.imageManualAdjust) continue;
+        if (!s.imageUrl) continue;
         try {
           const { w, h } = await loadImageDims(s.imageUrl);
           const scale = coverScale(w, h, REF_W, refH);
@@ -267,11 +267,20 @@ export default function Editor() {
         }
       }
       if (cancelled || updates.length === 0) return;
+      // Format change overrides manual adjustments per Tim's correction:
+      // every slide is re-fitted and the manual flag is reset so the user can
+      // re-adjust within the new format without persisting stale values.
       setSlides((prev) =>
         prev.map((s, i) => {
           const u = updates.find((x) => x.idx === i);
-          if (!u || s.imageManualAdjust) return s;
-          return { ...s, imageScale: u.scale, imageX: 50, imageY: 50 };
+          if (!u) return s;
+          return {
+            ...s,
+            imageScale: u.scale,
+            imageX: 50,
+            imageY: 50,
+            imageManualAdjust: false,
+          };
         }),
       );
     })();
