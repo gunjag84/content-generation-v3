@@ -7,6 +7,7 @@
 //   - font-loader path: '../../lib/font-loader' (v3 layout).
 import { useEffect } from 'react';
 import { FONT_FAMILIES, ensureFontLoaded } from '../../lib/font-loader';
+import { ColorInput } from '../ColorInput';
 import type { Zone } from '../../../../shared/types/slide';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
@@ -180,14 +181,8 @@ export function ZoneEditor({ zone, onChange }: ZoneEditorProps) {
 
         <div className="mt-2">
           <Label>Color</Label>
-          <div className="flex gap-2 mt-1 items-center">
-            <input
-              type="color"
-              value={zone.color}
-              onChange={e => s({ color: e.target.value })}
-              className="w-8 h-8 cursor-pointer bg-transparent border border-zinc-700"
-            />
-            <span className="text-zinc-400 font-mono text-[11px]">{zone.color}</span>
+          <div className="mt-1">
+            <ColorInput value={zone.color} onChange={(v) => s({ color: v })} />
           </div>
         </div>
       </div>
