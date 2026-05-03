@@ -2,7 +2,7 @@
 // Ported verbatim from v2 client/src/components/social-club/types.ts.
 // Canonical source for editor + parser + render layers in v3.
 
-export type SlideType = 'photo' | 'text' | 'overlay' | 'cta';
+export type SlideType = 'photo' | 'overlay' | 'cta';
 export type AlignH = 'left' | 'center' | 'right';
 export type AlignV = 'top' | 'middle' | 'bottom';
 export type Format = 'post' | 'portrait' | 'story';

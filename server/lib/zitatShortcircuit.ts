@@ -21,7 +21,7 @@ function pickCaption(situationText: string): string {
 function emptySlide(num: number): SocialSlide {
   return {
     number: num,
-    type: 'text',
+    type: 'photo',
     textPosition: 'bottom',
     lines: [],
     zones: [],

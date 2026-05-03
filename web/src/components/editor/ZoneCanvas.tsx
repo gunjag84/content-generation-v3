@@ -1,8 +1,9 @@
 // Verbatim port of v2 client/src/components/social-club/ZoneCanvas.tsx (297 lines).
 // Only mechanical change: imports rewritten to point at shared/types/slide.
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import type { Zone, SocialSlide, Format } from '../../../../shared/types/slide';
 import { FORMAT_HEIGHTS, REF_W } from '../../../../shared/types/slide';
+import { ensureFontLoaded } from '../../lib/font-loader';
 
 type DragMode = 'move' | 'resize-nw' | 'resize-ne' | 'resize-sw' | 'resize-se' | 'rotate' | null;
 
@@ -125,33 +126,56 @@ export function ZoneCanvas({
     window.addEventListener('mouseup', onUp);
   }, [scale, onZoneChange, onSelect]);
 
-  const zoneRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Ensure every fontFamily used by a zone is loaded, so the initial preview
+  // renders in the correct typeface instead of a system fallback.
   useEffect(() => {
+    const families = new Set<string>();
+    for (const z of slide.zones) if (z.fontFamily) families.add(z.fontFamily);
+    families.forEach(ensureFontLoaded);
+  }, [slide.zones]);
+
+  const zoneRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Run synchronously before paint so the user never sees an overlap flash on
+  // the initial render. Process every overflowing zone in a single pass and
+  // accumulate y-shifts for downstream zones, so one tick fixes all collisions.
+  useLayoutEffect(() => {
     const zones = slide.zones;
-    if (!zones) return;
-    // Find any single zone that needs to grow this tick. Fix one per render
-    // to avoid thrash; if more zones still need growth, the next render handles
-    // the next one. After growing zone N, push every later zone (by y) down by
-    // the same delta so stacked layouts never collapse into each other.
-    for (const zone of zones) {
-      if (zone.isLogo) continue;
-      const el = zoneRefs.current[zone.id];
+    if (!zones || zones.length === 0) return;
+    const padding = 16;
+    // Snapshot computed heights up front so subsequent loop math doesn't depend
+    // on dirty DOM measurements after we mutate state.
+    const ordered = zones.map((z) => ({ z, top: z.y })).sort((a, b) => a.top - b.top);
+    const yShift: Record<string, number> = {};
+    const newH: Record<string, number> = {};
+    for (let i = 0; i < ordered.length; i++) {
+      const { z } = ordered[i];
+      if (z.isLogo) continue;
+      const el = zoneRefs.current[z.id];
       if (!el) continue;
-      const needed = el.scrollHeight;
-      const padding = 16;
-      const minH = needed + padding;
-      if (minH > zone.h + 2) {
-        const delta = Math.ceil(minH) - zone.h;
-        onZoneChange({ ...zone, h: Math.ceil(minH) });
-        // Push any zone whose top is at or below this zone's bottom edge.
-        const zoneBottom = zone.y + zone.h;
-        for (const other of zones) {
-          if (other.id === zone.id) continue;
-          if (other.y >= zoneBottom - 2) {
-            onZoneChange({ ...other, y: other.y + delta });
+      const minH = Math.ceil(el.scrollHeight + padding);
+      const effectiveH = newH[z.id] ?? z.h;
+      if (minH > effectiveH + 2) {
+        const delta = minH - effectiveH;
+        newH[z.id] = minH;
+        const zoneBottom = z.y + effectiveH;
+        for (let j = i + 1; j < ordered.length; j++) {
+          const other = ordered[j].z;
+          if (other.y + (yShift[other.id] ?? 0) >= zoneBottom - 2) {
+            yShift[other.id] = (yShift[other.id] ?? 0) + delta;
           }
         }
-        break;
+      }
+    }
+    if (Object.keys(newH).length === 0 && Object.keys(yShift).length === 0) return;
+    for (const z of zones) {
+      const grew = newH[z.id];
+      const shifted = yShift[z.id];
+      if (grew !== undefined || shifted !== undefined) {
+        onZoneChange({
+          ...z,
+          h: grew ?? z.h,
+          y: shifted !== undefined ? z.y + shifted : z.y,
+        });
       }
     }
   });

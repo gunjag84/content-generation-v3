@@ -74,14 +74,14 @@ export function SlidePanel({
   syncGradientColor, onSyncGradientColorChange,
 }: SlidePanelProps) {
   const s = (p: Partial<SocialSlide>) => onChange({ ...slide, ...p });
-  const needsPhoto = ['photo', 'text', 'overlay'].includes(slide.type);
+  const needsPhoto = ['photo', 'overlay'].includes(slide.type);
 
   return (
     <div className="p-3 space-y-4">
       <div>
         <Label>Slide Type</Label>
-        <div className="grid grid-cols-4 gap-1 mt-1.5">
-          {(['photo', 'text', 'overlay', 'cta'] as SlideType[]).map(t => (
+        <div className="grid grid-cols-3 gap-1 mt-1.5">
+          {(['photo', 'overlay', 'cta'] as SlideType[]).map(t => (
             <button key={t} onClick={() => s({ type: t })}
               className={`py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors ${
                 slide.type === t

@@ -56,7 +56,7 @@ export function parseSlidesMd(content: string): ParsedCarousel {
       const opts = slideMatch[2] || '';
 
       let photo: string | number | undefined;
-      let type: SlideType = 'text';
+      let type: SlideType | null = null;
 
       const photoMatch = opts.match(/photo:\s*(\w+)/i);
       if (photoMatch) {
@@ -64,12 +64,16 @@ export function parseSlidesMd(content: string): ParsedCarousel {
         photo = /^\d+$/.test(val) ? parseInt(val, 10) : val;
       }
 
-      const typeMatch = opts.match(/type:\s*(photo|text|overlay|cta)/i);
+      // Accept legacy 'text' from existing prompts but treat it as "no explicit
+      // type" so the post-loop infers from BRAND/photo presence.
+      const typeMatch = opts.match(/type:\s*(photo|overlay|cta|text)/i);
       if (typeMatch) {
-        type = typeMatch[1].toLowerCase() as SlideType;
+        const matched = typeMatch[1].toLowerCase();
+        if (matched !== 'text') type = matched as SlideType;
       }
 
-      currentSlide = emptySlide(num, photo, type);
+      currentSlide = emptySlide(num, photo, type ?? 'photo');
+      if (type === null) (currentSlide as { __inferType?: boolean }).__inferType = true;
       continue;
     }
 
@@ -127,13 +131,14 @@ export function parseSlidesMd(content: string): ParsedCarousel {
 
   if (currentSlide) slides.push(currentSlide);
 
-  // Infer types for slides without explicit type
+  // Infer types for slides parsed without explicit type. Default already 'photo';
+  // BRAND lines bump to 'cta'.
   for (const slide of slides) {
-    if (!slide.type || slide.type === 'text') {
+    const inferable = slide as { __inferType?: boolean };
+    if (inferable.__inferType) {
+      delete inferable.__inferType;
       const hasBrand = slide.lines.some((l) => l.type === 'BRAND');
-      const hasPhoto = slide.photo !== undefined;
       if (hasBrand) slide.type = 'cta';
-      else if (hasPhoto) slide.type = 'photo';
     }
   }
 
