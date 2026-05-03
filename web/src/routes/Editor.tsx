@@ -261,7 +261,7 @@ export default function Editor() {
     try {
       const res = await api(`/api/render-jobs`, {
         method: 'POST',
-        body: JSON.stringify({ brandId, postId }),
+        body: JSON.stringify({ brandId, postId, format }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((body as { error?: string }).error ?? `Fehler ${res.status}`);

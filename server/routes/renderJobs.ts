@@ -24,7 +24,7 @@ router.post('/render-jobs', async (req: Request, res: Response) => {
     return;
   }
 
-  const { brandId, postId } = body;
+  const { brandId, postId, format } = body;
 
   // Read post to get slide count
   const postRef = db.doc(`users/${uid}/brands/${brandId}/posts/${postId}`);
@@ -58,6 +58,7 @@ router.post('/render-jobs', async (req: Request, res: Response) => {
     await jobRef.set({
       postId,
       brandId,
+      format,
       status: 'pending',
       slideCount,
       completedSlides: 0,
@@ -74,7 +75,7 @@ router.post('/render-jobs', async (req: Request, res: Response) => {
 
   // Enqueue Cloud Task
   try {
-    await enqueueRender({ uid, brandId, postId, jobId });
+    await enqueueRender({ uid, brandId, postId, jobId, format });
   } catch (err) {
     // Mark job as error so client is not left polling forever
     await jobRef.update({

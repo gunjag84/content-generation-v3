@@ -10,6 +10,7 @@ import { getStorage } from 'firebase-admin/storage';
 import { db } from '../lib/firebase.js';
 import { buildSlideHtml } from '../lib/renderHtml.js';
 import { RenderTaskPayloadSchema } from '../../shared/schemas/renderJob.js';
+import { FORMAT_HEIGHTS, REF_W } from '../../shared/types/slide.js';
 import type { SocialSlide } from '../../shared/types/slide.js';
 
 const router = express.Router();
@@ -24,7 +25,8 @@ router.post('/render', async (req: Request, res: Response) => {
     return;
   }
 
-  const { uid, brandId, postId, jobId } = payload;
+  const { uid, brandId, postId, jobId, format } = payload;
+  const canvasH = FORMAT_HEIGHTS[format];
 
   const jobRef = db.doc(`users/${uid}/brands/${brandId}/renderJobs/${jobId}`);
   const postRef = db.doc(`users/${uid}/brands/${brandId}/posts/${postId}`);
@@ -88,12 +90,17 @@ router.post('/render', async (req: Request, res: Response) => {
       // Resolve photo URL for this slide index (1-based label, then 'all' fallback)
       const photoUrl = photoUrls[String(i + 1)] ?? photoUrls['all'] ?? null;
 
-      const html = buildSlideHtml(slide, photoUrl);
+      const html = buildSlideHtml(slide, photoUrl, format);
 
       const page = await browser.newPage();
       try {
-        await page.setViewportSize({ width: 1080, height: 1080 });
+        await page.setViewportSize({ width: REF_W, height: canvasH });
         await page.setContent(html, { waitUntil: 'networkidle' });
+        // Belt-and-braces: networkidle waits for fetches, but we also wait on
+        // the FontFaceSet so Chromium has actually finished rasterising the
+        // typefaces before we screenshot. Fixes the "default sans fallback"
+        // bug where stylesheets loaded but glyphs hadn't paint-ready.
+        await page.evaluate(() => (document as Document & { fonts: { ready: Promise<unknown> } }).fonts.ready);
         const buffer = await page.screenshot({ type: 'png', omitBackground: false });
 
         const storagePath = `renders/${uid}/${brandId}/${postId}/slide-${i}.png`;

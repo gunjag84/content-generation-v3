@@ -17,10 +17,15 @@ export const RenderJobSchema = z.object({
 });
 export type RenderJob = z.infer<typeof RenderJobSchema>;
 
+// Format defaults to 'post' so legacy callers (no format field) keep their
+// historical 1080x1080 render shape.
+const FormatSchema = z.enum(['post', 'portrait', 'story']).default('post');
+
 // POST /api/render-jobs request body
 export const RenderJobRequestSchema = z.object({
   brandId: z.string().min(1),
   postId: z.string().min(1),
+  format: FormatSchema,
 });
 export type RenderJobRequest = z.infer<typeof RenderJobRequestSchema>;
 
@@ -30,5 +35,6 @@ export const RenderTaskPayloadSchema = z.object({
   brandId: z.string().min(1),
   postId: z.string().min(1),
   jobId: z.string().min(1),
+  format: FormatSchema,
 });
 export type RenderTaskPayload = z.infer<typeof RenderTaskPayloadSchema>;

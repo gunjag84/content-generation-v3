@@ -1,30 +1,74 @@
-import type { SocialSlide } from '../../shared/types/slide.js';
+import type { Format, SocialSlide } from '../../shared/types/slide.js';
+import { FORMAT_HEIGHTS, REF_W } from '../../shared/types/slide.js';
 
 export interface BrandColors {
   primary: string;
   accent: string;
 }
 
+// Mirrors web/src/lib/font-loader.ts SPECIAL_FONTS so server-rendered HTML
+// resolves the same typefaces the editor previews. Keep these two maps in
+// sync. System fonts (palatino, georgia, ...) need no <link>.
+const SPECIAL_FONTS: Record<string, string> = {
+  satoshi: 'https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,700,900&display=swap',
+  geist: 'https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap',
+  'geist mono': 'https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&display=swap',
+  daniel: 'https://fonts.cdnfonts.com/css/daniel',
+};
+
+const SYSTEM_FONTS = new Set(['palatino', 'georgia', 'times new roman', 'arial', 'helvetica']);
+
+// Always loaded — used by the logo zone fallback in ZoneCanvas + here.
+const ALWAYS_LOAD = ['Josefin Sans'];
+
+function fontUrl(family: string): string | null {
+  const key = family.toLowerCase().trim();
+  if (!key) return null;
+  if (SYSTEM_FONTS.has(key)) return null;
+  if (SPECIAL_FONTS[key]) return SPECIAL_FONTS[key];
+  return `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@300;400;500;600;700;900&display=swap`;
+}
+
+function buildFontLinks(slide: SocialSlide): string {
+  const families = new Set<string>();
+  for (const f of ALWAYS_LOAD) families.add(f);
+  for (const z of slide.zones ?? []) {
+    if (z.fontFamily) families.add(z.fontFamily);
+  }
+  const urls: string[] = [];
+  for (const family of families) {
+    const url = fontUrl(family);
+    if (url) urls.push(url);
+  }
+  // Preconnect helps both Google Fonts and Fontshare warm up the connection.
+  const preconnect = `<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://api.fontshare.com">`;
+  const links = urls.map((u) => `<link rel="stylesheet" href="${u}">`).join('\n');
+  return `${preconnect}\n${links}`;
+}
+
 // Mirror the visual contract of ZoneCanvas.tsx server-side.
-// All styles are inline; no external resources so Playwright renders instantly.
+// Format drives canvas height (post=1080, portrait=1350, story=1920); width is REF_W=1080.
 export function buildSlideHtml(
   slide: SocialSlide,
   photoUrl: string | null,
+  format: Format = 'post',
   brandColors?: BrandColors,
 ): string {
+  const w = REF_W;
+  const h = FORMAT_HEIGHTS[format];
+
   const bgColor = slide.type === 'cta' ? '#0f1f16' : '#1c1c2e';
   const imageX = slide.imageX ?? 50;
   const imageY = slide.imageY ?? 50;
   const imageScale = slide.imageScale ?? 1;
 
-  // Match editor preview: <img> with object-fit:contain + transform:scale().
-  // Default (scale=1) = whole photo visible; slider zoom up to 3x.
   const bgCss = `background-color: ${bgColor};`;
   const photoHtml = photoUrl
     ? `<img src="${escapeAttr(photoUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:${imageX}% ${imageY}%;transform:scale(${imageScale});transform-origin:center center;" />`
     : '';
 
-  // Gradient overlay — mirrors ZoneCanvas gradOverlay logic
   let overlayHtml = '';
   if (slide.type === 'photo' || slide.type === 'overlay') {
     const gradColor = slide.gradientColor ?? '#000000';
@@ -42,7 +86,6 @@ export function buildSlideHtml(
     overlayHtml = `<div style="position:absolute;inset:0;z-index:1;${overlayStyle}"></div>`;
   }
 
-  // Zones
   const zonesHtml = (slide.zones ?? []).map((zone) => {
     const transform = zone.rotation ? `rotate(${zone.rotation}deg)` : 'none';
     const justifyContent =
@@ -69,13 +112,15 @@ export function buildSlideHtml(
     if (zone.isLogo) {
       const accentColor = brandColors?.accent ?? '#fff';
       inner = `<div style="display:flex;align-items:center;justify-content:center;height:100%;">
-        <div style="background:rgba(255,255,255,0.12);border-radius:4px;padding:8px 20px;font-family:system-ui,sans-serif;font-size:24px;font-weight:700;color:${escapeAttr(accentColor)};letter-spacing:0.12em;border:1px solid rgba(255,255,255,0.2);">
+        <div style="background:rgba(255,255,255,0.12);border-radius:4px;padding:8px 20px;font-family:'Josefin Sans',sans-serif;font-size:24px;font-weight:700;color:${escapeAttr(accentColor)};letter-spacing:0.12em;border:1px solid rgba(255,255,255,0.2);">
           ${escapeHtml(zone.text)}
         </div>
       </div>`;
     } else {
+      const family = zone.fontFamily || 'system-ui, sans-serif';
+      const familyCss = /[,]/.test(family) ? family : `'${family}',sans-serif`;
       const textStyle = [
-        `font-family:${escapeAttr(zone.fontFamily || 'system-ui, sans-serif')}`,
+        `font-family:${familyCss}`,
         `font-size:${zone.fontSize}px`,
         `font-weight:${zone.fontWeight}`,
         `color:${escapeAttr(zone.color)}`,
@@ -96,13 +141,14 @@ export function buildSlideHtml(
 <html>
 <head>
 <meta charset="utf-8">
+${buildFontLinks(slide)}
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 1080px; height: 1080px; overflow: hidden; }
+  html, body { width: ${w}px; height: ${h}px; overflow: hidden; }
 </style>
 </head>
 <body>
-<div style="width:1080px;height:1080px;position:relative;overflow:hidden;">
+<div style="width:${w}px;height:${h}px;position:relative;overflow:hidden;">
   <div style="position:absolute;inset:0;${bgCss}"></div>
   ${photoHtml}
   ${overlayHtml}
