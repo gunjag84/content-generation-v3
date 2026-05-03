@@ -9,10 +9,7 @@
 import { Router, type Request, type Response } from 'express';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/firebase.js';
-import { getMetaToken } from '../lib/getMetaToken.js';
-import { publishCarousel } from '../lib/instagram.js';
-import { runLearningExtraction } from '../lib/learningExtractor.js';
-import type { SocialSlide } from '../../shared/types/slide.js';
+import { publishClaimedPost } from '../lib/publishOnePost.js';
 
 const router = Router();
 
@@ -113,84 +110,16 @@ router.post('/publish-worker', async (_req: Request, res: Response) => {
 
     if (!claimed) continue;
 
-    // Publish the claimed post
+    const parsed = parsePostPath(doc.ref);
+    if (!parsed) {
+      console.error('[publish-worker] unexpected post path shape:', doc.ref.path);
+      errors++;
+      continue;
+    }
+
     try {
-      const postData = doc.data();
-      const parsed = parsePostPath(doc.ref);
-      if (!parsed) {
-        throw new Error(`unexpected post path shape: ${doc.ref.path}`);
-      }
-      const { uid, brandId } = parsed;
-
-      // Validate rendered slides exist
-      const renderedSlideUrls: string[] | null = postData.renderedSlideUrls ?? null;
-      if (!renderedSlideUrls || renderedSlideUrls.length === 0) {
-        await doc.ref.update({
-          status: 'error',
-          error: 'no_rendered_slides — render before publish',
-          publishingStartedAt: null,
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-        errors++;
-        continue;
-      }
-
-      // Resolve Meta token + IG user ID
-      const metaToken = await getMetaToken(uid);
-
-      const brandSnap = await db.doc(`users/${uid}/brands/${brandId}`).get();
-      if (!brandSnap.exists) throw new Error('brand_not_found');
-      const igUserId: string | undefined = brandSnap.data()?.instagramUserId;
-      if (!igUserId) throw new Error('instagram_not_configured');
-
-      const caption: string = postData.caption ?? '';
-
-      const { igMediaId, igPermalink } = await publishCarousel({
-        metaToken,
-        igUserId,
-        slideUrls: renderedSlideUrls,
-        caption,
-      });
-
-      const publishedSlides: SocialSlide[] = postData.slides ?? [];
-      await doc.ref.update({
-        status: 'published',
-        publishedAt: FieldValue.serverTimestamp(),
-        publishedSnapshot: {
-          slides: publishedSlides,
-          caption,
-        },
-        igMediaId,
-        igPermalink: igPermalink ?? null,
-        publishingStartedAt: null,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
-
+      await publishClaimedPost(doc.ref, parsed.uid, parsed.brandId);
       processed++;
-
-      // Phase 4a: fire-and-forget learning extraction. Never blocks the loop;
-      // never throws into the response. Container stays warm via
-      // min-instances=1 so the call has time to complete.
-      const aiSnapshot = postData.aiSnapshot as
-        | { slides: SocialSlide[]; caption: string }
-        | undefined;
-      if (aiSnapshot) {
-        void runLearningExtraction({
-          uid,
-          brandId,
-          postId: doc.id,
-          mode: postData.mode,
-          method: postData.method,
-          aiSnapshot,
-          publishedSnapshot: { slides: publishedSlides, caption },
-        }).catch((err) => {
-          console.error(
-            '[publish-worker] learningExtraction failed for',
-            doc.ref.path,
-            err,
-          );
-        });
-      }
     } catch (err) {
       console.error('[publish-worker] publish failed for', doc.ref.path, err);
       try {

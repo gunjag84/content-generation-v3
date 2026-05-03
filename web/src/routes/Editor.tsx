@@ -2,7 +2,7 @@
 // Auto-save writes ONLY {slides, caption, updatedAt}; aiSnapshot is server-authored
 // and immutable per Firestore rules + the DraftPatch type guard.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { useActiveBrand } from '../store/activeBrand';
@@ -18,6 +18,7 @@ import {
   SlideStrip,
   ZonePanel,
 } from '../components/editor';
+import { ConfirmModal } from '../components/ConfirmModal';
 import type { Format, SocialSlide, Zone } from '../../../shared/types/slide';
 import { FORMAT_HEIGHTS, REF_W } from '../../../shared/types/slide';
 import type { BrandDesign } from '../../../shared/schemas/brand';
@@ -53,6 +54,7 @@ const FORMATS: Format[] = ['portrait', 'post', 'story'];
 export default function Editor() {
   const { postId } = useParams<{ postId: string }>();
   const { uid, brandId } = useActiveBrand();
+  const navigate = useNavigate();
 
   const [slides, setSlides] = useState<SocialSlide[]>([]);
   const [caption, setCaption] = useState('');
@@ -70,6 +72,7 @@ export default function Editor() {
   const [brandBgColor, setBrandBgColor] = useState<string | undefined>(undefined);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [deleteSlideIdx, setDeleteSlideIdx] = useState<number | null>(null);
   const { upload: uploadToBrandPool } = usePhotoPool(brandId);
 
   // Load the brand's configured background color so canvas + thumbnails reflect it.
@@ -147,6 +150,37 @@ export default function Editor() {
         return transformChanged ? { ...s, imageManualAdjust: true } : s;
       }),
     );
+  }
+
+  function confirmDeleteSlide() {
+    const idx = deleteSlideIdx;
+    if (idx === null) return;
+    if (slides.length <= 1) { setDeleteSlideIdx(null); return; }
+    setSlides((prev) => prev.filter((_, i) => i !== idx));
+    setActiveSlideIdx((prev) => {
+      const newLen = slides.length - 1;
+      if (idx < prev) return prev - 1;
+      if (idx === prev) return Math.min(prev, newLen - 1);
+      return prev;
+    });
+    setSelectedZoneId(null);
+    setDeleteSlideIdx(null);
+  }
+
+  function reorderSlides(from: number, to: number) {
+    if (from === to) return;
+    setSlides((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+    setActiveSlideIdx((prev) => {
+      if (prev === from) return to;
+      if (from < prev && to >= prev) return prev - 1;
+      if (from > prev && to <= prev) return prev + 1;
+      return prev;
+    });
   }
 
   function applyImageToAll() {
@@ -239,12 +273,17 @@ export default function Editor() {
   }
 
   // Reset rendering flag when the job lands on a terminal state.
+  // On success: navigate to /posts so the user lands on the Drafts list where
+  // the freshly-rendered post can be scheduled or published immediately.
   useEffect(() => {
-    if (renderJob.status === 'done' || renderJob.status === 'error') {
+    if (renderJob.status === 'done') {
       setRendering(false);
-      if (renderJob.status === 'error' && renderJob.error) setRenderError(renderJob.error);
+      navigate('/posts');
+    } else if (renderJob.status === 'error') {
+      setRendering(false);
+      if (renderJob.error) setRenderError(renderJob.error);
     }
-  }, [renderJob.status, renderJob.error]);
+  }, [renderJob.status, renderJob.error, navigate]);
 
   // Recompute auto-fit for every slide that hasn't been manually adjusted
   // whenever the canvas format changes. Slides with imageManualAdjust=true keep
@@ -372,6 +411,8 @@ export default function Editor() {
         format={format}
         activeIdx={activeSlideIdx}
         onSelect={(i) => { setActiveSlideIdx(i); setSelectedZoneId(null); }}
+        onDelete={(i) => setDeleteSlideIdx(i)}
+        onReorder={reorderSlides}
         backgroundColor={brandBgColor}
       />
 
@@ -461,6 +502,14 @@ export default function Editor() {
           />
         </div>
       </aside>
+
+      <ConfirmModal
+        open={deleteSlideIdx !== null}
+        title="Slide löschen?"
+        message="Diese Slide wird endgültig aus dem Beitrag entfernt. Diese Aktion kann nicht rückgängig gemacht werden."
+        onConfirm={confirmDeleteSlide}
+        onClose={() => setDeleteSlideIdx(null)}
+      />
     </div>
   );
 }

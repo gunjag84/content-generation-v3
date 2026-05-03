@@ -44,13 +44,21 @@ async function graphGet(path: string, params: Record<string, string>): Promise<u
   return body;
 }
 
-// Publish a multi-image carousel to Instagram.
+// Publish to Instagram. Routes to single-image when slideUrls.length === 1
+// (Meta carousels require 2-10 children — a 1-child carousel is rejected with
+// code=100 Invalid parameter), otherwise multi-image carousel.
 //
-// Steps (per Meta Graph API docs):
+// Carousel steps (per Meta Graph API docs):
 //   1. Create a media container for each image (is_carousel_item=true).
-//   2. Create a carousel container referencing all child IDs.
+//   2. Create a carousel container referencing all child IDs (+ caption).
 //   3. Publish the carousel container.
-//   4. (Optional) Fetch the permalink for the published media.
+//
+// Single-image steps:
+//   1. Create a media container with image_url + caption (no is_carousel_item,
+//      no media_type — default is IMAGE).
+//   2. Publish the container.
+//
+// Both paths fetch the permalink at the end (best-effort).
 export async function publishCarousel({
   metaToken,
   igUserId,
@@ -61,29 +69,39 @@ export async function publishCarousel({
     throw new Error('publishCarousel: slideUrls must not be empty');
   }
 
-  // Step 1: create item containers
-  const childIds: string[] = [];
-  for (const imageUrl of slideUrls) {
+  let creationId: string;
+
+  if (slideUrls.length === 1) {
+    // Single-image path
     const res = await graphPost(`/${igUserId}/media`, {
-      image_url: imageUrl,
-      is_carousel_item: true,
+      image_url: slideUrls[0],
+      caption,
       access_token: metaToken,
     }) as { id: string };
-    childIds.push(res.id);
+    creationId = res.id;
+  } else {
+    // Carousel path
+    const childIds: string[] = [];
+    for (const imageUrl of slideUrls) {
+      const res = await graphPost(`/${igUserId}/media`, {
+        image_url: imageUrl,
+        is_carousel_item: true,
+        access_token: metaToken,
+      }) as { id: string };
+      childIds.push(res.id);
+    }
+    const carouselRes = await graphPost(`/${igUserId}/media`, {
+      media_type: 'CAROUSEL',
+      caption,
+      children: childIds,
+      access_token: metaToken,
+    }) as { id: string };
+    creationId = carouselRes.id;
   }
 
-  // Step 2: create carousel container
-  const carouselRes = await graphPost(`/${igUserId}/media`, {
-    media_type: 'CAROUSEL',
-    caption,
-    children: childIds,
-    access_token: metaToken,
-  }) as { id: string };
-  const carouselId = carouselRes.id;
-
-  // Step 3: publish
+  // Publish (same endpoint for both paths)
   const publishRes = await graphPost(`/${igUserId}/media_publish`, {
-    creation_id: carouselId,
+    creation_id: creationId,
     access_token: metaToken,
   }) as { id: string };
   const igMediaId = publishRes.id;

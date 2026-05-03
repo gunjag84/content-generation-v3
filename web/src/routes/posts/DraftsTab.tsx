@@ -10,14 +10,17 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useActiveBrand } from '../../store/activeBrand';
-import { publishNow } from '../../lib/postActions';
+import { deletePost, publishNow, resetPostToDraft } from '../../lib/postActions';
 import { SchedulePostModal } from '../../components/SchedulePostModal';
+import { ConfirmModal } from '../../components/ConfirmModal';
 
 interface PostRow {
   id: string;
   title: string;
   thumb: string | null;
   updatedAt: Timestamp | null;
+  status: 'draft' | 'error';
+  errorMsg: string | null;
 }
 
 const fmt = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' });
@@ -51,30 +54,70 @@ export function DraftsTab() {
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [schedulePostId, setSchedulePostId] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [deletePostId, setDeletePostId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [resettingId, setResettingId] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!uid || !brandId) return;
+    // Include 'error' so failed publishes don't silently disappear from every tab.
     const q = query(
       collection(db, 'users', uid, 'brands', brandId, 'posts'),
-      where('status', '==', 'draft'),
+      where('status', 'in', ['draft', 'error']),
       orderBy('updatedAt', 'desc'),
     );
     const unsub = onSnapshot(q, (snap) => {
       setPosts(
         snap.docs.map((d) => {
           const data = d.data() as Record<string, unknown>;
+          const status = (data['status'] as 'draft' | 'error') ?? 'draft';
           return {
             id: d.id,
             title: hookTitle(data),
             thumb: thumb(data),
             updatedAt: (data['updatedAt'] as Timestamp | null) ?? null,
+            status,
+            errorMsg: status === 'error' ? ((data['error'] as string) ?? 'Unbekannter Fehler') : null,
           };
         }),
       );
     });
     return unsub;
   }, [uid, brandId]);
+
+  async function handleReset(postId: string) {
+    if (!uid || !brandId) return;
+    setResettingId(postId);
+    setErrors((prev) => ({ ...prev, [postId]: '' }));
+    try {
+      await resetPostToDraft(uid, brandId, postId);
+    } catch (err) {
+      setErrors((prev) => ({
+        ...prev,
+        [postId]: err instanceof Error ? err.message : 'Fehler',
+      }));
+    } finally {
+      setResettingId(null);
+    }
+  }
+
+  async function handleDelete() {
+    if (!uid || !brandId || !deletePostId) return;
+    setDeleting(true);
+    setErrors((prev) => ({ ...prev, [deletePostId]: '' }));
+    try {
+      await deletePost(uid, brandId, deletePostId);
+      setDeletePostId(null);
+    } catch (err) {
+      setErrors((prev) => ({
+        ...prev,
+        [deletePostId]: err instanceof Error ? err.message : 'Fehler',
+      }));
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function handlePublishNow(postId: string) {
     if (!brandId) return;
@@ -97,7 +140,7 @@ export function DraftsTab() {
   if (posts.length === 0) {
     return (
       <p className="p-8 text-gray-500 text-sm">
-        Noch keine Drafts. <a href="/create" className="text-indigo-600 hover:underline">/create starten.</a>
+        Noch keine Drafts oder fehlgeschlagene Beiträge. <a href="/create" className="text-indigo-600 hover:underline">/create starten.</a>
       </p>
     );
   }
@@ -125,8 +168,19 @@ export function DraftsTab() {
               className="flex-1 text-left min-w-0"
               onClick={() => navigate(`/editor/${p.id}`)}
             >
-              <p className="text-sm font-medium text-gray-900 truncate">{p.title}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{formatTs(p.updatedAt)}</p>
+              <div className="flex items-center gap-2">
+                {p.status === 'error' && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-red-100 text-red-700 rounded">
+                    Fehler
+                  </span>
+                )}
+                <p className="text-sm font-medium text-gray-900 truncate">{p.title}</p>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {p.status === 'error' && p.errorMsg
+                  ? <span className="text-red-600">{p.errorMsg}</span>
+                  : formatTs(p.updatedAt)}
+              </p>
             </button>
 
             {/* Actions */}
@@ -134,18 +188,38 @@ export function DraftsTab() {
               {errors[p.id] && (
                 <span className="text-xs text-red-600">{errors[p.id]}</span>
               )}
+              {p.status === 'error' ? (
+                <button
+                  onClick={() => handleReset(p.id)}
+                  disabled={resettingId === p.id}
+                  className="px-3 py-1.5 text-xs border border-amber-400 text-amber-700 rounded hover:bg-amber-50 disabled:opacity-50"
+                  title="Auf Draft zurücksetzen, um neu zu veröffentlichen"
+                >
+                  {resettingId === p.id ? 'Wird zurückgesetzt …' : 'Zurücksetzen'}
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setSchedulePostId(p.id)}
+                    className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-100"
+                  >
+                    Einplanen
+                  </button>
+                  <button
+                    onClick={() => handlePublishNow(p.id)}
+                    disabled={publishingId === p.id}
+                    className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    {publishingId === p.id ? 'Wird veröffentlicht …' : 'Jetzt veröffentlichen'}
+                  </button>
+                </>
+              )}
               <button
-                onClick={() => setSchedulePostId(p.id)}
-                className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-100"
+                onClick={() => setDeletePostId(p.id)}
+                className="px-3 py-1.5 text-xs border border-red-300 text-red-600 rounded hover:bg-red-50"
+                title="Beitrag löschen"
               >
-                Einplanen
-              </button>
-              <button
-                onClick={() => handlePublishNow(p.id)}
-                disabled={publishingId === p.id}
-                className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {publishingId === p.id ? 'Wird veröffentlicht …' : 'Jetzt veröffentlichen'}
+                Löschen
               </button>
             </div>
           </li>
@@ -161,6 +235,15 @@ export function DraftsTab() {
           onScheduled={() => setSchedulePostId(null)}
         />
       )}
+
+      <ConfirmModal
+        open={deletePostId !== null}
+        title="Beitrag löschen?"
+        message="Dieser Beitrag wird endgültig gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
+        busy={deleting}
+        onConfirm={handleDelete}
+        onClose={() => { if (!deleting) setDeletePostId(null); }}
+      />
     </>
   );
 }

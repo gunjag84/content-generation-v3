@@ -9,7 +9,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useActiveBrand } from '../../store/activeBrand';
-import { cancelSchedule, publishNow } from '../../lib/postActions';
+import { cancelSchedule, deletePost, publishNow } from '../../lib/postActions';
+import { ConfirmModal } from '../../components/ConfirmModal';
 
 interface PostRow {
   id: string;
@@ -48,6 +49,8 @@ export function ScheduledTab() {
   const { uid, brandId } = useActiveBrand();
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [actionId, setActionId] = useState<string | null>(null);
+  const [deletePostId, setDeletePostId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -90,6 +93,23 @@ export function ScheduledTab() {
     }
   }
 
+  async function handleDelete() {
+    if (!uid || !brandId || !deletePostId) return;
+    setDeleting(true);
+    setErrors((prev) => ({ ...prev, [deletePostId]: '' }));
+    try {
+      await deletePost(uid, brandId, deletePostId);
+      setDeletePostId(null);
+    } catch (err) {
+      setErrors((prev) => ({
+        ...prev,
+        [deletePostId]: err instanceof Error ? err.message : 'Fehler',
+      }));
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function handlePublishNow(postId: string) {
     if (!brandId) return;
     setActionId(postId);
@@ -110,11 +130,22 @@ export function ScheduledTab() {
 
   if (posts.length === 0) {
     return (
-      <p className="p-8 text-gray-500 text-sm">Noch keine geplanten Beiträge.</p>
+      <>
+        <p className="p-8 text-gray-500 text-sm">Noch keine geplanten Beiträge.</p>
+        <ConfirmModal
+          open={deletePostId !== null}
+          title="Beitrag löschen?"
+          message="Dieser Beitrag wird endgültig gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
+          busy={deleting}
+          onConfirm={handleDelete}
+          onClose={() => { if (!deleting) setDeletePostId(null); }}
+        />
+      </>
     );
   }
 
   return (
+    <>
     <ul className="divide-y divide-gray-200">
       {posts.map((p) => (
         <li key={p.id} className="flex items-center gap-4 px-6 py-4">
@@ -160,11 +191,28 @@ export function ScheduledTab() {
                 >
                   Jetzt veröffentlichen
                 </button>
+                <button
+                  onClick={() => setDeletePostId(p.id)}
+                  className="px-3 py-1.5 text-xs border border-red-300 text-red-600 rounded hover:bg-red-50"
+                  title="Beitrag löschen"
+                >
+                  Löschen
+                </button>
               </>
             )}
           </div>
         </li>
       ))}
     </ul>
+
+    <ConfirmModal
+      open={deletePostId !== null}
+      title="Beitrag löschen?"
+      message="Dieser Beitrag wird endgültig gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
+      busy={deleting}
+      onConfirm={handleDelete}
+      onClose={() => { if (!deleting) setDeletePostId(null); }}
+    />
+    </>
   );
 }
