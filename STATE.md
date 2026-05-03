@@ -2,7 +2,7 @@
 
 Single source of truth for **operational state** (what is deployed, what works, what is pending). Architecture and decisions live in `~/.claude/plans/modular-tumbling-sunrise.md` (source-of-truth plan, v6 ISSUES_CLOSED 2026-04-26).
 
-Last updated: 2026-05-03.
+Last updated: 2026-05-03 (Phase 4a deployed).
 
 ---
 
@@ -11,7 +11,7 @@ Last updated: 2026-05-03.
 - **Project:** `contentai-78bfb` (europe-west1)
 - **Hosting:** https://contentai-78bfb.web.app
 - **Cloud Run:** https://content-gen-23953893533.europe-west1.run.app
-- **Live revisions:** `content-gen-00004-lrf` (Phase 3) + Cloud Functions `budgetKillswitch`, `igStatsSync`
+- **Live revisions:** `content-gen-00013-ctz` (Phase 4a, deployed 2026-05-03) + Cloud Functions `budgetKillswitch`, `igStatsSync`
 
 > Note: source-of-truth plan references `content-gen-prod` as the planned project ID; actual prod project is `contentai-78bfb`.
 
@@ -22,9 +22,11 @@ Last updated: 2026-05-03.
 | Phase | Scope | Status |
 |-------|-------|--------|
 | 1. Foundation & Infrastructure | GCP/Firebase project, Cloud Run + Tasks + Scheduler + KMS, Auth shell | **Live** |
-| 2. Brand Settings & Create | Settings schema, Focus Areas, generate streaming, zone editor on Firestore | **Live** (prod smoke pending Tim) |
-| 3. Render & Posts | Async render via Cloud Tasks, 3-tab Posts page, Schedule + Publish workers | **Live** (user-facing smoke pending Tim) |
-| 4. Learning & Polish | Edit-diff/pattern extraction loop, dashboard widgets, calendar placeholder | Not started |
+| 2. Brand Settings & Create | Settings schema, Focus Areas, generate streaming, zone editor on Firestore | **Live** |
+| 3. Render & Posts | Async render via Cloud Tasks, 3-tab Posts page, Schedule + Publish workers | **Live** |
+| 4a. Silent Edit-Diff Learning Loop | Edit-diff -> learnedPatterns -> prompt injection, Haiku audit, promotion approval UI, brand.identity wiring | **Live** (PR #1 merged, deployed `content-gen-00013-ctz`) |
+| 4b. Performance Dashboard + Polish | Read-only igStats display, edit hot-spots widget, dashboard widgets, calendar placeholder | Not started |
+| 4c. Automated Performance Learning | Auto-extract patterns from top-performing posts | Deferred (revisit at N>=20 publishes) |
 | 5. Cutover | Final security rules, fresh-start onboarding for Tim + Jule, first real post on @leben.lieben | Not started |
 
 ---
@@ -45,6 +47,14 @@ Discovered during deploy, must not regress:
 - Tim's `tim.gansczyk@gmail.com` granted `roles/iam.serviceAccountTokenCreator` on `internal-invoker` SA for OIDC manual probes
 - KMS bypass active when `FIRESTORE_EMULATOR_HOST` is set (base64 dev stub)
 - `min-instances=1` accepted (~$5-15/mo) for stability + cleanness; no cold-starts
+
+### Phase 4a deploy quirks (locked in 2026-05-03)
+
+- Brand identity (voice + persona only) wired as Layer 3.5 in `assembleSystemPrompt`. UVP / point_of_view / competitive_landscape are explicit dead code, marked `inactive` in IdentityPage UI.
+- All LEBEN.LIEBEN references stripped from code paths (prompts, UI defaults, hardcoded strings). Brand context flows from `brand.identity` only. Operational mentions (deploy anchors, portfolio context) in STATE.md + CLAUDE.md are intentional and stay.
+- `server/lib/learningConfig.ts` centralizes all tunables (EDIT_RATIO_THRESHOLD=0.15, TOP_N=20, RECENCY_HALF_LIFE_DAYS=30, PROMOTION_USE_COUNT=3, PROMOTION_CONFIDENCE=0.7, AUDIT_MAX_TOKENS=1500, APPROVAL_BASELINE_WINDOW=5, APPROVAL_LEDGER_WINDOW=5, APPROVAL_HURTFUL_DELTA=0.05). Single PR to retune.
+- `server/functions/` cannot import from `shared/` (own tsconfig with rootDir='.', include only `*.ts`). Phase 4a's learning loop avoided this by living in Cloud Run. Documented in `server/functions/index.ts`.
+- Vitest test config sets `GCLOUD_PROJECT=contentai-test` in `test.env` so `firebase-admin`'s `applicationDefault()` initApp picks the right project ID at module load. Integration tests use admin SDK throughout (NOT `@firebase/rules-unit-testing` which causes a project-ID split + grpc errors against the emulator).
 
 ---
 
@@ -210,7 +220,7 @@ Also add to post doc on publish: `editStats: { editRatioByZone: {hook, body, cta
 | CREATE-01..08 | Mode/method/focus/situation/photo selection, photo pool, NDJSON streaming, post auto-create with immutable aiSnapshot, prompt assembly with learnedPatterns block, abort-on-disconnect | 2 | Live |
 | RENDER-01..05 | render-jobs enqueue, Playwright per-request, sub-collection updates, 2s polling, <10s cold-start | 3 | Live |
 | POST-01..07 | 3-tab Posts page, draft->scheduled->published transitions, Cloud Scheduler tick, transaction lock, stale-lock sweep, igMediaId link, igStats sync | 3 | Live |
-| LEARN-01..05 | computeEditDiff, Claude Haiku pattern extract, idempotency, learnedPatterns injection, invisible UI | 4a | Pending |
+| LEARN-01..05 | computeEditDiff, Claude Haiku pattern extract, idempotency, learnedPatterns injection, invisible UI | 4a | **Live** (deployed 2026-05-03) |
 | POLISH-01..02 + igStats display + edit hot-spots | Dashboard widgets, Calendar placeholder, per-post igStats, per-method/day-of-week aggregates (N>=3 floor) | 4b | Pending |
 | LEARN-V2-* (auto-perf-learning) | Defer until N>=20 published posts | 4c | Deferred |
 | LAUNCH-01..06 | Hosting deployed, Cloud Run + Tasks + Scheduler active, final security rules, fresh onboarding, first real post, v2 README archive | 5 | Pending |
