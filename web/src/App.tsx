@@ -15,6 +15,7 @@ import { LibraryPage } from './routes/settings/LibraryPage';
 import { PhotosPage } from './routes/settings/PhotosPage';
 import { MethodsPage } from './routes/settings/MethodsPage';
 import { ApiKeysPage } from './routes/settings/ApiKeysPage';
+import { InstagramPage } from './routes/settings/InstagramPage';
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
                 <Route path="photos" element={<PhotosPage />} />
                 <Route path="methods" element={<MethodsPage />} />
                 <Route path="api-keys" element={<ApiKeysPage />} />
+                <Route path="instagram" element={<InstagramPage />} />
               </Route>
             </Routes>
           </main>

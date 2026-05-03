@@ -81,10 +81,6 @@ export function ApiKeysPage() {
         </div>
       </section>
 
-      <section className="border border-gray-200 rounded p-4 space-y-2 opacity-60">
-        <h2 className="text-lg font-medium">Meta Graph</h2>
-        <p className="text-sm text-gray-500">Wird in Phase 3 freigeschaltet.</p>
-      </section>
     </div>
   );
 }
