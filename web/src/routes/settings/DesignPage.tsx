@@ -21,20 +21,44 @@ const EMPTY: BrandDesign = {
   zoneDefaults: {},
 };
 
+// Migrate stored brand designs that used the old ('primary'|'secondary')
+// color enum or stored SUBTLE/BRAND zone roles. Coerces to the current
+// schema so loaded state validates on the next save.
+function migrateZoneDefaults(raw: unknown): BrandDesign['zoneDefaults'] {
+  if (!raw || typeof raw !== 'object') return {};
+  const out: NonNullable<BrandDesign['zoneDefaults']> = {};
+  for (const role of ['ACCENT', 'BASE'] as ZoneRole[]) {
+    const v = (raw as Record<string, unknown>)[role];
+    if (!v || typeof v !== 'object') continue;
+    const obj = v as Record<string, unknown>;
+    const colorIn = String(obj.color ?? '');
+    const color: 'standard' | 'accent' = colorIn === 'accent' ? 'accent' : 'standard';
+    const fontFamily = typeof obj.fontFamily === 'string' && obj.fontFamily ? obj.fontFamily : 'Inter';
+    const fontSize = typeof obj.fontSize === 'number' && obj.fontSize > 0 ? obj.fontSize : 56;
+    out[role] = { color, fontFamily, fontSize };
+  }
+  return out;
+}
+
 export function DesignPage() {
   const { uid, brandId } = useActiveBrand();
   const [design, setDesign] = useState<BrandDesign>(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!uid || !brandId) return;
     let alive = true;
     getDoc(doc(db, 'users', uid, 'brands', brandId)).then((snap) => {
       if (!alive) return;
-      const data = snap.data();
-      setDesign({ ...EMPTY, ...(data?.design ?? {}) });
+      const stored = (snap.data()?.design ?? {}) as Record<string, unknown>;
+      setDesign({
+        ...EMPTY,
+        ...stored,
+        zoneDefaults: migrateZoneDefaults(stored.zoneDefaults),
+      } as BrandDesign);
     });
     return () => {
       alive = false;
@@ -122,13 +146,28 @@ export function DesignPage() {
         </div>
       </section>
 
-      <label className="block">
+      <div>
         <span className="block text-sm font-medium mb-1">Logo</span>
-        <input type="file" accept="image/png,image/jpeg,image/svg+xml" onChange={onLogoChange} />
-        {design.logoUrl && (
-          <img src={design.logoUrl} alt="Logo" className="mt-2 h-16 object-contain" />
-        )}
-      </label>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => logoInputRef.current?.click()}
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-gray-500"
+          >
+            {design.logoUrl ? 'Logo ersetzen' : 'Logo hochladen'}
+          </button>
+          {design.logoUrl && (
+            <img src={design.logoUrl} alt="Logo" className="h-12 object-contain" />
+          )}
+        </div>
+        <input
+          ref={logoInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/svg+xml"
+          onChange={onLogoChange}
+          className="hidden"
+        />
+      </div>
 
       <label className="block">
         <span className="block text-sm font-medium mb-1">Instagram-Handle</span>
