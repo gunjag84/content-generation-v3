@@ -302,9 +302,10 @@ interface SlideThumbnailProps {
 
 export function SlideThumbnail({ slide, format, active, index, onClick }: SlideThumbnailProps) {
   const refH = FORMAT_HEIGHTS[format];
-  // Keep thumbs visible inside ~180px-wide rail across post/portrait/story.
-  const thumbWMax = 160;
-  const thumbHMax = 220;
+  // Slightly smaller than before (was 160x220) — keeps ~3 portrait thumbs visible
+  // in the 200px-wide rail without scrolling.
+  const thumbWMax = 130;
+  const thumbHMax = 180;
   const aspect = REF_W / refH;
   let thumbW = thumbWMax;
   let thumbH = thumbW / aspect;
@@ -312,12 +313,9 @@ export function SlideThumbnail({ slide, format, active, index, onClick }: SlideT
     thumbH = thumbHMax;
     thumbW = thumbH * aspect;
   }
+  const scale = thumbW / REF_W;
 
-  const bgStyle: React.CSSProperties = {
-    width: thumbW, height: thumbH, position: 'relative', overflow: 'hidden', flexShrink: 0,
-    backgroundColor: slide.type === 'cta' ? '#0f1f16' : '#1c1c2e',
-    cursor: 'pointer',
-  };
+  const bgColor = slide.type === 'cta' ? '#0f1f16' : '#1c1c2e';
   const imgStyle: React.CSSProperties = slide.imageUrl
     ? {
         position: 'absolute', inset: 0,
@@ -331,22 +329,91 @@ export function SlideThumbnail({ slide, format, active, index, onClick }: SlideT
       }
     : { display: 'none' };
 
+  // Mirror the editor preview: gradient overlay matches ZoneCanvas (uses
+  // gradientColor + textPosition + overlayOpacity), not a hard-coded black.
+  const { r: gr, g: gg, b: gb } = hexToRgb(slide.gradientColor ?? '#000000');
+  const gradAlpha = (slide.overlayOpacity ?? 75) / 100;
+  const gradDir = (slide.textPosition ?? 'bottom') === 'top' ? 'to top' : 'to bottom';
+  const overlayBg =
+    slide.type === 'photo'
+      ? `linear-gradient(${gradDir}, rgba(${gr},${gg},${gb},0) 0%, rgba(${gr},${gg},${gb},${gradAlpha}) ${100 - (slide.gradientStart ?? 25)}%, rgba(${gr},${gg},${gb},${gradAlpha}) 100%)`
+      : slide.type === 'overlay'
+      ? `rgba(${gr},${gg},${gb},${gradAlpha})`
+      : undefined;
+
   return (
     <div
       onClick={onClick}
       style={{ width: thumbW, height: thumbH }}
-      className={`relative transition-all ${active ? 'ring-2 ring-amber-500' : 'ring-1 ring-zinc-700 opacity-55 hover:opacity-90'}`}
+      className={`relative transition-all overflow-hidden ${active ? 'ring-2 ring-amber-500' : 'ring-1 ring-zinc-700 opacity-55 hover:opacity-90'}`}
     >
-      <div style={bgStyle}>
+      {/* Render the slide at full reference resolution then CSS-scale down,
+          so the thumbnail is a true visual mirror of the editor canvas
+          (background, photo, gradient, AND text zones at correct positions). */}
+      <div
+        style={{
+          width: REF_W,
+          height: refH,
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+          position: 'relative',
+          backgroundColor: bgColor,
+          pointerEvents: 'none',
+        }}
+      >
         {slide.imageUrl && <img src={slide.imageUrl} style={imgStyle} alt="" draggable={false} />}
-        {slide.type === 'photo' && slide.imageUrl && (
-          <div style={{
-            position: 'absolute', inset: 0,
-            background: `linear-gradient(${(slide.textPosition ?? 'bottom') === 'top' ? 'to top' : 'to bottom'}, transparent ${slide.gradientStart ?? 25}%, rgba(0,0,0,${(slide.overlayOpacity ?? 75) / 100}) 100%)`,
-          }} />
-        )}
+        {overlayBg && <div style={{ position: 'absolute', inset: 0, zIndex: 1, background: overlayBg }} />}
+        {slide.zones.map(zone => {
+          const zStyle: React.CSSProperties = {
+            position: 'absolute',
+            left: zone.x, top: zone.y, width: zone.w, height: zone.h,
+            zIndex: 10,
+            transform: zone.rotation ? `rotate(${zone.rotation}deg)` : undefined,
+            transformOrigin: 'center center',
+            display: 'flex', flexDirection: 'column',
+            justifyContent: zone.alignV === 'top' ? 'flex-start' : zone.alignV === 'bottom' ? 'flex-end' : 'center',
+            padding: 8,
+            boxSizing: 'border-box',
+          };
+          if (zone.isLogo) {
+            return (
+              <div key={zone.id} style={zStyle}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  height: '100%',
+                }}>
+                  <div style={{
+                    background: 'rgba(255,255,255,0.12)', borderRadius: 4,
+                    padding: '8px 20px', fontFamily: 'Josefin Sans', fontSize: 24,
+                    fontWeight: 700, color: '#fff', letterSpacing: '0.12em',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                  }}>
+                    LEBEN.LIEBEN
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          const txtStyle: React.CSSProperties = {
+            fontFamily: zone.fontFamily,
+            fontSize: zone.fontSize,
+            fontWeight: zone.fontWeight,
+            color: zone.color,
+            fontStyle: zone.italic ? 'italic' : 'normal',
+            textAlign: zone.alignH,
+            lineHeight: zone.lineHeight,
+            letterSpacing: `${zone.letterSpacing}em`,
+            whiteSpace: 'pre-wrap',
+            width: '100%',
+          };
+          return (
+            <div key={zone.id} style={zStyle}>
+              <div style={txtStyle}>{zone.text}</div>
+            </div>
+          );
+        })}
       </div>
-      <div className="absolute bottom-0.5 right-0.5 font-mono text-[8px] text-zinc-400 bg-zinc-900/80 px-0.5 leading-tight">
+      <div className="absolute bottom-0.5 right-0.5 font-mono text-[8px] text-zinc-400 bg-zinc-900/80 px-0.5 leading-tight z-20">
         {index + 1}
       </div>
     </div>
