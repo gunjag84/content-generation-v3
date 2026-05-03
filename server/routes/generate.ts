@@ -18,6 +18,7 @@ import { createDraftPost } from '../lib/createDraftPost.js';
 import { buildZitatCarousel } from '../lib/zitatShortcircuit.js';
 import type { MethodSlug } from '../lib/methodResolution.js';
 import { loadTopPatterns, renderPatternsBlock, markPatternsUsed } from '../lib/learnedPatterns.js';
+import { auditAndPersistPatternMatch } from '../lib/patternAudit.js';
 
 const router = express.Router();
 
@@ -208,6 +209,20 @@ router.post('/generate', async (req: Request, res: Response) => {
       topPatterns.map((p) => p.id),
     ).catch((err) => {
       console.error('[generate] markPatternsUsed failed:', (err as Error).message);
+    });
+
+    // Post-generate Haiku audit: did the model actually follow the patterns?
+    // Fire-and-forget; persists patternAudit on the post doc for editor
+    // advisory warnings (Phase 4b) and as enforcement-quality signal.
+    void auditAndPersistPatternMatch({
+      uid,
+      brandId: body.brandId,
+      postId,
+      apiKey,
+      patterns: topPatterns,
+      output: { slides: parsed.slides, caption: parsed.caption },
+    }).catch((err) => {
+      console.error('[generate] patternAudit failed:', (err as Error).message);
     });
   }
 });

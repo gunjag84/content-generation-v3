@@ -53,6 +53,25 @@ export const PostSchema = z.object({
     })
     .nullable()
     .optional(),
+  // Phase 4a enforcement: post-generate Haiku audit of pattern compliance.
+  // Score = followedCount / totalPatterns. Null until first generate with patterns.
+  patternAudit: z
+    .object({
+      score: z.number().min(0).max(1),
+      totalPatterns: z.number().int().min(0),
+      followedCount: z.number().int().min(0),
+      results: z.array(
+        z.object({
+          patternId: z.string(),
+          zone: z.enum(['hook', 'body', 'cta', 'caption']),
+          followed: z.boolean(),
+          evidence: z.string(),
+        }),
+      ),
+      auditedAt: z.unknown(),
+    })
+    .nullable()
+    .optional(),
   createdAt: z.unknown(),
   updatedAt: z.unknown(),
 });
