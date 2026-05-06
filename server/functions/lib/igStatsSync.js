@@ -14,20 +14,14 @@ const MAX_PER_RUN = 50;
 function parsePostPath(path) {
     const parts = path.split('/');
     // users/{uid}/brands/{brandId}/posts/{postId}
-    if (parts.length !== 6 || parts[0] !== 'users' || parts[4] !== 'posts')
+    if (parts.length !== 6 || parts[0] !== 'users' || parts[2] !== 'brands' || parts[4] !== 'posts') {
         return null;
-    return { uid: parts[1] };
+    }
+    return { uid: parts[1], brandId: parts[3] };
 }
-async function getMetaTokenForUid(uid) {
-    const db = (0, firestore_1.getFirestore)();
-    const snap = await db.doc(`users/${uid}/secrets/apiKeys`).get();
-    if (!snap.exists)
-        throw new Error('No Meta access token on file.');
-    const data = snap.data();
-    if (!data?.meta_ciphertext)
-        throw new Error('No Meta access token on file.');
-    // Import kmsDecrypt inline to avoid cross-package import issues inside the
-    // functions sub-package (which has its own tsconfig / node_modules).
+async function decryptCiphertext(ciphertext) {
+    // Inline KMS decrypt (functions sub-package can't import server/lib/kms.ts;
+    // see server/functions/index.ts header).
     const { KeyManagementServiceClient } = await import('@google-cloud/kms');
     const keyName = process.env.KMS_KEY_NAME;
     if (!keyName)
@@ -35,12 +29,41 @@ async function getMetaTokenForUid(uid) {
     const client = new KeyManagementServiceClient();
     const [r] = await client.decrypt({
         name: keyName,
-        ciphertext: Buffer.from(data.meta_ciphertext, 'base64'),
+        ciphertext: Buffer.from(ciphertext, 'base64'),
     });
     return Buffer.from(r.plaintext).toString('utf8');
 }
-async function fetchIgInsights(igMediaId, accessToken) {
-    const metrics = 'reach,impressions,likes_count,comments_count,saved';
+// Multi-brand migration (2026-05-06): primary read is brand-scoped. Falls back
+// to legacy users/{uid}.apiKeys.metaGraph during the 1-week observation window.
+// Mirror of server/lib/getMetaToken.ts.
+async function getMetaTokenForBrand(uid, brandId) {
+    const db = (0, firestore_1.getFirestore)();
+    const brandSnap = await db.doc(`users/${uid}/brands/${brandId}`).get();
+    const brandData = brandSnap.data();
+    const brandCt = brandData?.metaGraphCiphertext ?? null;
+    if (brandCt) {
+        return decryptCiphertext(brandCt);
+    }
+    // Legacy fallback (remove after cleanup deploy).
+    const userSnap = await db.doc(`users/${uid}`).get();
+    const userData = userSnap.data();
+    const userCt = userData?.apiKeys?.metaGraph;
+    if (!userCt)
+        throw new Error(`No Meta token configured for brand ${brandId} (uid=${uid}).`);
+    console.warn(`[igStatsSync] legacy fallback used for uid=${uid} brandId=${brandId}`);
+    return decryptCiphertext(userCt);
+}
+// Meta exposes a different metric set for video (Reels) vs photo. Asking
+// for the wrong set returns an error per metric and skews aggregate stats.
+function metricsForType(mediaType) {
+    if (mediaType === 'REELS') {
+        return 'plays,reach,likes,comments,saved,shares,total_interactions';
+    }
+    // IMAGE + CAROUSEL_ALBUM (and legacy unset) - default photo metric set.
+    return 'reach,impressions,likes_count,comments_count,saved';
+}
+async function fetchIgInsights(igMediaId, accessToken, mediaType) {
+    const metrics = metricsForType(mediaType);
     const url = `${BASE}/${igMediaId}/insights?metric=${metrics}&access_token=${encodeURIComponent(accessToken)}`;
     const res = await fetch(url);
     const body = (await res.json());
@@ -63,11 +86,26 @@ async function fetchIgInsights(igMediaId, accessToken) {
             case 'likes_count':
                 out.likes = value;
                 break;
+            case 'likes':
+                out.likes = value;
+                break;
             case 'comments_count':
+                out.comments = value;
+                break;
+            case 'comments':
                 out.comments = value;
                 break;
             case 'saved':
                 out.saves = value;
+                break;
+            case 'plays':
+                out.plays = value;
+                break;
+            case 'video_views':
+                out.videoViews = value;
+                break;
+            case 'shares':
+                out.shares = value;
                 break;
         }
     }
@@ -119,9 +157,15 @@ exports.igStatsSync = (0, scheduler_1.onSchedule)({ schedule: 'every 6 hours', r
                 skipped++;
                 continue;
             }
-            const { uid } = parsed;
-            const metaToken = await getMetaTokenForUid(uid);
-            const insights = await fetchIgInsights(igMediaId, metaToken);
+            const { uid, brandId } = parsed;
+            const metaToken = await getMetaTokenForBrand(uid, brandId);
+            const mediaType = (() => {
+                const t = data.mediaType;
+                if (t === 'IMAGE' || t === 'CAROUSEL_ALBUM' || t === 'REELS')
+                    return t;
+                return null;
+            })();
+            const insights = await fetchIgInsights(igMediaId, metaToken, mediaType);
             await doc.ref.update({
                 igStats: {
                     ...insights,

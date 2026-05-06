@@ -6,6 +6,7 @@ import {
   freshestSyncedAt,
   safePublishedAt,
 } from '../../../../shared/lib/stats';
+import { isIgNativePost } from '../../../../shared/lib/postTypeGuards';
 import { formatDate, formatNumber, timeAgo } from '../../lib/format';
 import { StatCard } from '../../components/posts/StatCard';
 import { SortHeader } from '../../components/posts/SortHeader';
@@ -36,6 +37,11 @@ interface Row {
 }
 
 function thumb(post: PublishedPostWithId): string | null {
+  // ig-native: no rendered slides, no photoUrls. Use the IG-supplied
+  // thumbnailUrl (preferred for video) or mediaUrl.
+  if (isIgNativePost(post)) {
+    return post.thumbnailUrl ?? post.mediaUrl ?? null;
+  }
   if (Array.isArray(post.renderedSlideUrls) && post.renderedSlideUrls.length > 0) {
     const first = post.renderedSlideUrls[0];
     if (typeof first === 'string') return first;
@@ -46,10 +52,13 @@ function thumb(post: PublishedPostWithId): string | null {
 }
 
 function hookTitle(post: PublishedPostWithId): string {
-  const slides = post.slides as Array<{ zones?: Array<{ text?: string }> }> | undefined;
-  if (slides && slides.length > 0) {
-    const zone = slides[0]?.zones?.find((z) => z.text);
-    if (zone?.text) return zone.text;
+  // ig-native posts have no slides/zones; derive the title from caption only.
+  if (!isIgNativePost(post)) {
+    const slides = post.slides as Array<{ zones?: Array<{ text?: string }> }> | undefined;
+    if (slides && slides.length > 0) {
+      const zone = slides[0]?.zones?.find((z) => z.text);
+      if (zone?.text) return zone.text;
+    }
   }
   const cap = post.publishedSnapshot?.caption ?? post.caption ?? '';
   return cap || 'Kein Titel';
@@ -71,7 +80,7 @@ function buildRow(post: PublishedPostWithId): Row {
     likes: stats?.likes ?? null,
     comments: stats?.comments ?? null,
     saves: stats?.saves ?? null,
-    engagement: engagementRate(stats),
+    engagement: engagementRate(stats, post.mediaType),
   };
 }
 
@@ -246,8 +255,18 @@ export function HistoryTab() {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm text-gray-900 truncate">
-                      {hook.length > 70 ? hook.slice(0, 70) + '…' : hook}
+                    <div className="text-sm text-gray-900 truncate flex items-center gap-1.5">
+                      {isIgNativePost(r.post) && (
+                        <span
+                          className="shrink-0 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide bg-pink-100 text-pink-700 rounded"
+                          title="Aus dem Instagram-Feed sync'd"
+                        >
+                          IG
+                        </span>
+                      )}
+                      <span className="truncate">
+                        {hook.length > 70 ? hook.slice(0, 70) + '…' : hook}
+                      </span>
                     </div>
                     <div className="text-[11px] text-gray-500 mt-0.5">
                       <span className="tabular-nums">{formatDate(r.publishedDate)}</span>

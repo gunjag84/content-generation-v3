@@ -100,7 +100,14 @@ export default function Editor() {
         setLoading(false);
         return;
       }
-      const data = snap.data() as PostShape;
+      const data = snap.data() as PostShape & { source?: string };
+      // ig-native posts have no aiSnapshot/slides to edit. Bounce back to
+      // the History view; the dashboard widgets already redirect IG links
+      // to the IG permalink, but a deep-link could still land here.
+      if (data.source === 'ig-native') {
+        navigate('/posts', { replace: true });
+        return;
+      }
       aiSnapshotAtLoad.current = data.aiSnapshot;
       setSlides(data.slides ?? []);
       setCaption(data.caption ?? '');
