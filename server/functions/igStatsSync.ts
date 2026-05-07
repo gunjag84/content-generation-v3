@@ -37,6 +37,7 @@ async function decryptCiphertext(ciphertext: string): Promise<string> {
 interface BrandCredentials {
   token: string;
   igUserId: string;
+  igUsername: string | null; // resolved from /{igUserId}?fields=username; null on fetch fail
 }
 
 // Multi-brand migration (2026-05-06): primary read is brand-scoped. Falls back
@@ -56,56 +57,84 @@ async function getBrandCredentials(uid: string, brandId: string): Promise<BrandC
     throw new Error(`No instagramUserId configured for brand ${brandId} (uid=${uid}).`);
   }
 
+  let token: string;
   if (brandCt) {
-    return { token: await decryptCiphertext(brandCt), igUserId };
+    token = await decryptCiphertext(brandCt);
+  } else {
+    // Legacy fallback (remove after cleanup deploy).
+    const userSnap = await db.doc(`users/${uid}`).get();
+    const userData = userSnap.data() as { apiKeys?: { metaGraph?: string } } | undefined;
+    const userCt = userData?.apiKeys?.metaGraph;
+    if (!userCt) throw new Error(`No Meta token configured for brand ${brandId} (uid=${uid}).`);
+    console.warn(`[igStatsSync] legacy fallback used for uid=${uid} brandId=${brandId}`);
+    token = await decryptCiphertext(userCt);
   }
 
-  // Legacy fallback (remove after cleanup deploy).
-  const userSnap = await db.doc(`users/${uid}`).get();
-  const userData = userSnap.data() as { apiKeys?: { metaGraph?: string } } | undefined;
-  const userCt = userData?.apiKeys?.metaGraph;
-  if (!userCt) throw new Error(`No Meta token configured for brand ${brandId} (uid=${uid}).`);
-  console.warn(`[igStatsSync] legacy fallback used for uid=${uid} brandId=${brandId}`);
-  return { token: await decryptCiphertext(userCt), igUserId };
+  // Resolve the IG username (handle, e.g. "leben.lieben") for v22+ self-comment
+  // detection. Meta v22 removed the `from` field on comments; the new pattern
+  // matches `comment.username === igUsername` OR `!!comment.user`.
+  let igUsername: string | null = null;
+  try {
+    const url = `${BASE}/${igUserId}?fields=username&access_token=${encodeURIComponent(token)}`;
+    const res = await fetch(url);
+    const body = (await res.json()) as { username?: string; error?: { message?: string } };
+    if (res.ok && !body?.error && typeof body.username === 'string') {
+      igUsername = body.username;
+    } else {
+      console.warn('[igStatsSync] username fetch failed:', body?.error?.message ?? 'unknown');
+    }
+  } catch (err) {
+    console.warn('[igStatsSync] username fetch threw:', err);
+  }
+
+  return { token, igUserId, igUsername };
 }
 
-// Fetch the brand's current follower count via /{igUserId}?fields=followers_count.
-// Cheap (1 API call per brand per run, cached for the rest of the run).
-async function fetchBrandFollowers(igUserId: string, token: string): Promise<number | null> {
+// Followers GAINED through this specific post (Meta `follows` insight metric).
+// Not all media types support it; on unsupported / failed returns null silently.
+async function fetchPostFollows(mediaId: string, token: string): Promise<number | null> {
   try {
-    const url = `${BASE}/${igUserId}?fields=followers_count&access_token=${encodeURIComponent(token)}`;
+    const url = `${BASE}/${mediaId}/insights?metric=follows&access_token=${encodeURIComponent(token)}`;
     const res = await fetch(url);
-    const body = (await res.json()) as { followers_count?: number; error?: { message?: string } };
-    if (!res.ok || body?.error) {
-      console.warn('[igStatsSync] followers fetch failed:', body?.error?.message ?? 'unknown');
-      return null;
-    }
-    return typeof body.followers_count === 'number' ? body.followers_count : null;
-  } catch (err) {
-    console.warn('[igStatsSync] followers fetch threw:', err);
+    const body = (await res.json()) as {
+      data?: Array<{ values?: Array<{ value?: number }> }>;
+      error?: { message?: string };
+    };
+    if (!res.ok || body?.error) return null;
+    const value = body.data?.[0]?.values?.[0]?.value;
+    return typeof value === 'number' ? value : null;
+  } catch {
     return null;
   }
 }
 
-// Count comments authored by the brand's own IG account (top-level + first
-// page of nested replies per top-level). Returns null on fetch failure so
-// callers know to leave igStats.ownComments unset rather than write a wrong 0.
+// Count comments authored by the brand's own IG account (replies count too).
+//
+// Meta Graph API v22+ removed the `from` field on comments. The reliable
+// v22+ pattern (mirrors content-generation v2):
+//   - Request `?fields=username,user,replies.limit(50){username,user}`
+//   - Self-detect: `username === igUsername` OR `!!user`. The `user` field
+//     is only returned when the commenter IS the authenticated account
+//     (a redundant signal that's reliable when usernames change).
+//
+// Returns null on fetch failure so callers leave igStats.ownComments unset
+// rather than writing a wrong 0.
 async function fetchOwnCommentsCount(
   mediaId: string,
   token: string,
-  brandIgUserId: string,
+  igUsername: string | null,
 ): Promise<number | null> {
   try {
-    // limit=50 top-level + replies{from} nested. Covers ~95% of LEBEN.LIEBEN
-    // post comment volumes; high-comment posts may undercount past page 1.
     const url =
-      `${BASE}/${mediaId}/comments?fields=id,from,replies.limit(50){from}` +
+      `${BASE}/${mediaId}/comments` +
+      `?fields=username,user,replies.limit(50){username,user}` +
       `&limit=50&access_token=${encodeURIComponent(token)}`;
     const res = await fetch(url);
     const body = (await res.json()) as {
       data?: Array<{
-        from?: { id?: string };
-        replies?: { data?: Array<{ from?: { id?: string } }> };
+        username?: string;
+        user?: unknown;
+        replies?: { data?: Array<{ username?: string; user?: unknown }> };
       }>;
       error?: { message?: string };
     };
@@ -113,11 +142,13 @@ async function fetchOwnCommentsCount(
       console.warn('[igStatsSync] comments fetch failed for', mediaId, body?.error?.message);
       return null;
     }
+    const isSelf = (c: { username?: string; user?: unknown }): boolean =>
+      (igUsername !== null && c.username === igUsername) || !!c.user;
     let count = 0;
     for (const c of body.data ?? []) {
-      if (c.from?.id === brandIgUserId) count++;
+      if (isSelf(c)) count++;
       for (const r of c.replies?.data ?? []) {
-        if (r.from?.id === brandIgUserId) count++;
+        if (isSelf(r)) count++;
       }
     }
     return count;
@@ -236,12 +267,9 @@ export const igStatsSync = onSchedule(
     let skipped = 0;
     let errCount = 0;
 
-    // Per-brand cache: token + igUserId + (lazily-fetched) followers count.
-    // Avoids re-fetching credentials and followers_count for every post.
-    const brandCache = new Map<
-      string,
-      { token: string; igUserId: string; followers: number | null }
-    >();
+    // Per-brand cache: credentials (token + igUserId + igUsername).
+    // Avoids re-fetching credentials and re-resolving username per post.
+    const brandCache = new Map<string, BrandCredentials>();
 
     for (const doc of snap.docs) {
       try {
@@ -269,9 +297,7 @@ export const igStatsSync = onSchedule(
         const cacheKey = `${uid}/${brandId}`;
         let cached = brandCache.get(cacheKey);
         if (!cached) {
-          const creds = await getBrandCredentials(uid, brandId);
-          const followers = await fetchBrandFollowers(creds.igUserId, creds.token);
-          cached = { ...creds, followers };
+          cached = await getBrandCredentials(uid, brandId);
           brandCache.set(cacheKey, cached);
         }
 
@@ -281,16 +307,17 @@ export const igStatsSync = onSchedule(
           return null;
         })();
         const insights = await fetchIgInsights(igMediaId, cached.token, mediaType);
+        const follows = await fetchPostFollows(igMediaId, cached.token);
         const ownComments = await fetchOwnCommentsCount(
           igMediaId,
           cached.token,
-          cached.igUserId,
+          cached.igUsername,
         );
 
         await doc.ref.update({
           igStats: {
             ...insights,
-            followers: cached.followers,
+            follows,
             ownComments,
             syncedAt: FieldValue.serverTimestamp(),
           },

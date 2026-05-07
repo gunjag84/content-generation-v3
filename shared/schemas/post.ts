@@ -14,13 +14,14 @@ export const IgStatsSchema = z.object({
   plays: z.number().nullable().optional(),
   videoViews: z.number().nullable().optional(),
   shares: z.number().nullable().optional(),
-  // Brand follower count at the time of the last stats sync. Same value
-  // across all posts synced in the same run; trends emerge over multiple
-  // syncs. Fetched once per brand via /{igUserId}?fields=followers_count.
-  followers: z.number().nullable().optional(),
+  // Followers GAINED through this specific post (Meta v22+ insights metric
+  // `follows`). Per-post attribution, not brand-total. Null = endpoint did
+  // not return the metric for this media type / fetch failed.
+  follows: z.number().nullable().optional(),
   // Comments authored by the brand's own IG account (replies to commenters).
-  // Counted across top-level + nested replies via /{mediaId}/comments?fields=
-  // id,from,replies{from}. Null = not yet fetched / fetch failed.
+  // Counted via /{mediaId}/comments?fields=username,user,replies{username,user}
+  // (v22+ removed the `from` field; match on `username === igUsername` OR
+  // `!!user` for self-detection). Null = fetch failed.
   ownComments: z.number().nullable().optional(),
   syncedAt: z.unknown().optional(),
 }).nullable();

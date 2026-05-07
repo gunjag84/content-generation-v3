@@ -23,7 +23,7 @@ type SortField =
   | 'likes'
   | 'comments'
   | 'saves'
-  | 'followers'
+  | 'follows'
   | 'engagement';
 
 interface Row {
@@ -36,7 +36,7 @@ interface Row {
   rawComments: number | null;
   ownComments: number | null;
   saves: number | null;
-  followers: number | null;
+  follows: number | null;
   engagement: number | null;
 }
 
@@ -99,7 +99,7 @@ function buildRow(post: PublishedPostWithId, excludeOwnComments: boolean): Row {
     rawComments,
     ownComments,
     saves: stats?.saves ?? null,
-    followers: stats?.followers ?? null,
+    follows: stats?.follows ?? null,
     engagement: engagementRate(stats, post.mediaType, { excludeOwnComments }),
   };
 }
@@ -268,7 +268,9 @@ export function HistoryTab() {
             <SortHeader field="likes" label="Likes" active={sort} order={order} onSort={handleSort} align="right" />
             <SortHeader field="comments" label="Komm." active={sort} order={order} onSort={handleSort} align="right" />
             <SortHeader field="saves" label="Saves" active={sort} order={order} onSort={handleSort} align="right" />
-            <SortHeader field="followers" label="Foll." active={sort} order={order} onSort={handleSort} align="right" />
+            <div className="text-right" title="Followers, die durch diesen Post gewonnen wurden (Meta-Insight `follows`). Nicht jeder Media-Typ liefert die Metric — leer = nicht verfügbar.">
+              <SortHeader field="follows" label="Foll." active={sort} order={order} onSort={handleSort} align="right" />
+            </div>
             <div className="text-right" title={ENGAGEMENT_TOOLTIP}>
               <SortHeader field="engagement" label="Eng. %" active={sort} order={order} onSort={handleSort} align="right" />
             </div>
@@ -343,7 +345,7 @@ export function HistoryTab() {
                   {formatNumber(r.saves)}
                 </div>
                 <div className="text-right text-sm text-gray-700 tabular-nums">
-                  {formatNumber(r.followers)}
+                  {formatNumber(r.follows)}
                 </div>
                 <div className="text-right text-sm text-gray-700 tabular-nums">
                   {r.engagement != null ? (r.engagement * 100).toFixed(1) + '%' : '–'}
