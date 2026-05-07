@@ -6,6 +6,7 @@
   "engines": {
     "node": ">=20"
   },
+  "packageManager": "pnpm@10.22.0",
   "scripts": {
     "dev:server": "tsx watch server/index.ts",
     "build:server": "tsc -p tsconfig.server.json",
