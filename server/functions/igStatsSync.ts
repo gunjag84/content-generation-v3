@@ -34,17 +34,30 @@ async function decryptCiphertext(ciphertext: string): Promise<string> {
   return Buffer.from(r.plaintext as Uint8Array).toString('utf8');
 }
 
+interface BrandCredentials {
+  token: string;
+  igUserId: string;
+}
+
 // Multi-brand migration (2026-05-06): primary read is brand-scoped. Falls back
 // to legacy users/{uid}.apiKeys.metaGraph during the 1-week observation window.
 // Mirror of server/lib/getMetaToken.ts.
-async function getMetaTokenForBrand(uid: string, brandId: string): Promise<string> {
+async function getBrandCredentials(uid: string, brandId: string): Promise<BrandCredentials> {
   const db = getFirestore();
 
   const brandSnap = await db.doc(`users/${uid}/brands/${brandId}`).get();
-  const brandData = brandSnap.data() as { metaGraphCiphertext?: string | null } | undefined;
+  const brandData = brandSnap.data() as
+    | { metaGraphCiphertext?: string | null; instagramUserId?: string | null }
+    | undefined;
+  const igUserId = brandData?.instagramUserId ?? null;
   const brandCt = brandData?.metaGraphCiphertext ?? null;
+
+  if (!igUserId) {
+    throw new Error(`No instagramUserId configured for brand ${brandId} (uid=${uid}).`);
+  }
+
   if (brandCt) {
-    return decryptCiphertext(brandCt);
+    return { token: await decryptCiphertext(brandCt), igUserId };
   }
 
   // Legacy fallback (remove after cleanup deploy).
@@ -53,7 +66,65 @@ async function getMetaTokenForBrand(uid: string, brandId: string): Promise<strin
   const userCt = userData?.apiKeys?.metaGraph;
   if (!userCt) throw new Error(`No Meta token configured for brand ${brandId} (uid=${uid}).`);
   console.warn(`[igStatsSync] legacy fallback used for uid=${uid} brandId=${brandId}`);
-  return decryptCiphertext(userCt);
+  return { token: await decryptCiphertext(userCt), igUserId };
+}
+
+// Fetch the brand's current follower count via /{igUserId}?fields=followers_count.
+// Cheap (1 API call per brand per run, cached for the rest of the run).
+async function fetchBrandFollowers(igUserId: string, token: string): Promise<number | null> {
+  try {
+    const url = `${BASE}/${igUserId}?fields=followers_count&access_token=${encodeURIComponent(token)}`;
+    const res = await fetch(url);
+    const body = (await res.json()) as { followers_count?: number; error?: { message?: string } };
+    if (!res.ok || body?.error) {
+      console.warn('[igStatsSync] followers fetch failed:', body?.error?.message ?? 'unknown');
+      return null;
+    }
+    return typeof body.followers_count === 'number' ? body.followers_count : null;
+  } catch (err) {
+    console.warn('[igStatsSync] followers fetch threw:', err);
+    return null;
+  }
+}
+
+// Count comments authored by the brand's own IG account (top-level + first
+// page of nested replies per top-level). Returns null on fetch failure so
+// callers know to leave igStats.ownComments unset rather than write a wrong 0.
+async function fetchOwnCommentsCount(
+  mediaId: string,
+  token: string,
+  brandIgUserId: string,
+): Promise<number | null> {
+  try {
+    // limit=50 top-level + replies{from} nested. Covers ~95% of LEBEN.LIEBEN
+    // post comment volumes; high-comment posts may undercount past page 1.
+    const url =
+      `${BASE}/${mediaId}/comments?fields=id,from,replies.limit(50){from}` +
+      `&limit=50&access_token=${encodeURIComponent(token)}`;
+    const res = await fetch(url);
+    const body = (await res.json()) as {
+      data?: Array<{
+        from?: { id?: string };
+        replies?: { data?: Array<{ from?: { id?: string } }> };
+      }>;
+      error?: { message?: string };
+    };
+    if (!res.ok || body?.error) {
+      console.warn('[igStatsSync] comments fetch failed for', mediaId, body?.error?.message);
+      return null;
+    }
+    let count = 0;
+    for (const c of body.data ?? []) {
+      if (c.from?.id === brandIgUserId) count++;
+      for (const r of c.replies?.data ?? []) {
+        if (r.from?.id === brandIgUserId) count++;
+      }
+    }
+    return count;
+  } catch (err) {
+    console.warn('[igStatsSync] comments fetch threw for', mediaId, err);
+    return null;
+  }
 }
 
 interface IgInsights {
@@ -165,6 +236,13 @@ export const igStatsSync = onSchedule(
     let skipped = 0;
     let errCount = 0;
 
+    // Per-brand cache: token + igUserId + (lazily-fetched) followers count.
+    // Avoids re-fetching credentials and followers_count for every post.
+    const brandCache = new Map<
+      string,
+      { token: string; igUserId: string; followers: number | null }
+    >();
+
     for (const doc of snap.docs) {
       try {
         const data = doc.data();
@@ -187,17 +265,33 @@ export const igStatsSync = onSchedule(
           continue;
         }
         const { uid, brandId } = parsed;
-        const metaToken = await getMetaTokenForBrand(uid, brandId);
+
+        const cacheKey = `${uid}/${brandId}`;
+        let cached = brandCache.get(cacheKey);
+        if (!cached) {
+          const creds = await getBrandCredentials(uid, brandId);
+          const followers = await fetchBrandFollowers(creds.igUserId, creds.token);
+          cached = { ...creds, followers };
+          brandCache.set(cacheKey, cached);
+        }
+
         const mediaType: IgMediaType | null = (() => {
           const t = data.mediaType;
           if (t === 'IMAGE' || t === 'CAROUSEL_ALBUM' || t === 'REELS') return t;
           return null;
         })();
-        const insights = await fetchIgInsights(igMediaId, metaToken, mediaType);
+        const insights = await fetchIgInsights(igMediaId, cached.token, mediaType);
+        const ownComments = await fetchOwnCommentsCount(
+          igMediaId,
+          cached.token,
+          cached.igUserId,
+        );
 
         await doc.ref.update({
           igStats: {
             ...insights,
+            followers: cached.followers,
+            ownComments,
             syncedAt: FieldValue.serverTimestamp(),
           },
           updatedAt: FieldValue.serverTimestamp(),

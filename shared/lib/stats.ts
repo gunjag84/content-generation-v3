@@ -43,13 +43,20 @@ export function safeSyncedAt(stats: IgStats | null | undefined): Date | null {
 // Media-type-aware. Reels-engagement uses plays in the denominator
 // (Meta-recommended for video), the rest uses reach. Returns null when the
 // denominator is missing/zero.
+//
+// `excludeOwnComments`: subtracts stats.ownComments from the comments numerator.
+// Likes cannot be filtered (Meta Graph API does not expose individual likers).
 export function engagementRate(
   stats: IgStats | null | undefined,
   mediaType?: IgMediaType,
+  opts?: { excludeOwnComments?: boolean },
 ): number | null {
   if (stats == null) return null;
   const likes = stats.likes ?? 0;
-  const comments = stats.comments ?? 0;
+  const rawComments = stats.comments ?? 0;
+  const comments = opts?.excludeOwnComments
+    ? Math.max(0, rawComments - (stats.ownComments ?? 0))
+    : rawComments;
   const saves = stats.saves ?? 0;
   const shares = stats.shares ?? 0;
 

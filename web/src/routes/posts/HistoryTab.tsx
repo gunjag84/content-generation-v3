@@ -23,6 +23,7 @@ type SortField =
   | 'likes'
   | 'comments'
   | 'saves'
+  | 'followers'
   | 'engagement';
 
 interface Row {
@@ -31,10 +32,20 @@ interface Row {
   reach: number | null;
   impressions: number | null;
   likes: number | null;
-  comments: number | null;
+  comments: number | null; // displayed value (raw OR raw - ownComments depending on toggle)
+  rawComments: number | null;
+  ownComments: number | null;
   saves: number | null;
+  followers: number | null;
   engagement: number | null;
 }
+
+const ENGAGEMENT_TOOLTIP =
+  'Engagement Rate = Summe aller Interaktionen geteilt durch die Reichweite.\n\n' +
+  'Bei Reels: (Likes + Kommentare + Saves + Shares) / Plays\n' +
+  'Sonst: (Likes + Kommentare + Saves) / Reach\n\n' +
+  'Toggle "Eigene Kommentare ausblenden" zieht eigene Replies vom Kommentar-Zähler ab. ' +
+  'Eigene Likes können nicht herausgefiltert werden (Meta API gibt keine Liker-Identitäten frei).';
 
 function thumb(post: PublishedPostWithId): string | null {
   // ig-native: no rendered slides, no photoUrls. Use the IG-supplied
@@ -70,17 +81,26 @@ function igLink(post: PublishedPostWithId): string | null {
   return null;
 }
 
-function buildRow(post: PublishedPostWithId): Row {
+function buildRow(post: PublishedPostWithId, excludeOwnComments: boolean): Row {
   const stats = post.igStats ?? null;
+  const rawComments = stats?.comments ?? null;
+  const ownComments = stats?.ownComments ?? null;
+  const displayedComments =
+    excludeOwnComments && rawComments !== null
+      ? Math.max(0, rawComments - (ownComments ?? 0))
+      : rawComments;
   return {
     post,
     publishedDate: safePublishedAt(post),
     reach: stats?.reach ?? null,
     impressions: stats?.impressions ?? null,
     likes: stats?.likes ?? null,
-    comments: stats?.comments ?? null,
+    comments: displayedComments,
+    rawComments,
+    ownComments,
     saves: stats?.saves ?? null,
-    engagement: engagementRate(stats, post.mediaType),
+    followers: stats?.followers ?? null,
+    engagement: engagementRate(stats, post.mediaType, { excludeOwnComments }),
   };
 }
 
@@ -111,8 +131,12 @@ export function HistoryTab() {
   const [range, setRange] = useState<DateRange>('all');
   const [sort, setSort] = useState<SortField>('publishedAt');
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
+  const [excludeOwnComments, setExcludeOwnComments] = useState(false);
 
-  const allRows = useMemo(() => posts.map(buildRow), [posts]);
+  const allRows = useMemo(
+    () => posts.map((p) => buildRow(p, excludeOwnComments)),
+    [posts, excludeOwnComments],
+  );
 
   const counts: Record<DateRange, number> = useMemo(
     () => ({
@@ -197,16 +221,30 @@ export function HistoryTab() {
   }
 
   const gridCols =
-    'grid-cols-[minmax(0,1fr)_72px_72px_72px_72px_72px_72px_24px]';
+    'grid-cols-[minmax(0,1fr)_72px_72px_72px_72px_72px_72px_72px_24px]';
 
   return (
     <div className="p-6 space-y-4">
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="text-xs text-gray-500">
           {lastSync ? <>Stats {timeAgo(lastSync)} synchronisiert</> : 'Stats noch nicht synchronisiert'}
         </div>
-        <DateRangeFilter active={range} counts={counts} onChange={setRange} />
+        <div className="flex items-center gap-4 flex-wrap">
+          <label
+            className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer select-none"
+            title="Zieht Kommentare ab, die der eigene IG-Account verfasst hat (Replies). Wirkt auf die Kommentar-Spalte und die Engagement-Rate. Eigene Likes können nicht ausgefiltert werden (Meta API gibt keine Liker-Identitäten frei)."
+          >
+            <input
+              type="checkbox"
+              checked={excludeOwnComments}
+              onChange={(e) => setExcludeOwnComments(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-gray-300"
+            />
+            Eigene Kommentare ausblenden
+          </label>
+          <DateRangeFilter active={range} counts={counts} onChange={setRange} />
+        </div>
       </div>
 
       {/* Stat cards */}
@@ -230,7 +268,10 @@ export function HistoryTab() {
             <SortHeader field="likes" label="Likes" active={sort} order={order} onSort={handleSort} align="right" />
             <SortHeader field="comments" label="Komm." active={sort} order={order} onSort={handleSort} align="right" />
             <SortHeader field="saves" label="Saves" active={sort} order={order} onSort={handleSort} align="right" />
-            <SortHeader field="engagement" label="Eng. %" active={sort} order={order} onSort={handleSort} align="right" />
+            <SortHeader field="followers" label="Foll." active={sort} order={order} onSort={handleSort} align="right" />
+            <div className="text-right" title={ENGAGEMENT_TOOLTIP}>
+              <SortHeader field="engagement" label="Eng. %" active={sort} order={order} onSort={handleSort} align="right" />
+            </div>
             <span />
           </div>
 
@@ -288,11 +329,21 @@ export function HistoryTab() {
                 <div className="text-right text-sm text-gray-700 tabular-nums">
                   {formatNumber(r.likes)}
                 </div>
-                <div className="text-right text-sm text-gray-700 tabular-nums">
+                <div
+                  className="text-right text-sm text-gray-700 tabular-nums"
+                  title={
+                    excludeOwnComments && r.rawComments != null
+                      ? `Brutto ${formatNumber(r.rawComments)} − eigene ${formatNumber(r.ownComments ?? 0)}`
+                      : undefined
+                  }
+                >
                   {formatNumber(r.comments)}
                 </div>
                 <div className="text-right text-sm text-gray-700 tabular-nums">
                   {formatNumber(r.saves)}
+                </div>
+                <div className="text-right text-sm text-gray-700 tabular-nums">
+                  {formatNumber(r.followers)}
                 </div>
                 <div className="text-right text-sm text-gray-700 tabular-nums">
                   {r.engagement != null ? (r.engagement * 100).toFixed(1) + '%' : '–'}

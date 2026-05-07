@@ -14,6 +14,14 @@ export const IgStatsSchema = z.object({
   plays: z.number().nullable().optional(),
   videoViews: z.number().nullable().optional(),
   shares: z.number().nullable().optional(),
+  // Brand follower count at the time of the last stats sync. Same value
+  // across all posts synced in the same run; trends emerge over multiple
+  // syncs. Fetched once per brand via /{igUserId}?fields=followers_count.
+  followers: z.number().nullable().optional(),
+  // Comments authored by the brand's own IG account (replies to commenters).
+  // Counted across top-level + nested replies via /{mediaId}/comments?fields=
+  // id,from,replies{from}. Null = not yet fetched / fetch failed.
+  ownComments: z.number().nullable().optional(),
   syncedAt: z.unknown().optional(),
 }).nullable();
 export type IgStats = z.infer<typeof IgStatsSchema>;
