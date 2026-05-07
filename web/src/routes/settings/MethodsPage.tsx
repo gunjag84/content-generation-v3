@@ -71,25 +71,52 @@ export function MethodsPage() {
         }
       }
 
-      // Repair-on-load: migrate old docs that have slideCount + description but no lengths.
+      // Repair-on-load:
+      //  (a) migrate old docs that have slideCount + description but no lengths.
+      //  (b) backfill empty length-descriptions on built-in methods from
+      //      DEFAULT_METHODS so newly-added defaults (like the convert-demand
+      //      built-ins) populate UI even on brands seeded before the defaults
+      //      had values. Only fills empty -> non-empty; never overwrites
+      //      user-edited content.
       const repairs: Promise<void>[] = [];
       for (const d of snap.docs) {
         const data = d.data() as Record<string, unknown>;
-        if (data.lengths !== undefined) continue; // already migrated
-        const oldCount = typeof data.slideCount === 'number' ? data.slideCount : 7;
         const defaults = DEFAULT_BY_SLUG.get(d.id);
-        repairs.push(
-          updateDoc(doc(col, d.id), {
-            'lengths.short.slideCount': Math.max(1, oldCount - 2),
-            'lengths.short.description': '',
-            'lengths.medium.slideCount': oldCount,
-            'lengths.medium.description': defaults?.lengths.medium.description ?? (typeof data.description === 'string' ? data.description : ''),
-            'lengths.long.slideCount': Math.min(10, oldCount + 2),
-            'lengths.long.description': '',
-            slideCount: deleteField(),
-            description: deleteField(),
-          }),
-        );
+
+        if (data.lengths === undefined) {
+          // Path (a): legacy migration.
+          const oldCount = typeof data.slideCount === 'number' ? data.slideCount : 7;
+          repairs.push(
+            updateDoc(doc(col, d.id), {
+              'lengths.short.slideCount': Math.max(1, oldCount - 2),
+              'lengths.short.description': defaults?.lengths.short.description ?? '',
+              'lengths.medium.slideCount': oldCount,
+              'lengths.medium.description':
+                defaults?.lengths.medium.description ??
+                (typeof data.description === 'string' ? data.description : ''),
+              'lengths.long.slideCount': Math.min(10, oldCount + 2),
+              'lengths.long.description': defaults?.lengths.long.description ?? '',
+              slideCount: deleteField(),
+              description: deleteField(),
+            }),
+          );
+          continue;
+        }
+
+        // Path (b): backfill empty descriptions from defaults for built-ins.
+        if (!defaults) continue;
+        const lengths = data.lengths as Partial<Method['lengths']>;
+        const updates: Record<string, unknown> = {};
+        for (const key of ['short', 'medium', 'long'] as const) {
+          const current = lengths?.[key]?.description;
+          const def = defaults.lengths[key].description;
+          if (def && (current === undefined || current === '')) {
+            updates[`lengths.${key}.description`] = def;
+          }
+        }
+        if (Object.keys(updates).length > 0) {
+          repairs.push(updateDoc(doc(col, d.id), updates));
+        }
       }
       if (repairs.length > 0) await Promise.all(repairs);
 
