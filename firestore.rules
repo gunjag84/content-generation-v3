@@ -38,6 +38,13 @@ service cloud.firestore {
         match /renderJobs/{jobId} {
           allow read, write: if request.auth.uid == uid;
         }
+
+        // igFeedSyncStatus: read-only for the brand owner; only the
+        // server-side igFeedSync function (admin SDK, bypasses rules) writes.
+        match /igFeedSyncStatus/{statusId} {
+          allow read: if request.auth.uid == uid;
+          allow write: if false;
+        }
       }
     }
 

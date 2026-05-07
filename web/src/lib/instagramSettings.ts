@@ -42,3 +42,17 @@ export async function saveIgUserId(brandId: string, igUserId: string): Promise<v
     throw new Error(body.error ?? `HTTP ${res.status}`);
   }
 }
+
+// Multi-brand migration (2026-05-06): combined token + igUserId write at the
+// brand level. Server validates both against the live Meta API before persist.
+export async function saveBrandIgToken(
+  brandId: string,
+  token: string,
+  igUserId: string,
+): Promise<{ ok: true; username?: string; pageName?: string } | { ok: false; error: string; step?: string }> {
+  const res = await api('/api/settings/brand-ig', {
+    method: 'POST',
+    body: JSON.stringify({ brandId, token, igUserId }),
+  });
+  return res.json();
+}

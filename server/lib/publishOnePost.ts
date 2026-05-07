@@ -27,7 +27,7 @@ export async function publishClaimedPost(
     throw new Error('no_rendered_slides — render before publish');
   }
 
-  const metaToken = await getMetaToken(uid);
+  const metaToken = await getMetaToken(uid, brandId);
 
   const brandSnap = await db.doc(`users/${uid}/brands/${brandId}`).get();
   if (!brandSnap.exists) throw new Error('brand_not_found');

@@ -1,4 +1,5 @@
 import { aggregateBy } from '../../../../shared/lib/stats';
+import { isToolPost } from '../../../../shared/lib/postTypeGuards';
 import type { PublishedPostWithId } from '../../hooks/usePublishedPosts';
 import type { Post } from '../../../../shared/schemas/post';
 
@@ -6,7 +7,7 @@ interface Props {
   posts: PublishedPostWithId[];
 }
 
-type MethodKey = Post['method'] | 'unknown';
+type MethodKey = NonNullable<Post['method']> | 'unknown';
 
 const METHOD_LABELS: Record<MethodKey, string> = {
   story: 'Story',
@@ -27,8 +28,12 @@ function fmtEdit(v: number | null): string {
 }
 
 export function MethodAggregate({ posts }: Props) {
+  // ig-native posts have no `method` (no creation flow); they would all
+  // collapse into 'unknown' and dilute the per-method signal. Filter them
+  // out before bucketing.
+  const toolPosts = posts.filter(isToolPost);
   const buckets = aggregateBy<MethodKey>(
-    posts,
+    toolPosts,
     (p) => (p.method ?? 'unknown') as MethodKey,
     { minCount: 3 },
   );

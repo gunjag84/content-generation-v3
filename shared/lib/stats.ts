@@ -1,6 +1,7 @@
 // Pure stats helpers shared between client dashboard widgets and future Phase 4c Cloud Function.
 
-import type { Post, IgStats } from '../schemas/post.js';
+import type { Post, IgStats, IgMediaType } from '../schemas/post.js';
+import { isToolPost } from './postTypeGuards.js';
 
 // ---------------------------------------------------------------------------
 // Timestamp narrowing helpers
@@ -39,14 +40,33 @@ export function safeSyncedAt(stats: IgStats | null | undefined): Date | null {
 // engagementRate
 // ---------------------------------------------------------------------------
 
-export function engagementRate(stats: IgStats | null | undefined): number | null {
+// Media-type-aware. Reels-engagement uses plays in the denominator
+// (Meta-recommended for video), the rest uses reach. Returns null when the
+// denominator is missing/zero.
+export function engagementRate(
+  stats: IgStats | null | undefined,
+  mediaType?: IgMediaType,
+): number | null {
   if (stats == null) return null;
-  const reach = stats.reach;
-  if (reach == null || reach === 0) return null;
   const likes = stats.likes ?? 0;
   const comments = stats.comments ?? 0;
   const saves = stats.saves ?? 0;
+  const shares = stats.shares ?? 0;
+
+  if (mediaType === 'REELS') {
+    const plays = stats.plays ?? stats.videoViews;
+    if (plays == null || plays === 0) return null;
+    return (likes + comments + saves + shares) / plays;
+  }
+
+  const reach = stats.reach;
+  if (reach == null || reach === 0) return null;
   return (likes + comments + saves) / reach;
+}
+
+// Convenience wrapper that pulls mediaType off a Post.
+export function engagementRateForPost(post: Post): number | null {
+  return engagementRate(post.igStats ?? null, post.mediaType);
 }
 
 // ---------------------------------------------------------------------------
@@ -78,13 +98,18 @@ export function aggregateBy<K>(
     const bucket = acc.get(key)!;
     bucket.n += 1;
 
-    const eng = engagementRate(post.igStats ?? null);
+    const eng = engagementRate(post.igStats ?? null, post.mediaType);
     if (eng !== null) {
       bucket.engSum += eng;
       bucket.engCount += 1;
     }
 
-    if (post.editStats != null) {
+    // edit-ratio is a tool-only signal (ig-native posts have no AI baseline
+    // to diff against). aggregateBy callers that bucket by tool-only fields
+    // like `method` should pre-filter via isToolPost; this guard keeps
+    // ig-native posts from counting toward the editRatio average if they
+    // ever sneak through.
+    if (isToolPost(post) && post.editStats != null) {
       bucket.editSum += post.editStats.totalEditRatio;
       bucket.editCount += 1;
     }
