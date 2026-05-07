@@ -1,8 +1,13 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { db } from '../lib/firebase.js';
 import { kmsEncrypt } from '../lib/kms.js';
 import { getMetaToken } from '../lib/getMetaToken.js';
+import {
+  validateMetaToken as fetchValidateMetaToken,
+  validateIgUserId as fetchValidateIgUserId,
+} from '../lib/metaValidate.js';
 import { SetApiKeysBody } from '../../shared/schemas/apiKeys.js';
 
 const router = Router();
@@ -26,13 +31,6 @@ async function assertBrandOwnership(
     return false;
   }
   return true;
-}
-
-function metaErrorMessage(payload: any, status: number): string {
-  const err = payload?.error;
-  if (err?.code === 100 || err?.code === 190) return 'Account nicht zugänglich';
-  if (typeof err?.message === 'string' && err.message) return err.message;
-  return `Meta API ${status}`;
 }
 
 router.post('/api-keys', async (req, res) => {
@@ -65,21 +63,8 @@ router.post('/validate-token', async (req, res) => {
     res.status(400).json({ error: 'invalid_body', details: parsed.error.flatten() });
     return;
   }
-  try {
-    const url = `https://graph.facebook.com/v21.0/me?fields=name,id&access_token=${encodeURIComponent(parsed.data.token)}`;
-    const r = await fetch(url);
-    const body = await r.json().catch(() => ({}));
-    if (!r.ok || body?.error) {
-      const msg = metaErrorMessage(body, r.status);
-      console.warn('validate-token meta error', { status: r.status, msg });
-      res.json({ ok: false, error: msg });
-      return;
-    }
-    res.json({ ok: true, name: body.name, id: body.id });
-  } catch (e: any) {
-    console.warn('validate-token network error', e?.message);
-    res.json({ ok: false, error: 'Netzwerkfehler beim Token-Check' });
-  }
+  const result = await fetchValidateMetaToken(parsed.data.token);
+  res.json(result);
 });
 
 const ValidateIgUserIdBody = z.object({
@@ -97,31 +82,14 @@ router.post('/validate-ig-user-id', async (req, res) => {
 
   let token: string;
   try {
-    token = await getMetaToken(uid(req));
+    token = await getMetaToken(uid(req), parsed.data.brandId);
   } catch {
     res.json({ ok: false, error: 'Meta-Token nicht konfiguriert' });
     return;
   }
 
-  try {
-    const url = `https://graph.facebook.com/v21.0/${encodeURIComponent(parsed.data.igUserId)}?fields=username,name&access_token=${encodeURIComponent(token)}`;
-    const r = await fetch(url);
-    const body = await r.json().catch(() => ({}));
-    if (!r.ok || body?.error) {
-      const msg = metaErrorMessage(body, r.status);
-      console.warn('validate-ig-user-id meta error', { status: r.status, msg });
-      res.json({ ok: false, error: msg });
-      return;
-    }
-    if (!body?.username) {
-      res.json({ ok: false, error: 'Kein Instagram-Username im Response' });
-      return;
-    }
-    res.json({ ok: true, username: body.username });
-  } catch (e: any) {
-    console.warn('validate-ig-user-id network error', e?.message);
-    res.json({ ok: false, error: 'Netzwerkfehler beim IG-Check' });
-  }
+  const result = await fetchValidateIgUserId(token, parsed.data.igUserId);
+  res.json(result);
 });
 
 const SetIgUserIdBody = z.object({
@@ -141,6 +109,47 @@ router.post('/ig-user-id', async (req, res) => {
     .doc(`users/${uid(req)}/brands/${parsed.data.brandId}`)
     .set({ instagramUserId: parsed.data.igUserId }, { merge: true });
   res.status(204).end();
+});
+
+// Multi-brand migration (2026-05-06): write Meta token + IG user-id at the
+// brand level in a single round-trip. Both validated against the live API
+// before persistence; either failure returns ok=false without writes.
+const SetBrandIgBody = z.object({
+  brandId: z.string().min(1),
+  token: z.string().min(20),
+  igUserId: z.string().regex(/^\d{5,30}$/),
+});
+
+router.post('/brand-ig', async (req, res) => {
+  const parsed = SetBrandIgBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'invalid_body', details: parsed.error.flatten() });
+    return;
+  }
+  if (!(await assertBrandOwnership(req, res, parsed.data.brandId))) return;
+
+  const tokenCheck = await fetchValidateMetaToken(parsed.data.token);
+  if (!tokenCheck.ok) {
+    res.json({ ok: false, step: 'token', error: tokenCheck.error });
+    return;
+  }
+  const igCheck = await fetchValidateIgUserId(parsed.data.token, parsed.data.igUserId);
+  if (!igCheck.ok) {
+    res.json({ ok: false, step: 'igUserId', error: igCheck.error });
+    return;
+  }
+
+  const ciphertext = await kmsEncrypt(parsed.data.token);
+  await db.doc(`users/${uid(req)}/brands/${parsed.data.brandId}`).set(
+    {
+      metaGraphCiphertext: ciphertext,
+      metaGraphSetAt: Timestamp.now(),
+      instagramUserId: parsed.data.igUserId,
+      updatedAt: FieldValue.serverTimestamp(),
+    },
+    { merge: true },
+  );
+  res.json({ ok: true, username: igCheck.username, pageName: tokenCheck.name });
 });
 
 export default router;

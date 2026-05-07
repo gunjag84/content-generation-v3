@@ -53,6 +53,10 @@ export const BrandSchema = z.object({
   focusAreas: z.array(FocusAreaSchema).default([]),
   // Phase 3: required for publish-worker; nullable until user configures
   instagramUserId: z.string().nullable().default(null),
+  // Multi-brand migration (2026-05-06): Meta Graph access token is brand-scoped.
+  // KMS-encrypted; same KMS key as the legacy users/{uid}.apiKeys.metaGraph.
+  metaGraphCiphertext: z.string().nullable().default(null),
+  metaGraphSetAt: z.unknown().nullable().default(null),
   // serverTimestamp sentinel; not validated through zod runtime
   updatedAt: z.unknown(),
 });

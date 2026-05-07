@@ -2,7 +2,7 @@
 
 Single source of truth for **operational state** (what is deployed, what works, what is pending). Architecture and decisions live in `~/.claude/plans/modular-tumbling-sunrise.md` (source-of-truth plan, v6 ISSUES_CLOSED 2026-04-26).
 
-Last updated: 2026-05-03 (Phase 4a deployed).
+Last updated: 2026-05-06 (Multi-Brand Migration deployed: Meta-Token now per-brand, BrandSetupWizard live, igStatsSync P0 fix).
 
 ---
 
@@ -11,7 +11,7 @@ Last updated: 2026-05-03 (Phase 4a deployed).
 - **Project:** `contentai-78bfb` (europe-west1)
 - **Hosting:** https://contentai-78bfb.web.app
 - **Cloud Run:** https://content-gen-23953893533.europe-west1.run.app
-- **Live revisions:** `content-gen-00013-ctz` (Phase 4a, deployed 2026-05-03) + Cloud Functions `budgetKillswitch`, `igStatsSync`
+- **Live revisions:** `content-gen-00022-2h4` (Multi-Brand Migration, deployed 2026-05-06) + Cloud Functions `budgetKillswitch`, `igStatsSync` (P0 brand-scoped read fix)
 
 > Note: source-of-truth plan references `content-gen-prod` as the planned project ID; actual prod project is `contentai-78bfb`.
 
@@ -25,7 +25,7 @@ Last updated: 2026-05-03 (Phase 4a deployed).
 | 2. Brand Settings & Create | Settings schema, Focus Areas, generate streaming, zone editor on Firestore | **Live** |
 | 3. Render & Posts | Async render via Cloud Tasks, 3-tab Posts page, Schedule + Publish workers | **Live** |
 | 4a. Silent Edit-Diff Learning Loop | Edit-diff -> learnedPatterns -> prompt injection, Haiku audit, promotion approval UI, brand.identity wiring | **Live** (PR #1 merged, deployed `content-gen-00013-ctz`) |
-| 4b. Performance Dashboard + Polish | Read-only igStats display, edit hot-spots widget, dashboard widgets, calendar placeholder | Not started |
+| 4b. Performance Dashboard + Polish | Read-only igStats display, edit hot-spots widget, dashboard widgets, per-post IG analytics in History, format-aware Playwright render with brand fonts, IG container polling against code 9007, calendar placeholder | **Live** (deployed `content-gen-00021-9r9`) |
 | 4c. Automated Performance Learning | Auto-extract patterns from top-performing posts | Deferred (revisit at N>=20 publishes) |
 | 5. Cutover | Final security rules, fresh-start onboarding for Tim + Jule, first real post on @leben.lieben | Not started |
 
@@ -55,6 +55,14 @@ Discovered during deploy, must not regress:
 - `server/lib/learningConfig.ts` centralizes all tunables (EDIT_RATIO_THRESHOLD=0.15, TOP_N=20, RECENCY_HALF_LIFE_DAYS=30, PROMOTION_USE_COUNT=3, PROMOTION_CONFIDENCE=0.7, AUDIT_MAX_TOKENS=1500, APPROVAL_BASELINE_WINDOW=5, APPROVAL_LEDGER_WINDOW=5, APPROVAL_HURTFUL_DELTA=0.05). Single PR to retune.
 - `server/functions/` cannot import from `shared/` (own tsconfig with rootDir='.', include only `*.ts`). Phase 4a's learning loop avoided this by living in Cloud Run. Documented in `server/functions/index.ts`.
 - Vitest test config sets `GCLOUD_PROJECT=contentai-test` in `test.env` so `firebase-admin`'s `applicationDefault()` initApp picks the right project ID at module load. Integration tests use admin SDK throughout (NOT `@firebase/rules-unit-testing` which causes a project-ID split + grpc errors against the emulator).
+
+### Phase 4b deploy quirks (locked in 2026-05-03)
+
+- **IG Graph API container polling**: ALWAYS poll `GET /{container-id}?fields=status_code` until `FINISHED` before `/media_publish`. Code 9007 ("media ID is not available") = container still processing. Required for both single-image AND carousel flows, including children of a carousel. See `server/lib/instagram.ts:waitForContainer` (60s timeout, 2s poll). Race only surfaced once portrait/story formats grew the container's processing time beyond what 1080x1080 squares took.
+- **Format-aware Playwright render**: viewport + body/container CSS use `FORMAT_HEIGHTS[format]` (post=1350 / story=1920). Hardcoded 1080x1080 letterboxed portrait/story.
+- **Brand-font loading in headless Chromium**: server-side render must inject `<link rel="stylesheet">` for every unique zone fontFamily (Fontshare for Satoshi, cdnfonts for Daniel, Google Fonts for the rest, mirroring `web/src/lib/font-loader.ts`) AND `await page.evaluate(() => document.fonts.ready)` BEFORE screenshot. `waitUntil: 'networkidle'` waits for fetches NOT for paint-readiness.
+- **Pass-through render-job payload > Post-schema migration**: render-time fields like `format` flow through the render job, not via Firestore Post schema migration. Avoids rules + DraftPatch + backward-compat shims; legacy posts default `format='post'` via Zod.
+- **Slide-thumbnail measurement effect**: DOM-measurement layout corrections (auto-grow `useLayoutEffect`) must run for every visible consumer, not just the active mount site. `SlideThumbnail` replicates `ZoneCanvas`'s measurement pass with `onZoneChange` callback wired to slide-index-aware state mutation. Without this, non-active thumbnails show pre-grow positions until clicked.
 
 ---
 
