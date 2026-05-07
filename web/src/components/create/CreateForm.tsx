@@ -2,7 +2,7 @@
 // the brand/situations/methods data and the submit handler.
 import { useEffect, useMemo, useState } from 'react';
 import type { GenerateRequest } from '../../../../shared/schemas/generateRequest';
-import type { MethodMode } from '../../../../shared/schemas/method';
+import type { LengthKey, MethodMode } from '../../../../shared/schemas/method';
 import { PhotoPicker, type PickedPhoto } from './PhotoPicker';
 
 export interface SituationOption {
@@ -15,8 +15,18 @@ export interface MethodOption {
   slug: string;
   name: string;
   mode: MethodMode;
-  slideCount: number;
+  lengths: {
+    short: { slideCount: number };
+    medium: { slideCount: number };
+    long: { slideCount: number };
+  };
 }
+
+const LENGTHS: Array<{ value: LengthKey; label: string }> = [
+  { value: 'short', label: 'Kurz' },
+  { value: 'medium', label: 'Mittel' },
+  { value: 'long', label: 'Lang' },
+];
 
 interface CreateFormProps {
   brandId: string;
@@ -37,6 +47,7 @@ export function CreateForm({
 }: CreateFormProps) {
   const [mode, setMode] = useState<MethodMode>('create-demand');
   const [methodSlug, setMethodSlug] = useState<string>('story');
+  const [length, setLength] = useState<LengthKey>('medium');
   const [situationId, setSituationId] = useState<string | null>(null);
   const [situationText, setSituationText] = useState('');
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
@@ -56,9 +67,9 @@ export function CreateForm({
     }
   }, [mode, filteredMethods, methodSlug]);
 
-  // slideCount comes from the selected method, not from local state.
+  // slideCount comes from the selected method + chosen length.
   const selectedMethod = methods.find((m) => m.slug === methodSlug);
-  const slideCount = selectedMethod?.slideCount ?? 7;
+  const slideCount = selectedMethod?.lengths[length]?.slideCount ?? 7;
 
   // Prefill situationText when a stored situation is picked.
   useEffect(() => {
@@ -81,6 +92,7 @@ export function CreateForm({
       brandId,
       mode,
       method: methodSlug,
+      length,
       situationId,
       situationText: situationText.trim(),
       photos,
@@ -135,6 +147,27 @@ export function CreateForm({
             ))}
           </div>
         )}
+      </div>
+
+      {/* Length */}
+      <div>
+        <Label>Länge</Label>
+        <div className="grid grid-cols-3 gap-1 mt-1">
+          {LENGTHS.map((l) => (
+            <button
+              key={l.value}
+              type="button"
+              onClick={() => setLength(l.value)}
+              className={`py-1.5 text-sm border ${
+                length === l.value
+                  ? 'border-gray-900 bg-gray-900 text-white'
+                  : 'border-gray-300 text-gray-700 hover:border-gray-500'
+              }`}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Situation */}

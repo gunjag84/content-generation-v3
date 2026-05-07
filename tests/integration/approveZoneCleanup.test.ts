@@ -49,6 +49,7 @@ describe('approve pattern - zone-wide cleanup (F1)', () => {
         sourcePostId: 'post-4',
         sourceMethod: 'story',
         sourceMode: 'create-demand',
+        sourceLength: 'medium',
         promotionCandidate: true,
         status: 'active',
         createdAt: null,

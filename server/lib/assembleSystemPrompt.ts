@@ -83,17 +83,26 @@ function renderBrandIdentityBlock(identity?: BrandIdentityForPrompt): string {
   return lines.join('\n');
 }
 
-// Resolve the method-layer content. Built-in shipped templates win; otherwise
-// the generic template gets the method's name + description injected so
-// user-added methods generate end-to-end without a code deploy.
+// Resolve the method-layer content. Resolution order:
+//   1. methods/{slug}-{lengthKey}.md - new length-keyed naming (convert-demand
+//      built-ins ship these as `-short.md` / `-medium.md` / `-long.md`).
+//   2. methods/{slug}-{slideCount}.md - legacy slide-count naming for
+//      create-demand built-ins (story-7.md, liste-9.md, etc.).
+//   3. methods/{slug}.md - slug-only fallback if a single template covers
+//      all lengths (currently unused).
+//   4. methods/_generic.md - last-resort template for user-added methods,
+//      with the per-length description injected as <method_definition>.
 function resolveMethodContent(
   method: string,
+  lengthKey: 'short' | 'medium' | 'long',
   slideCount: number,
   methodName: string,
   methodDescription: string,
 ): string {
-  const slugCount = tryReadPrompt('methods', `${method}-${slideCount}.md`);
-  if (slugCount) return slugCount;
+  const lengthBased = tryReadPrompt('methods', `${method}-${lengthKey}.md`);
+  if (lengthBased) return lengthBased;
+  const legacyBased = tryReadPrompt('methods', `${method}-${slideCount}.md`);
+  if (legacyBased) return legacyBased;
   const slugOnly = tryReadPrompt('methods', `${method}.md`);
   if (slugOnly) return slugOnly;
   const generic = readPrompt('methods', '_generic.md');
@@ -107,6 +116,7 @@ export interface AssembleSystemPromptInput {
   method: string;
   methodName: string;
   methodDescription: string;
+  length: 'short' | 'medium' | 'long';
   slideCount: number;
   mode: Mode;
   patternsBlock?: string;
@@ -114,7 +124,7 @@ export interface AssembleSystemPromptInput {
 }
 
 export function assembleSystemPrompt(input: AssembleSystemPromptInput): string {
-  const { method, methodName, methodDescription, slideCount, mode, patternsBlock, brandIdentity } = input;
+  const { method, methodName, methodDescription, length, slideCount, mode, patternsBlock, brandIdentity } = input;
   const isConvert = mode === 'convert-demand';
   const isCreate = mode === 'create-demand';
   const blocks: string[] = [];
@@ -159,7 +169,7 @@ export function assembleSystemPrompt(input: AssembleSystemPromptInput): string {
   // Layer 4: method (zitat is shortcircuited upstream and never reaches here).
   // Built-in templates own the slide-by-slide table; the generic fallback
   // forwards the user-authored description as the method definition.
-  const methodContent = resolveMethodContent(method, slideCount, methodName, methodDescription);
+  const methodContent = resolveMethodContent(method, length, slideCount, methodName, methodDescription);
   blocks.push(methodContent.trim());
 
   // Layer 5: mode (no method-specific filtering needed any more — convert-demand.md

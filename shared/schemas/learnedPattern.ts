@@ -18,6 +18,7 @@ export const LearnedPatternSchema = z.object({
   sourcePostId: z.string(),
   sourceMethod: z.string(), // method slug; user-extensible via Settings
   sourceMode: z.enum(['create-demand', 'convert-demand']),
+  sourceLength: z.enum(['short', 'medium', 'long']),
   // {postId}_{diffHash}_{zone} - prevents duplicate writes when extractor re-runs.
   idempotencyKey: z.string(),
   // 'active' (default at creation) or 'dismissed' (user rejected).

@@ -36,6 +36,7 @@ describe('loadTopPatterns (integration)', () => {
       sourcePostId: 'post-3',
       sourceMethod: 'story',
       sourceMode: 'create-demand',
+      sourceLength: 'medium',
       idempotencyKey: 'post-3_xxx_hook',
       promotionCandidate: false,
       createdAt: null,
@@ -60,7 +61,7 @@ describe('loadTopPatterns (integration)', () => {
     });
 
     const { loadTopPatterns } = await import('../../server/lib/learnedPatterns.js');
-    const patterns = await loadTopPatterns(UID, BRAND_ID, 'create-demand', 'story');
+    const patterns = await loadTopPatterns(UID, BRAND_ID, 'create-demand', 'story', 'medium');
 
     expect(patterns).toHaveLength(2);
     const descriptions = patterns.map((p) => p.description);

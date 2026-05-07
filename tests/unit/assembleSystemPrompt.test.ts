@@ -9,6 +9,7 @@ const baseInput = {
   method: 'story',
   methodName: 'Story',
   methodDescription: '',
+  length: 'medium' as const,
   slideCount: 7,
   mode: 'create-demand' as const,
 };
@@ -89,10 +90,50 @@ describe('assembleSystemPrompt - generic fallback for user-added methods', () =>
       method: 'unknown-custom-method',
       methodName: 'Unknown Custom Method',
       methodDescription: 'A bespoke method the user authored in Settings.',
+      length: 'medium',
       slideCount: 5,
       mode: 'create-demand',
     });
     expect(output).toContain('Unknown Custom Method');
     expect(output).toContain('A bespoke method the user authored in Settings.');
+  });
+});
+
+describe('assembleSystemPrompt - length-keyed template resolution', () => {
+  it('picks hormozi-ve-short.md for length=short', () => {
+    const output = assembleSystemPrompt({
+      method: 'hormozi-ve',
+      methodName: 'Hormozi Value Equation',
+      methodDescription: '',
+      length: 'short',
+      slideCount: 6,
+      mode: 'convert-demand',
+    });
+    expect(output).toContain('Hormozi Value Equation | Kurz');
+  });
+
+  it('picks twist-the-knife-long.md for length=long', () => {
+    const output = assembleSystemPrompt({
+      method: 'twist-the-knife',
+      methodName: 'Twist the Knife',
+      methodDescription: '',
+      length: 'long',
+      slideCount: 9,
+      mode: 'convert-demand',
+    });
+    expect(output).toContain('Twist the Knife | Lang');
+  });
+
+  it('falls back to legacy slide-count file for create-demand methods', () => {
+    // story-{short,medium,long}.md does not exist; legacy story-7.md should be picked.
+    const output = assembleSystemPrompt({
+      method: 'story',
+      methodName: 'Story',
+      methodDescription: '',
+      length: 'medium',
+      slideCount: 7,
+      mode: 'create-demand',
+    });
+    expect(output).toContain('Personal Story | 7 Slides');
   });
 });

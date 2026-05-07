@@ -8,11 +8,14 @@ import type { SocialSlide } from '../../shared/types/slide.js';
 import { linesToZones } from '../../shared/lib/linesToZones.js';
 import type { BrandDesign } from '../../shared/schemas/brand.js';
 
+import type { LengthKey } from '../../shared/schemas/method.js';
+
 export interface CreateDraftPostInput {
   uid: string;
   brandId: string;
   mode: 'create-demand' | 'convert-demand';
   method: string; // slug; methods are user-extensible via Settings
+  length: LengthKey;
   situationText: string;
   situationId: string | null;
   photoUrls: Record<string, string>;
@@ -49,6 +52,7 @@ export async function createDraftPost(input: CreateDraftPostInput): Promise<stri
     caption,
     mode: input.mode,
     method: input.method,
+    length: input.length,
     situationText: input.situationText,
     situationId: input.situationId,
     photoUrls: input.photoUrls,

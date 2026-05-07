@@ -52,6 +52,7 @@ export const PostSchema = z.object({
   caption: z.string().optional(),
   mode: z.enum(['create-demand', 'convert-demand']).optional(),
   method: z.string().optional(), // slug; methods are user-extensible via Settings
+  length: z.enum(['short', 'medium', 'long']).optional(),
   situationText: z.string().optional(),
   situationId: z.string().nullable().optional(),
   photoUrls: z.record(z.string()).optional(), // map: { all: '...', '1': '...' }

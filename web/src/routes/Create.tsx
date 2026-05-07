@@ -16,6 +16,19 @@ import { CreateForm, type MethodOption, type SituationOption } from '../componen
 import type { GenerateRequest } from '../../../shared/schemas/generateRequest';
 import type { MethodMode } from '../../../shared/schemas/method';
 
+// Default lengths for old brand docs that predate the lengths field.
+const DEFAULT_LENGTHS = {
+  short: { slideCount: 5 },
+  medium: { slideCount: 7 },
+  long: { slideCount: 9 },
+} as const;
+
+const DEFAULT_LENGTHS_ZITAT = {
+  short: { slideCount: 1 },
+  medium: { slideCount: 1 },
+  long: { slideCount: 1 },
+} as const;
+
 export default function Create() {
   const { uid, brandId } = useActiveBrand();
   const navigate = useNavigate();
@@ -51,13 +64,25 @@ export default function Create() {
     return onSnapshot(collection(db, 'users', uid, 'brands', brandId, 'methods'), (snap) => {
       setMethods(
         snap.docs.map((d) => {
-          const data = d.data() as { name?: string; slug?: string; mode?: MethodMode; slideCount?: number };
+          const data = d.data() as {
+            name?: string;
+            slug?: string;
+            mode?: MethodMode;
+            lengths?: { short?: { slideCount?: number }; medium?: { slideCount?: number }; long?: { slideCount?: number } };
+          };
+          const slug = data.slug ?? d.id;
+          const fallback = slug === 'zitat' ? DEFAULT_LENGTHS_ZITAT : DEFAULT_LENGTHS;
+          const raw = data.lengths;
           return {
             id: d.id,
             name: data.name ?? d.id,
-            slug: data.slug ?? d.id,
+            slug,
             mode: data.mode ?? 'create-demand',
-            slideCount: data.slideCount ?? 7,
+            lengths: {
+              short: { slideCount: raw?.short?.slideCount ?? fallback.short.slideCount },
+              medium: { slideCount: raw?.medium?.slideCount ?? fallback.medium.slideCount },
+              long: { slideCount: raw?.long?.slideCount ?? fallback.long.slideCount },
+            },
           };
         }),
       );

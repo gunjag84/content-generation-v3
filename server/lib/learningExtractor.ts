@@ -28,7 +28,8 @@ interface PublishedPostShape {
   brandId: string;
   postId: string;
   mode: 'create-demand' | 'convert-demand';
-  method: 'story' | 'liste' | 'vorher-nachher' | 'zitat';
+  method: string; // slug; methods are user-extensible via Settings
+  length: 'short' | 'medium' | 'long';
   aiSnapshot: { slides: SocialSlide[]; caption: string };
   publishedSnapshot: { slides: SocialSlide[]; caption: string };
 }
@@ -112,7 +113,7 @@ async function extractPattern(
 }
 
 export async function runLearningExtraction(input: PublishedPostShape): Promise<void> {
-  const { uid, brandId, postId, aiSnapshot, publishedSnapshot, mode, method } = input;
+  const { uid, brandId, postId, aiSnapshot, publishedSnapshot, mode, method, length } = input;
 
   const postRef = db.doc(`users/${uid}/brands/${brandId}/posts/${postId}`);
 
@@ -242,6 +243,7 @@ export async function runLearningExtraction(input: PublishedPostShape): Promise<
       sourcePostId: postId,
       sourceMethod: method,
       sourceMode: mode,
+      sourceLength: length,
       idempotencyKey,
       status: 'active',
       promotionCandidate: false,

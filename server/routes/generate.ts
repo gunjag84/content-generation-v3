@@ -55,10 +55,11 @@ router.post('/generate', async (req: Request, res: Response) => {
   const photoUrls: Record<string, string> = {};
   for (const p of body.photos) photoUrls[p.label] = p.url;
 
-  // Resolve method doc: slideCount + description live in users/{uid}/brands/{brandId}/methods/{methodId}.
-  // The doc id matches the slug for default methods; for custom user-added methods it's the auto-id.
-  // We look up by slug since the request carries the slug, not the doc id.
-  let methodDoc: { name: string; slug: string; description: string; mode: string; slideCount: number } | null = null;
+  // Resolve method doc: per-length slideCount + description live in
+  // users/{uid}/brands/{brandId}/methods/{methodId}.lengths[length]. The doc
+  // id matches the slug for default methods; for custom user-added methods
+  // it's the auto-id. Look up by slug since the request carries the slug.
+  let methodDoc: import('../../shared/schemas/method.js').Method | null = null;
   try {
     const methodsCol = db.collection(`users/${uid}/brands/${body.brandId}/methods`);
     const snap = await methodsCol.where('slug', '==', body.method).limit(1).get();
@@ -79,7 +80,9 @@ router.post('/generate', async (req: Request, res: Response) => {
     res.end();
     return;
   }
-  const slideCount = methodDoc.slideCount;
+  const lengthVariant = methodDoc.lengths[body.length];
+  const slideCount = lengthVariant.slideCount;
+  const methodDescription = lengthVariant.description;
 
   // ─── Zitat shortcircuit ─────────────────────────────────────────
   if (body.method === 'zitat') {
@@ -90,6 +93,7 @@ router.post('/generate', async (req: Request, res: Response) => {
         brandId: body.brandId,
         mode: body.mode,
         method: 'zitat',
+        length: body.length,
         situationText: body.situationText,
         situationId: body.situationId,
         photoUrls,
@@ -135,7 +139,7 @@ router.post('/generate', async (req: Request, res: Response) => {
   let topPatterns: Awaited<ReturnType<typeof loadTopPatterns>> = [];
   let patternsBlock = '';
   try {
-    topPatterns = await loadTopPatterns(uid, body.brandId, body.mode, body.method);
+    topPatterns = await loadTopPatterns(uid, body.brandId, body.mode, body.method, body.length);
     patternsBlock = renderPatternsBlock(topPatterns);
   } catch (err) {
     console.error('[generate] pattern load failed:', (err as Error).message);
@@ -144,7 +148,8 @@ router.post('/generate', async (req: Request, res: Response) => {
   const systemPrompt = assembleSystemPrompt({
     method: body.method,
     methodName: methodDoc.name,
-    methodDescription: methodDoc.description,
+    methodDescription,
+    length: body.length,
     slideCount,
     mode: body.mode,
     patternsBlock,
@@ -239,6 +244,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       brandId: body.brandId,
       mode: body.mode,
       method: body.method,
+      length: body.length,
       situationText: body.situationText,
       situationId: body.situationId,
       photoUrls,

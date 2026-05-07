@@ -15,6 +15,7 @@ function makePattern(overrides: Partial<LoadedPattern>): LoadedPattern {
     sourcePostId: 'post-abc',
     sourceMethod: 'story',
     sourceMode: 'create-demand',
+    sourceLength: 'medium',
     idempotencyKey: 'post-abc_abc123_hook',
     status: 'active',
     promotionCandidate: false,

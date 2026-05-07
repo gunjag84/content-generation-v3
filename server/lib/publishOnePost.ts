@@ -55,16 +55,18 @@ export async function publishClaimedPost(
   });
 
   // Fire-and-forget learning extraction. Never blocks; never throws into caller.
+  // Skip extraction if mode/method are missing (legacy / ig-native posts).
   const aiSnapshot = postData.aiSnapshot as
     | { slides: SocialSlide[]; caption: string }
     | undefined;
-  if (aiSnapshot) {
+  if (aiSnapshot && postData.mode && postData.method) {
     void runLearningExtraction({
       uid,
       brandId,
       postId: postRef.id,
       mode: postData.mode,
       method: postData.method,
+      length: postData.length ?? 'medium',
       aiSnapshot,
       publishedSnapshot: { slides: publishedSlides, caption },
     }).catch((err) => {
