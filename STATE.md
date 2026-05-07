@@ -2,7 +2,7 @@
 
 Single source of truth for **operational state** (what is deployed, what works, what is pending). Architecture and decisions live in `~/.claude/plans/modular-tumbling-sunrise.md` (source-of-truth plan, v6 ISSUES_CLOSED 2026-04-26).
 
-Last updated: 2026-05-07 (Phase 5 Cutover started: kill-switch trip-test passed end-to-end, igFeedSync deployed, all 3 Cloud Functions ACTIVE; PR #3 merged to master so git matches prod).
+Last updated: 2026-05-07 (Phase 5 Cutover started: kill-switch trip-test passed E2E; igFeedSync deployed; LEBEN.LIEBEN brand fresh-onboarded with 94 organic IG posts synced; igStatsSync now also fetches per-post `follows` (acquisitions) + `ownComments` (self-replies, v22+ self-detection via username/user); HistoryTab gained Foll. column + own-comments toggle + engagement-rate tooltip).
 
 ---
 
@@ -55,6 +55,23 @@ Discovered during deploy, must not regress:
 - `server/lib/learningConfig.ts` centralizes all tunables (EDIT_RATIO_THRESHOLD=0.15, TOP_N=20, RECENCY_HALF_LIFE_DAYS=30, PROMOTION_USE_COUNT=3, PROMOTION_CONFIDENCE=0.7, AUDIT_MAX_TOKENS=1500, APPROVAL_BASELINE_WINDOW=5, APPROVAL_LEDGER_WINDOW=5, APPROVAL_HURTFUL_DELTA=0.05). Single PR to retune.
 - `server/functions/` cannot import from `shared/` (own tsconfig with rootDir='.', include only `*.ts`). Phase 4a's learning loop avoided this by living in Cloud Run. Documented in `server/functions/index.ts`.
 - Vitest test config sets `GCLOUD_PROJECT=contentai-test` in `test.env` so `firebase-admin`'s `applicationDefault()` initApp picks the right project ID at module load. Integration tests use admin SDK throughout (NOT `@firebase/rules-unit-testing` which causes a project-ID split + grpc errors against the emulator).
+
+### IG analytics deploy quirks (locked in 2026-05-07, after Phase 5 cutover start)
+
+- **Cloud Functions runtime SA must be pinned in `onSchedule({ serviceAccount: ... })`.** `firebase deploy` resets the runtime SA to the default `<project-number>-compute@developer.gserviceaccount.com`, which lacks `roles/cloudkms.cryptoKeyEncrypterDecrypter` on `user-secrets/api-keys`. Symptom: `error: token decrypt failed` on `igFeedSyncStatus/current` doc. Pin via `serviceAccount: 'content-gen-sa@contentai-78bfb.iam.gserviceaccount.com'` in the options object.
+- **`@google-cloud/kms` must be in `server/functions/package.json` deps.** The functions sub-package has its own node_modules; dynamic `await import('@google-cloud/kms')` throws `ERR_MODULE_NOT_FOUND` if the dep lives only in root package.json. Symptom: same `token decrypt failed` status doc, but Cloud Run logs show the real cause.
+- **`KMS_KEY_NAME` env var survives `firebase deploy`** (set once via `gcloud run services update --update-env-vars`), but the SA reset strips invoker permission so scheduler triggers fail with "IAM principal lacks {run.routes.invoke}". Fix: `gcloud run services add-iam-policy-binding <fn> --member=serviceAccount:content-gen-sa@... --role=roles/run.invoker` after every SA pin change.
+- **Firestore composite indexes in `firestore.indexes.json` are not auto-deployed by hosting/functions deploys.** Run `firebase deploy --only firestore:indexes` explicitly. Symptom: `9 FAILED_PRECONDITION: The query requires an index` from a Cloud Function. Build takes 30-90s for the first time, then READY.
+- **Force-resync helper (no code change required):** bulk `PATCH ?updateMask.fieldPaths=igStats.syncedAt` with `nullValue` body via Firestore REST resets `syncCutoff` skip filter for all matched docs. Pattern in last session's bash log; idempotent.
+
+### Meta Graph API v22+ drift (locked in 2026-05-07)
+
+The Meta v22+ API removed/renamed several insight + comment fields that v21 still accepts. Reference v2 implementation: `C:\webprojects\content-generation\server\services\instagramSync.ts`.
+
+- **Comments**: `from` field removed entirely. Self-detect via `?fields=username,user,replies.limit(50){username,user}` and match `username === igUsername` OR `!!user` (the `user` field is only populated when commenter IS the authenticated account). Resolve `igUsername` via `/{igUserId}?fields=username` once per brand.
+- **Insights metrics**: `likes_count`/`comments_count` rejected (use `likes`/`comments`). `impressions` and `plays` deprecated for IMAGE/CAROUSEL/REELS, replaced by unified `views`. Parser must map `views` → both `out.impressions` and `out.plays` to keep downstream HistoryTab columns + Reels engagement-rate fallback working.
+- **Per-post follower attribution**: `/{mediaId}/insights?metric=follows` returns followers GAINED through this specific post. NOT the same as `/{igUserId}?fields=followers_count` (brand-total, no per-post attribution). Some media types return error 100 ("metric not supported"); silent null is correct.
+- **Own-likes cannot be filtered**: Meta Graph API does not expose individual likers. Toggle UX must document this as a fundamental limitation, not a TODO.
 
 ### Phase 4b deploy quirks (locked in 2026-05-03)
 
