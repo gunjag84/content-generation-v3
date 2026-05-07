@@ -27,9 +27,17 @@ function recencyWeight(referenceMs: number): number {
 export async function loadTopPatterns(
   uid: string,
   brandId: string,
+  mode: 'create-demand' | 'convert-demand',
+  method: string,
 ): Promise<LoadedPattern[]> {
+  // Scope by (mode, method) so patterns from one method don't leak into the
+  // generation of another. Cold-start per (mode, method) combo. Server-side
+  // filter on indexed fields keeps the read cheap; recency/confidence scoring
+  // happens in-memory on the resulting subset.
   const snap = await db
     .collection(`users/${uid}/brands/${brandId}/learnedPatterns`)
+    .where('sourceMode', '==', mode)
+    .where('sourceMethod', '==', method)
     .limit(MAX_FETCH)
     .get();
 

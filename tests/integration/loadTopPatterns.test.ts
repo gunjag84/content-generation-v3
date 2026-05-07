@@ -60,7 +60,7 @@ describe('loadTopPatterns (integration)', () => {
     });
 
     const { loadTopPatterns } = await import('../../server/lib/learnedPatterns.js');
-    const patterns = await loadTopPatterns(UID, BRAND_ID);
+    const patterns = await loadTopPatterns(UID, BRAND_ID, 'create-demand', 'story');
 
     expect(patterns).toHaveLength(2);
     const descriptions = patterns.map((p) => p.description);

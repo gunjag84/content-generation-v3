@@ -1,10 +1,9 @@
-// /create page - subscribes to brand + situations + methods, renders CreateForm,
+// /create page - subscribes to situations + methods, renders CreateForm,
 // streams /api/generate over NDJSON, navigates to /editor/:postId on complete.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   collection,
-  doc,
   onSnapshot,
   orderBy,
   query,
@@ -15,17 +14,12 @@ import { useActiveBrand } from '../store/activeBrand';
 import { streamGenerate } from '../lib/streamGenerate';
 import { CreateForm, type MethodOption, type SituationOption } from '../components/create/CreateForm';
 import type { GenerateRequest } from '../../../shared/schemas/generateRequest';
-import type { FocusArea } from '../../../shared/schemas/focusArea';
-
-interface BrandDocShape {
-  focusAreas?: FocusArea[];
-}
+import type { MethodMode } from '../../../shared/schemas/method';
 
 export default function Create() {
   const { uid, brandId } = useActiveBrand();
   const navigate = useNavigate();
 
-  const [brand, setBrand] = useState<BrandDocShape | null>(null);
   const [situations, setSituations] = useState<SituationOption[]>([]);
   const [methods, setMethods] = useState<MethodOption[]>([]);
 
@@ -33,14 +27,6 @@ export default function Create() {
   const [streamText, setStreamText] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-
-  // Brand doc.
-  useEffect(() => {
-    if (!uid || !brandId) return;
-    return onSnapshot(doc(db, 'users', uid, 'brands', brandId), (snap) => {
-      setBrand((snap.data() as BrandDocShape) ?? null);
-    });
-  }, [uid, brandId]);
 
   // Situations sub-collection.
   useEffect(() => {
@@ -65,18 +51,18 @@ export default function Create() {
     return onSnapshot(collection(db, 'users', uid, 'brands', brandId, 'methods'), (snap) => {
       setMethods(
         snap.docs.map((d) => {
-          const data = d.data() as { name?: string; slug?: MethodOption['slug'] };
+          const data = d.data() as { name?: string; slug?: string; mode?: MethodMode; slideCount?: number };
           return {
             id: d.id,
             name: data.name ?? d.id,
-            slug: (data.slug ?? (d.id as MethodOption['slug'])) as MethodOption['slug'],
+            slug: data.slug ?? d.id,
+            mode: data.mode ?? 'create-demand',
+            slideCount: data.slideCount ?? 7,
           };
         }),
       );
     });
   }, [uid, brandId]);
-
-  const focusAreas = useMemo(() => brand?.focusAreas ?? [], [brand]);
 
   // Abort any in-flight stream on unmount.
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -124,9 +110,8 @@ export default function Create() {
         <h1 className="text-2xl font-semibold mb-4">Create</h1>
         <CreateForm
           brandId={brandId}
-          focusAreas={focusAreas}
           situations={situations}
-          methods={methods.length > 0 ? methods : DEFAULT_METHODS_FALLBACK}
+          methods={methods}
           submitting={submitting}
           onSubmit={onSubmit}
           onCancel={onCancel}
@@ -141,10 +126,3 @@ export default function Create() {
   );
 }
 
-// Defensive fallback if the methods sub-collection hasn't been seeded yet.
-const DEFAULT_METHODS_FALLBACK: MethodOption[] = [
-  { id: 'story', slug: 'story', name: 'Story' },
-  { id: 'liste', slug: 'liste', name: 'Liste' },
-  { id: 'vorher-nachher', slug: 'vorher-nachher', name: 'Vorher/Nachher' },
-  { id: 'zitat', slug: 'zitat', name: 'Zitat' },
-];

@@ -10,7 +10,6 @@ import Calendar from './routes/Calendar';
 import { SettingsLayout } from './routes/settings/SettingsLayout';
 import { IdentityPage } from './routes/settings/IdentityPage';
 import { DesignPage } from './routes/settings/DesignPage';
-import { FocusAreasPage } from './routes/settings/FocusAreasPage';
 import { LibraryPage } from './routes/settings/LibraryPage';
 import { PhotosPage } from './routes/settings/PhotosPage';
 import { MethodsPage } from './routes/settings/MethodsPage';
@@ -35,7 +34,6 @@ export default function App() {
                 <Route index element={<Navigate to="identity" replace />} />
                 <Route path="identity" element={<IdentityPage />} />
                 <Route path="design" element={<DesignPage />} />
-                <Route path="focus-areas" element={<FocusAreasPage />} />
                 <Route path="library" element={<LibraryPage />} />
                 <Route path="photos" element={<PhotosPage />} />
                 <Route path="methods" element={<MethodsPage />} />

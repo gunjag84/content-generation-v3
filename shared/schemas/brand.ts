@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { FocusAreaSchema } from './focusArea.js';
 
 export const BrandIdentitySchema = z.object({
   voice: z.string().default(''),
@@ -50,7 +49,6 @@ export const BrandSchema = z.object({
   name: z.string().min(1),
   identity: BrandIdentitySchema.default({}),
   design: BrandDesignSchema.default({}),
-  focusAreas: z.array(FocusAreaSchema).default([]),
   // Phase 3: required for publish-worker; nullable until user configures
   instagramUserId: z.string().nullable().default(null),
   // Multi-brand migration (2026-05-06): Meta Graph access token is brand-scoped.
@@ -64,6 +62,3 @@ export const BrandSchema = z.object({
 export type Brand = z.infer<typeof BrandSchema>;
 export type BrandIdentity = z.infer<typeof BrandIdentitySchema>;
 export type BrandDesign = z.infer<typeof BrandDesignSchema>;
-
-export { FocusAreaSchema };
-export type { FocusArea } from './focusArea.js';

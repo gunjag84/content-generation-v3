@@ -16,7 +16,7 @@ export const LearnedPatternSchema = z.object({
   confidence: z.number().min(0).max(1),
   zone: PatternZoneSchema,
   sourcePostId: z.string(),
-  sourceMethod: z.enum(['story', 'liste', 'vorher-nachher', 'zitat']),
+  sourceMethod: z.string(), // method slug; user-extensible via Settings
   sourceMode: z.enum(['create-demand', 'convert-demand']),
   // {postId}_{diffHash}_{zone} - prevents duplicate writes when extractor re-runs.
   idempotencyKey: z.string(),

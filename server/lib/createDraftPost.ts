@@ -12,8 +12,7 @@ export interface CreateDraftPostInput {
   uid: string;
   brandId: string;
   mode: 'create-demand' | 'convert-demand';
-  method: 'story' | 'liste' | 'vorher-nachher' | 'zitat';
-  focusAreaId: string | null;
+  method: string; // slug; methods are user-extensible via Settings
   situationText: string;
   situationId: string | null;
   photoUrls: Record<string, string>;
@@ -50,7 +49,6 @@ export async function createDraftPost(input: CreateDraftPostInput): Promise<stri
     caption,
     mode: input.mode,
     method: input.method,
-    focusAreaId: input.focusAreaId,
     situationText: input.situationText,
     situationId: input.situationId,
     photoUrls: input.photoUrls,

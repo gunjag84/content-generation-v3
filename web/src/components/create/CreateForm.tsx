@@ -1,8 +1,8 @@
-// Form fields for the 8 GenerateRequestSchema inputs. Pure UI; the parent owns
+// Form fields for GenerateRequest inputs. Pure UI; the parent owns
 // the brand/situations/methods data and the submit handler.
 import { useEffect, useMemo, useState } from 'react';
 import type { GenerateRequest } from '../../../../shared/schemas/generateRequest';
-import type { FocusArea } from '../../../../shared/schemas/focusArea';
+import type { MethodMode } from '../../../../shared/schemas/method';
 import { PhotoPicker, type PickedPhoto } from './PhotoPicker';
 
 export interface SituationOption {
@@ -12,13 +12,14 @@ export interface SituationOption {
 
 export interface MethodOption {
   id: string;
-  slug: 'story' | 'liste' | 'vorher-nachher' | 'zitat';
+  slug: string;
   name: string;
+  mode: MethodMode;
+  slideCount: number;
 }
 
 interface CreateFormProps {
   brandId: string;
-  focusAreas: FocusArea[];
   situations: SituationOption[];
   methods: MethodOption[];
   submitting: boolean;
@@ -26,22 +27,38 @@ interface CreateFormProps {
   onCancel?: () => void;
 }
 
-const MODES = [
+const MODES: Array<{ value: MethodMode; label: string }> = [
   { value: 'create-demand', label: 'Create Demand' },
   { value: 'convert-demand', label: 'Convert Demand' },
-] as const;
+];
 
 export function CreateForm({
-  brandId, focusAreas, situations, methods, submitting, onSubmit, onCancel,
+  brandId, situations, methods, submitting, onSubmit, onCancel,
 }: CreateFormProps) {
-  const [mode, setMode] = useState<GenerateRequest['mode']>('create-demand');
-  const [methodSlug, setMethodSlug] = useState<MethodOption['slug']>('story');
-  const [focusAreaId, setFocusAreaId] = useState<string | null>(null);
+  const [mode, setMode] = useState<MethodMode>('create-demand');
+  const [methodSlug, setMethodSlug] = useState<string>('story');
   const [situationId, setSituationId] = useState<string | null>(null);
   const [situationText, setSituationText] = useState('');
-  const [slideCount, setSlideCount] = useState(7);
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const [author, setAuthor] = useState('');
+
+  // Methods filtered by current mode.
+  const filteredMethods = useMemo(
+    () => methods.filter((m) => m.mode === mode),
+    [methods, mode],
+  );
+
+  // When mode changes, reset methodSlug to first method of the new mode if current doesn't fit.
+  useEffect(() => {
+    const currentInMode = filteredMethods.some((m) => m.slug === methodSlug);
+    if (!currentInMode && filteredMethods.length > 0) {
+      setMethodSlug(filteredMethods[0].slug);
+    }
+  }, [mode, filteredMethods, methodSlug]);
+
+  // slideCount comes from the selected method, not from local state.
+  const selectedMethod = methods.find((m) => m.slug === methodSlug);
+  const slideCount = selectedMethod?.slideCount ?? 7;
 
   // Prefill situationText when a stored situation is picked.
   useEffect(() => {
@@ -53,8 +70,8 @@ export function CreateForm({
   const situationError = situationText.trim().length < 10 ? 'Mindestens 10 Zeichen.' : null;
 
   const canSubmit = useMemo(
-    () => !submitting && !situationError && slideCount >= 1 && slideCount <= 10,
-    [submitting, situationError, slideCount],
+    () => !submitting && !situationError && !!selectedMethod,
+    [submitting, situationError, selectedMethod],
   );
 
   function submit(e: React.FormEvent) {
@@ -64,10 +81,8 @@ export function CreateForm({
       brandId,
       mode,
       method: methodSlug,
-      focusAreaId,
       situationId,
       situationText: situationText.trim(),
-      slideCount,
       photos,
       ...(methodSlug === 'zitat' && author.trim() ? { author: author.trim() } : {}),
     };
@@ -100,39 +115,26 @@ export function CreateForm({
       {/* Method */}
       <div>
         <Label>Method</Label>
-        <div className="grid grid-cols-4 gap-1 mt-1">
-          {methods.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => setMethodSlug(m.slug)}
-              className={`py-1.5 text-sm border ${
-                methodSlug === m.slug
-                  ? 'border-gray-900 bg-gray-900 text-white'
-                  : 'border-gray-300 text-gray-700 hover:border-gray-500'
-              }`}
-            >
-              {m.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Focus area */}
-      <div>
-        <Label>Focus Area</Label>
-        <select
-          value={focusAreaId ?? ''}
-          onChange={(e) => setFocusAreaId(e.target.value || null)}
-          className="mt-1 w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
-        >
-          <option value="">System pick</option>
-          {focusAreas.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.name}
-            </option>
-          ))}
-        </select>
+        {filteredMethods.length === 0 ? (
+          <p className="mt-1 text-sm text-gray-400">Methoden werden initialisiert ...</p>
+        ) : (
+          <div className="grid grid-cols-4 gap-1 mt-1">
+            {filteredMethods.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => setMethodSlug(m.slug)}
+                className={`py-1.5 text-sm border ${
+                  methodSlug === m.slug
+                    ? 'border-gray-900 bg-gray-900 text-white'
+                    : 'border-gray-300 text-gray-700 hover:border-gray-500'
+                }`}
+              >
+                {m.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Situation */}
@@ -162,20 +164,6 @@ export function CreateForm({
           className="mt-2 w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
         />
         {situationError && <p className="text-xs text-red-600 mt-1">{situationError}</p>}
-      </div>
-
-      {/* Slide count */}
-      <div>
-        <Label>Slides ({slideCount})</Label>
-        <input
-          type="range"
-          min={1}
-          max={10}
-          step={1}
-          value={slideCount}
-          onChange={(e) => setSlideCount(parseInt(e.target.value, 10))}
-          className="mt-1 w-full"
-        />
       </div>
 
       {/* Photos */}

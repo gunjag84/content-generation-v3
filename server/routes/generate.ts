@@ -16,11 +16,11 @@ import { ANTHROPIC_MODEL, makeAnthropicClient } from '../lib/anthropic.js';
 import { getAnthropicKey } from '../lib/getAnthropicKey.js';
 import { createDraftPost } from '../lib/createDraftPost.js';
 import { buildZitatCarousel } from '../lib/zitatShortcircuit.js';
-import type { MethodSlug } from '../lib/methodResolution.js';
 import { loadTopPatterns, renderPatternsBlock, markPatternsUsed } from '../lib/learnedPatterns.js';
 import { auditAndPersistPatternMatch } from '../lib/patternAudit.js';
 import { db } from '../lib/firebase.js';
 import type { BrandIdentity } from '../../shared/schemas/brand.js';
+import { MethodSchema } from '../../shared/schemas/method.js';
 
 const router = express.Router();
 
@@ -55,6 +55,32 @@ router.post('/generate', async (req: Request, res: Response) => {
   const photoUrls: Record<string, string> = {};
   for (const p of body.photos) photoUrls[p.label] = p.url;
 
+  // Resolve method doc: slideCount + description live in users/{uid}/brands/{brandId}/methods/{methodId}.
+  // The doc id matches the slug for default methods; for custom user-added methods it's the auto-id.
+  // We look up by slug since the request carries the slug, not the doc id.
+  let methodDoc: { name: string; slug: string; description: string; mode: string; slideCount: number } | null = null;
+  try {
+    const methodsCol = db.collection(`users/${uid}/brands/${body.brandId}/methods`);
+    const snap = await methodsCol.where('slug', '==', body.method).limit(1).get();
+    if (!snap.empty) {
+      const parsed = MethodSchema.safeParse(snap.docs[0].data());
+      if (parsed.success) methodDoc = parsed.data;
+    }
+  } catch (err) {
+    console.error('[generate] method doc load failed:', (err as Error).message);
+  }
+  if (!methodDoc) {
+    writeLine(res, { type: 'error', error: `unknown_method: '${body.method}' nicht in den Brand-Methoden gefunden.` });
+    res.end();
+    return;
+  }
+  if (methodDoc.mode !== body.mode) {
+    writeLine(res, { type: 'error', error: `mode_mismatch: Methode '${body.method}' geh\u00f6rt zu mode '${methodDoc.mode}', request war '${body.mode}'.` });
+    res.end();
+    return;
+  }
+  const slideCount = methodDoc.slideCount;
+
   // ─── Zitat shortcircuit ─────────────────────────────────────────
   if (body.method === 'zitat') {
     try {
@@ -64,7 +90,6 @@ router.post('/generate', async (req: Request, res: Response) => {
         brandId: body.brandId,
         mode: body.mode,
         method: 'zitat',
-        focusAreaId: body.focusAreaId,
         situationText: body.situationText,
         situationId: body.situationId,
         photoUrls,
@@ -110,24 +135,26 @@ router.post('/generate', async (req: Request, res: Response) => {
   let topPatterns: Awaited<ReturnType<typeof loadTopPatterns>> = [];
   let patternsBlock = '';
   try {
-    topPatterns = await loadTopPatterns(uid, body.brandId);
+    topPatterns = await loadTopPatterns(uid, body.brandId, body.mode, body.method);
     patternsBlock = renderPatternsBlock(topPatterns);
   } catch (err) {
     console.error('[generate] pattern load failed:', (err as Error).message);
   }
 
-  const systemPrompt = assembleSystemPrompt(
-    body.method as MethodSlug,
-    body.slideCount,
-    body.mode,
+  const systemPrompt = assembleSystemPrompt({
+    method: body.method,
+    methodName: methodDoc.name,
+    methodDescription: methodDoc.description,
+    slideCount,
+    mode: body.mode,
     patternsBlock,
-    identity,
-  );
+    brandIdentity: identity,
+  });
 
   const countInstruction =
-    body.slideCount === 1
+    slideCount === 1
       ? 'Erstelle genau 1 Slide (Single Post, kein Carousel).'
-      : `Erstelle genau ${body.slideCount} Slides.`;
+      : `Erstelle genau ${slideCount} Slides.`;
 
   const userParts: string[] = [
     `<situation>\n${body.situationText}\n</situation>`,
@@ -135,7 +162,6 @@ router.post('/generate', async (req: Request, res: Response) => {
     `\nMODE: ${body.mode}`,
     `METHOD: ${body.method}`,
   ];
-  if (body.focusAreaId) userParts.push(`FOCUS: ${body.focusAreaId}`);
   if (body.author) userParts.push(`AUTHOR: ${body.author}`);
   userParts.push(`\n${countInstruction}`);
   userParts.push('Erstelle jetzt das Carousel im exakten Slide-Definition-Format.');
@@ -213,7 +239,6 @@ router.post('/generate', async (req: Request, res: Response) => {
       brandId: body.brandId,
       mode: body.mode,
       method: body.method,
-      focusAreaId: body.focusAreaId,
       situationText: body.situationText,
       situationId: body.situationId,
       photoUrls,

@@ -1,13 +1,14 @@
 import { z } from 'zod';
 
+// method is a slug-string (not an enum) because methods are user-extensible
+// via Settings. Server validates the slug exists in the brand's methods doc
+// and resolves slideCount + mode from there.
 export const GenerateRequestSchema = z.object({
   brandId: z.string().min(1),
   mode: z.enum(['create-demand', 'convert-demand']),
-  method: z.enum(['story', 'liste', 'vorher-nachher', 'zitat']),
-  focusAreaId: z.string().min(1).nullable().default(null),
+  method: z.string().min(1).regex(/^[a-z0-9-]+$/),
   situationText: z.string().min(10),
   situationId: z.string().min(1).nullable().default(null),
-  slideCount: z.number().int().min(1).max(10).default(7),
   photos: z
     .array(
       z.object({

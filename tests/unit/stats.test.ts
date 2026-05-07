@@ -46,7 +46,6 @@ function makePost(overrides: Partial<Post> = {}): Post {
     caption: '',
     mode: 'create-demand',
     method: 'story',
-    focusAreaId: null,
     situationText: '',
     situationId: null,
     photoUrls: {},

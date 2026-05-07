@@ -3,7 +3,6 @@ import { NavLink, Outlet } from 'react-router-dom';
 const TABS = [
   { to: '/settings/identity', label: 'Identity' },
   { to: '/settings/design', label: 'Design' },
-  { to: '/settings/focus-areas', label: 'Focus Areas' },
   { to: '/settings/library', label: 'Library' },
   { to: '/settings/photos', label: 'Photos' },
   { to: '/settings/methods', label: 'Methods' },
