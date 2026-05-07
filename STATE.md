@@ -2,7 +2,7 @@
 
 Single source of truth for **operational state** (what is deployed, what works, what is pending). Architecture and decisions live in `~/.claude/plans/modular-tumbling-sunrise.md` (source-of-truth plan, v6 ISSUES_CLOSED 2026-04-26).
 
-Last updated: 2026-05-06 (Multi-Brand Migration deployed: Meta-Token now per-brand, BrandSetupWizard live, igStatsSync P0 fix).
+Last updated: 2026-05-07 (Phase 5 Cutover started: kill-switch trip-test passed end-to-end, igFeedSync deployed, all 3 Cloud Functions ACTIVE; PR #3 merged to master so git matches prod).
 
 ---
 
@@ -11,7 +11,7 @@ Last updated: 2026-05-06 (Multi-Brand Migration deployed: Meta-Token now per-bra
 - **Project:** `contentai-78bfb` (europe-west1)
 - **Hosting:** https://contentai-78bfb.web.app
 - **Cloud Run:** https://content-gen-23953893533.europe-west1.run.app
-- **Live revisions:** `content-gen-00022-2h4` (Multi-Brand Migration, deployed 2026-05-06) + Cloud Functions `budgetKillswitch`, `igStatsSync` (P0 brand-scoped read fix)
+- **Live revisions:** `content-gen-00022-2h4` (Multi-Brand Migration, deployed 2026-05-06) + Cloud Functions `budgetKillswitch`, `igStatsSync`, `igFeedSync` (last deployed 2026-05-07)
 
 > Note: source-of-truth plan references `content-gen-prod` as the planned project ID; actual prod project is `contentai-78bfb`.
 
@@ -27,7 +27,7 @@ Last updated: 2026-05-06 (Multi-Brand Migration deployed: Meta-Token now per-bra
 | 4a. Silent Edit-Diff Learning Loop | Edit-diff -> learnedPatterns -> prompt injection, Haiku audit, promotion approval UI, brand.identity wiring | **Live** (PR #1 merged, deployed `content-gen-00013-ctz`) |
 | 4b. Performance Dashboard + Polish | Read-only igStats display, edit hot-spots widget, dashboard widgets, per-post IG analytics in History, format-aware Playwright render with brand fonts, IG container polling against code 9007, calendar placeholder | **Live** (deployed `content-gen-00021-9r9`) |
 | 4c. Automated Performance Learning | Auto-extract patterns from top-performing posts | Deferred (revisit at N>=20 publishes) |
-| 5. Cutover | Final security rules, fresh-start onboarding for Tim + Jule, first real post on @leben.lieben | Not started |
+| 5. Cutover | Final security rules, fresh-start onboarding for Tim + Jule, first real post on @leben.lieben | **In progress** (rules verified final, kill-switch trip-test passed 2026-05-07; pending: Tim + Jule fresh onboarding, first real post, v2 README archive) |
 
 ---
 
