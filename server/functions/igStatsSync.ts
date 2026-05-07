@@ -118,7 +118,14 @@ async function fetchIgInsights(
 // ── Cloud Function ────────────────────────────────────────────────────────────
 
 export const igStatsSync = onSchedule(
-  { schedule: 'every 6 hours', region: 'europe-west1' },
+  {
+    schedule: 'every 6 hours',
+    region: 'europe-west1',
+    // Pin SA: firebase deploy resets to compute SA otherwise, breaking KMS decrypt
+    // (only content-gen-sa has roles/cloudkms.cryptoKeyEncrypterDecrypter on the
+    // user-secrets/api-keys key).
+    serviceAccount: 'content-gen-sa@contentai-78bfb.iam.gserviceaccount.com',
+  },
   async () => {
     const db = getFirestore();
     const syncCutoff = new Date(Date.now() - SYNC_INTERVAL_MS);
