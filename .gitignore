@@ -1,5 +1,6 @@
 node_modules/
 dist/
+server/functions/lib/
 .env
 .env.*
 !.env.example
