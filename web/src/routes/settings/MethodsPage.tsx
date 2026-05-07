@@ -58,10 +58,12 @@ export function MethodsPage() {
     const unsub = onSnapshot(col, async (snap) => {
       if (!alive) return;
 
-      // Idempotent seed: ensure all DEFAULT_METHODS slugs exist.
-      const existingSlugs = new Set(snap.docs.map((d) => d.id));
-      for (const m of DEFAULT_METHODS) {
-        if (!existingSlugs.has(m.id)) {
+      // First-ever-load seed: only when the collection is empty. After that,
+      // user deletions of default methods are respected - we never re-seed
+      // them on subsequent loads. New defaults shipped after a brand has
+      // already loaded methods must be added manually.
+      if (snap.empty) {
+        for (const m of DEFAULT_METHODS) {
           await setDoc(doc(col, m.id), {
             name: m.name,
             slug: m.slug,
