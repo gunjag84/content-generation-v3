@@ -7,7 +7,7 @@ if (getApps().length === 0) initializeApp();
 const GRAPH_VERSION = 'v21.0';
 const BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 const SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
-const MAX_PER_RUN = 50;
+const MAX_PER_RUN = 200;
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -72,12 +72,17 @@ type IgMediaType = 'IMAGE' | 'CAROUSEL_ALBUM' | 'REELS';
 
 // Meta exposes a different metric set for video (Reels) vs photo. Asking
 // for the wrong set returns an error per metric and skews aggregate stats.
+// v22+ API drift (2026-05-07): `likes_count`/`comments_count` no longer
+// accepted (use `likes`/`comments`); `impressions` and `plays` deprecated
+// across IMAGE/CAROUSEL/REELS, replaced by unified `views`. Parser maps
+// `views` -> out.impressions AND out.plays so HistoryTab columns and
+// engagement-rate fallback (stats.plays ?? stats.videoViews) keep working.
 function metricsForType(mediaType: IgMediaType | null): string {
   if (mediaType === 'REELS') {
-    return 'plays,reach,likes,comments,saved,shares,total_interactions';
+    return 'views,reach,likes,comments,saved,shares,total_interactions';
   }
   // IMAGE + CAROUSEL_ALBUM (and legacy unset) - default photo metric set.
-  return 'reach,impressions,likes_count,comments_count,saved';
+  return 'reach,views,likes,comments,saved';
 }
 
 async function fetchIgInsights(
@@ -108,6 +113,12 @@ async function fetchIgInsights(
       case 'comments': out.comments = value; break;
       case 'saved': out.saves = value; break;
       case 'plays': out.plays = value; break;
+      case 'views':
+        // v22+ unified metric: replaces both `impressions` (photo) and `plays` (Reels).
+        // Map to both fields so HistoryTab column and engagement-rate fallback keep working.
+        out.impressions = value;
+        out.plays = value;
+        break;
       case 'video_views': out.videoViews = value; break;
       case 'shares': out.shares = value; break;
     }
