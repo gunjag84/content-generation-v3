@@ -1,8 +1,8 @@
 # Project State - Content-Generation v3
 
-Single source of truth for **operational state** (what is deployed, what works, what is pending). Architecture and decisions live in `~/.claude/plans/modular-tumbling-sunrise.md` (source-of-truth plan, v6 ISSUES_CLOSED 2026-04-26).
+Single source of truth for **operational state** (what is deployed, locked deploy patterns, runtime contracts, requirements traceability). Scope/phases/open decisions/out-of-scope live in `PROJECT-PLAN.md`. Architecture/ADRs/full spec live in `~/.claude/plans/modular-tumbling-sunrise.md` (v6 ISSUES_CLOSED 2026-04-26, historical reference).
 
-Last updated: 2026-05-07 (Phase 5 Cutover started: kill-switch trip-test passed E2E; igFeedSync deployed; LEBEN.LIEBEN brand fresh-onboarded with 94 organic IG posts synced; igStatsSync now also fetches per-post `follows` (acquisitions) + `ownComments` (self-replies, v22+ self-detection via username/user); HistoryTab gained Foll. column + own-comments toggle + engagement-rate tooltip).
+Last updated: 2026-05-08 (added `manualIgSync` callable Cloud Function for user-triggered IG feed+stats refresh; `KMS_KEY_NAME` env var set on the new Cloud Run service; timeout bumped to 540s + 512MiB).
 
 ---
 
@@ -11,23 +11,9 @@ Last updated: 2026-05-07 (Phase 5 Cutover started: kill-switch trip-test passed 
 - **Project:** `contentai-78bfb` (europe-west1)
 - **Hosting:** https://contentai-78bfb.web.app
 - **Cloud Run:** https://content-gen-23953893533.europe-west1.run.app
-- **Live revisions:** `content-gen-00022-2h4` (Multi-Brand Migration, deployed 2026-05-06) + Cloud Functions `budgetKillswitch`, `igStatsSync`, `igFeedSync` (last deployed 2026-05-07)
+- **Live revisions:** `content-gen-00022-2h4` (Multi-Brand Migration, deployed 2026-05-06) + Cloud Functions `budgetKillswitch`, `igStatsSync`, `igFeedSync`, `manualIgSync` (last deployed 2026-05-08)
 
 > Note: source-of-truth plan references `content-gen-prod` as the planned project ID; actual prod project is `contentai-78bfb`.
-
----
-
-## Phase Status
-
-| Phase | Scope | Status |
-|-------|-------|--------|
-| 1. Foundation & Infrastructure | GCP/Firebase project, Cloud Run + Tasks + Scheduler + KMS, Auth shell | **Live** |
-| 2. Brand Settings & Create | Settings schema, Focus Areas, generate streaming, zone editor on Firestore | **Live** |
-| 3. Render & Posts | Async render via Cloud Tasks, 3-tab Posts page, Schedule + Publish workers | **Live** |
-| 4a. Silent Edit-Diff Learning Loop | Edit-diff -> learnedPatterns -> prompt injection, Haiku audit, promotion approval UI, brand.identity wiring | **Live** (PR #1 merged, deployed `content-gen-00013-ctz`) |
-| 4b. Performance Dashboard + Polish | Read-only igStats display, edit hot-spots widget, dashboard widgets, per-post IG analytics in History, format-aware Playwright render with brand fonts, IG container polling against code 9007, calendar placeholder | **Live** (deployed `content-gen-00021-9r9`) |
-| 4c. Automated Performance Learning | Auto-extract patterns from top-performing posts | Deferred (revisit at N>=20 publishes) |
-| 5. Cutover | Final security rules, fresh-start onboarding for Tim + Jule, first real post on @leben.lieben | **In progress** (rules verified final, kill-switch trip-test passed 2026-05-07; pending: Tim + Jule fresh onboarding, first real post, v2 README archive) |
 
 ---
 
@@ -112,129 +98,6 @@ Decisions locked during execution that override or extend the source-of-truth pl
 
 ---
 
-## Pending TODOs
-
-**Tim (manual):**
-- Phase 2 prod smoke: sign-in -> /settings/photos upload -> /create generate (story + zitat paths) -> /editor edits persist with `aiSnapshot` byte-identical; cancel-before-complete = no post doc.
-- Phase 3 user-facing prod smoke: /create -> /editor render -> /posts schedule + publish.
-- Meta Graph token + `instagramUserId` per Brand: UI fehlt, manuell per Firestore-Console möglich.
-- LEBEN.LIEBEN-Brand fresh setup für Cutover.
-
-**Backlog:**
-- Vitest harness for web package (streamGenerate trailing-byte test + saveDraftDebounced no-aiSnapshot test).
-- aiSnapshot mutation rules-deny test (rule itself is live since 02-01).
-- Re-sign helper for >7-day signed Storage URLs.
-
----
-
-## Deferred / Out-of-Scope
-
-| Item | Reason |
-|------|--------|
-| `cache_control: ephemeral` on system message | SDK 0.32.1 stable doesn't expose it on `TextBlockParam`; revisit when SDK adds the type or move to beta endpoint |
-| Inline photo upload from SlidePanel side rail | Pool management lives in `/settings/photos` (Q6 lock) |
-| Browser pool in render service | `concurrency=1` makes pooling pointless; per-request Chromium launch |
-| v2 SQLite data migration | Fresh start in Firestore; both users re-onboard the LEBEN.LIEBEN brand |
-| Staging environment | 2-user internal use; $20/$40 budget cap + kill switch covers cost risk |
-| Public sign-up funnel | Hardcoded allowlist in `requireAuth` (Tim + Jule only) |
-| LearningDashboardPage | Learning runs invisibly; optional `/learning` debug page only (Tim-only) |
-| Pillar P3 (Loyalty/Nurture) | Removed; only `create-demand` + `convert-demand` remain |
-| Style Types / Layout Templates / Strategy / Hooks Guidance pages | Removed entirely from settings schema |
-| Real-time multi-user collab on a single post | Posts are user-scoped; no shared editing |
-| Calendar interactive view + drag-and-drop reschedule | v2 feature; v1 has Coming Soon placeholder only |
-| Pattern visibility UI | Learning is invisible by design (LEARN-V2-* future) |
-
----
-
-## Remaining Work (Phase 4 + 5)
-
-Phase 4 split into 4a (Layer 1 silent learning), 4b (Layer 2 read-only dashboard + polish), 4c (deferred auto-analysis). Confirmed 2026-05-03.
-
-### Phase 4a: Silent Edit-Diff Learning Loop (Layer 1)
-
-**Goal:** Every publish silently teaches the next generate prompt by diffing AI-baseline vs published-output and extracting structural patterns. Brand identity is NEVER auto-mutated.
-
-**Schema** - new sub-collection `users/{uid}/brands/{brandId}/learnedPatterns/{patternId}`:
-
-```ts
-{
-  description: string,        // 1-2 sentences, structural pattern
-  confidence: number,         // 0-1, from extractor
-  zone: 'hook' | 'body' | 'cta' | 'caption',
-  sourcePostId: string,
-  sourceMethod: 'story' | 'liste' | 'vorher-nachher' | 'zitat',
-  sourceMode: 'create-demand' | 'convert-demand',
-  idempotencyKey: string,     // `{postId}_{diffHash}` - prevents dup writes
-  createdAt: Timestamp,
-  lastUsedAt: Timestamp | null,
-  useCount: number
-}
-```
-
-Also add to post doc on publish: `editStats: { editRatioByZone: {hook, body, cta, caption}, totalEditRatio }` (cheap, drives 4b dashboard).
-
-**Implementation:**
-- Port `editDiff.ts` from v2 (Levenshtein-based per-zone diff, threshold 0.15 to skip noise).
-- Cloud Function `onPostPublished` - Firestore `onDocumentUpdated` trigger, filter `before.status != 'published' && after.status == 'published'`.
-- Worker computes diff, writes `editStats` to post, then for each zone with diff > 0.15 calls Claude Haiku (~1200 in / 300 out tokens) with JSON-schema-validated output.
-- Idempotency-keyed write to `learnedPatterns` sub-collection. On 2nd trigger same `{postId}_{diffHash}`: no-op.
-- `server/lib/assembleSystemPrompt.ts` - inject `<learned_patterns>` XML block, top N=20 ordered by `recency × confidence` (recency = exp decay over days since `lastUsedAt`).
-
-**Success criteria:**
-1. After 3 publishes with meaningful edits, `learnedPatterns` sub-collection contains extracted patterns; next generate request shows the XML block in network trace.
-2. Re-running pattern extraction on the same publish (manual re-trigger) writes zero new docs.
-3. No learning UI visible in normal navigation. Optional `/learning` debug route Tim-only.
-4. Brand identity fields (`voice`, `persona`, etc.) untouched by the worker.
-
-### Phase 4b: Performance Dashboard + Polish (Layer 2 read-only)
-
-**Goal:** Surface igStats + edit hot-spots so humans can spot patterns. No LLM calls. No auto-learning until enough data exists.
-
-**Implementation:**
-- Posts page enrichment - each published post card displays `{reach, impressions, likes, comments, saves, engagement_rate}` from existing `igStats`. `engagement_rate = (likes + comments + saves) / reach`.
-- Dashboard widgets:
-  - Recent Posts list (last 5)
-  - Scheduled count
-  - Top-performing post (last 30d, by engagement_rate)
-  - Per-method aggregate (avg engagement, avg edit ratio, post count) - only show buckets with N>=3
-  - Per-day-of-week aggregate - only show buckets with N>=3
-  - Edit hot-spots widget (which zone gets edited most across last 10 posts)
-  - BrandSwitcher highlight + Create CTA
-- `/calendar` route - "Coming Soon" placeholder card.
-- All aggregations are pure Firestore queries + frontend math. No Cloud Function, no Claude calls.
-
-**Success criteria:**
-1. Each published post card shows the 5 igStats + engagement_rate.
-2. Dashboard renders all widgets; aggregates respect N>=3 floor (no widget with 1-2 datapoints).
-3. Edit hot-spots widget surfaces zone with highest avg edit ratio.
-4. `/calendar` loads with Coming Soon card.
-5. Zero new Cloud Functions, zero Claude calls in this phase.
-
-### Phase 4c: Automated Performance Learning (DEFERRED)
-
-**Trigger to revisit:** when N>=20 published posts exist with igStats, OR Tim explicitly requests earlier.
-
-**Sketch (not built):** Cloud Function reads top-N posts by engagement_rate, Claude Haiku extracts qualitative themes (high-performing hook patterns, CTA patterns), writes to a separate `performancePatterns` sub-collection, injected into prompt as `<performance_patterns>` block alongside `<learned_patterns>`. Same injection mechanism, different signal source.
-
-### Phase 5: Cutover
-
-**Goal:** v3 is live in production, both users onboarded fresh, first real post published on @leben.lieben, v2 archived.
-
-**Plan:**
-- Final-build + deploy: `pnpm build:web` -> `firebase deploy --only firestore:rules,firestore:indexes,storage,functions,hosting` + `gcloud run deploy content-gen --source=.`
-- Pub/Sub trip-test: `gcloud pubsub topics publish budget-alerts --message='{"costAmount":40,"budgetAmount":40}'` -> killSwitch flips -> 503 on `/api/*` -> re-seed via `seed-killswitch.sh`.
-- Tim: sign-in on prod URL, Anthropic key, real LEBEN.LIEBEN brand + identity fields.
-- Jule sign-in ceremony, her brand setup.
-- First real test-post: Generate -> Edit -> Schedule for `now+5min` -> wait -> IG post live on @leben.lieben.
-
-**Success criteria:**
-1. Final Firestore security rules block any cross-user read/write attempt.
-2. Tim and Jule each complete onboarding for the LEBEN.LIEBEN brand from scratch.
-3. Post generated, edited, scheduled, published on @leben.lieben via v3.
-4. Old `content-generation` repo README points at v3; `v3-rewrite` branch retired.
-
----
-
 ## Requirements Traceability (53 v1)
 
 | ID | Requirement | Phase | Status |
@@ -252,19 +115,9 @@ Also add to post doc on publish: `editStats: { editRatioByZone: {hook, body, cta
 
 ---
 
-## Risks (Phase 4 + 5)
-
-| Risk | Mitigation |
-|------|------------|
-| Learning-loop pattern extract returns invalid JSON | Zod schema validation; on failure 1 retry with explicit JSON-only re-prompt; then store with `parse_failed` flag |
-| Anthropic spend during E2E tests | E2E doc uses 1-2 generates total, no volume tests |
-| Token theft in worst-case window before $40 budget alert | 2FA on Tim's Google account (out-of-scope for plan, hard-recommended) |
-| Stale `publishing` lock from worker crash | Collection-group sweep recovers >10min locks to `scheduled` |
-
----
-
 ## Source-of-Truth References
 
-- Architecture, ADRs, scope, full spec: `~/.claude/plans/modular-tumbling-sunrise.md`
+- Goal, phases, current/next, open decisions, out-of-scope, risks, pending TODOs: `PROJECT-PLAN.md`
+- Architecture, ADRs, full spec: `~/.claude/plans/modular-tumbling-sunrise.md` (historical, ISSUES_CLOSED 2026-04-26)
 - v2 source for verbatim ports (editor, parseSlidesMd, editDiff, prompts): `C:\webprojects\content-generation\client\src\components\social-club\`
 - Project rules + conventions: `CLAUDE.md`

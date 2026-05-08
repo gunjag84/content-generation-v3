@@ -19,8 +19,9 @@ Multi-user web app for AI-assisted Instagram carousel creation. Tim and Jule eac
 
 ## Source-of-Truth References
 
-- **Architecture / ADRs / scope:** `~/.claude/plans/modular-tumbling-sunrise.md` (v6 ISSUES_CLOSED 2026-04-26)
-- **Operational state, deploy anchors, locked patterns, remaining work, requirements traceability:** `STATE.md` (root)
+- **Goal, phases, current/next, open decisions, out-of-scope, risks, pending TODOs:** `PROJECT-PLAN.md` (root). Senior PM single-source-of-truth for scope. Every non-trivial change must classify against this file before any code is written. Out-of-scope work hard-stops and goes through AskUserQuestion to incorporate or reject.
+- **Operational state, deploy anchors, locked patterns, runtime contracts, requirements traceability:** `STATE.md` (root).
+- **Architecture / ADRs / full spec:** `~/.claude/plans/modular-tumbling-sunrise.md` (v6 ISSUES_CLOSED 2026-04-26, historical).
 - **v2 source for verbatim ports:** `C:\webprojects\content-generation\client\src\components\social-club\`
 
 ## Conventions
