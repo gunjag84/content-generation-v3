@@ -48,10 +48,19 @@ service cloud.firestore {
       }
     }
 
-    // legacy nested rule kept as catch-all under /users for paths not enumerated above
-    match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-    }
+    // NOTE: a previous catch-all `match /users/{uid}/{document=**}` was REMOVED.
+    // Firestore evaluates rule matches as a UNION — any matching `allow` permits
+    // the operation; there is no specificity-wins semantic. The catch-all
+    // overrode the specific posts/{postId} rule's aiSnapshot immutability guard,
+    // letting owners mutate aiSnapshot despite STATE.md documenting it as
+    // immutable. Caught 2026-05-08 by tests/integration/aiSnapshotDeny.test.ts.
+    //
+    // All client-side Firestore writes touch only the enumerated collections
+    // above (verified by greppen: brands, methods, photos, posts, renderJobs,
+    // situations, igFeedSyncStatus). Server-side admin-SDK writes
+    // (learnedPatterns, approvalEvents) bypass these rules entirely.
+    //
+    // Adding a new client-accessible collection? Add an explicit rule above.
 
     match /system/{doc} {
       allow read: if request.auth != null;
