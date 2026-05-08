@@ -13,3 +13,7 @@ ui-debug.log
 .gstack/
 .claude/
 CONOUT$
+
+# scope-orchestrator runtime artifacts
+.orch/
+orch-*.plan.md
