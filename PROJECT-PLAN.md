@@ -114,3 +114,9 @@ None right now. Architectural decisions are locked (see `STATE.md` "Locked Archi
 | Anthropic spend during E2E tests | E2E doc uses 1-2 generates total, no volume tests |
 | Token theft in worst-case window before $40 budget alert | 2FA on Tim's Google account (out-of-scope for plan, hard-recommended) |
 | Stale `publishing` lock from worker crash | Collection-group sweep recovers >10min locks to `scheduled` |
+
+## Recent Runs
+
+- 2026-05-08 20:28 T1-web-vitest-harness [success] 7m55s $0.920 — Done. Here's what was built:  **Installation** — `pnpm install --ignore-workspace` from `web/` installed vitest 2.1.9...
+- 2026-05-08 20:38 T2-aisnapshot-rules-deny-test [success] 17m54s $2.881 — Marker created. Here is the full summary:  ---  ## T2 outcome: test written, security rules bug discovered  ### What ...
+- 2026-05-08 20:43 T3-resign-storage-helper [success] 3m19s $0.668 — Done. Two files produced:  **`server/lib/resignSlides.ts`** - `parseSignedUrlExpiry(url)` — extracts expiry from a GC...
