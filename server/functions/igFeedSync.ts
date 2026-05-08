@@ -216,7 +216,7 @@ async function upsertFeedItems(
 
 // ── per-brand orchestration ───────────────────────────────────────────────────
 
-async function syncBrand(
+export async function syncBrand(
   db: FirebaseFirestore.Firestore,
   uid: string,
   brandId: string,

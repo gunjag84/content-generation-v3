@@ -228,6 +228,89 @@ async function fetchIgInsights(
   return out;
 }
 
+// ── per-doc sync (shared by scheduler + manual trigger) ──────────────────────
+
+interface SyncPostResult {
+  outcome: 'synced' | 'skipped' | 'error';
+}
+
+async function syncOnePost(
+  doc: FirebaseFirestore.QueryDocumentSnapshot,
+  credentials: BrandCredentials,
+  syncCutoff: Date | null,
+): Promise<SyncPostResult> {
+  const data = doc.data();
+  const igMediaId: string | undefined = data.igMediaId;
+  if (!igMediaId) return { outcome: 'skipped' };
+
+  // Skip stale-cutoff check when syncCutoff is null (manual force-sync).
+  if (syncCutoff) {
+    const igStats = data.igStats ?? null;
+    if (igStats !== null) {
+      const syncedAt: Date | null = igStats.syncedAt?.toDate?.() ?? null;
+      if (syncedAt && syncedAt >= syncCutoff) {
+        return { outcome: 'skipped' };
+      }
+    }
+  }
+
+  const mediaType: IgMediaType | null = (() => {
+    const t = data.mediaType;
+    if (t === 'IMAGE' || t === 'CAROUSEL_ALBUM' || t === 'REELS') return t;
+    return null;
+  })();
+
+  const insights = await fetchIgInsights(igMediaId, credentials.token, mediaType);
+  const follows = await fetchPostFollows(igMediaId, credentials.token);
+  const ownComments = await fetchOwnCommentsCount(
+    igMediaId,
+    credentials.token,
+    credentials.igUsername,
+  );
+
+  await doc.ref.update({
+    igStats: {
+      ...insights,
+      follows,
+      ownComments,
+      syncedAt: FieldValue.serverTimestamp(),
+    },
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  return { outcome: 'synced' };
+}
+
+// Manual single-brand stats refresh (called by manualIgSync onCall).
+// Bypasses the 6h cutoff so a manually-triggered sync always re-fetches.
+export async function syncStatsForBrand(
+  uid: string,
+  brandId: string,
+): Promise<{ synced: number; skipped: number; errors: number }> {
+  const db = getFirestore();
+  const credentials = await getBrandCredentials(uid, brandId);
+
+  const snap = await db
+    .collection(`users/${uid}/brands/${brandId}/posts`)
+    .where('status', '==', 'published')
+    .limit(MAX_PER_RUN)
+    .get();
+
+  let synced = 0;
+  let skipped = 0;
+  let errors = 0;
+  for (const doc of snap.docs) {
+    try {
+      const r = await syncOnePost(doc, credentials, null);
+      if (r.outcome === 'synced') synced++;
+      else skipped++;
+    } catch (err) {
+      console.error('[igStatsSync:manual] failed for', doc.ref.path, err);
+      errors++;
+    }
+  }
+  return { synced, skipped, errors };
+}
+
 // ── Cloud Function ────────────────────────────────────────────────────────────
 
 export const igStatsSync = onSchedule(
@@ -273,19 +356,6 @@ export const igStatsSync = onSchedule(
 
     for (const doc of snap.docs) {
       try {
-        const data = doc.data();
-        const igMediaId: string = data.igMediaId;
-
-        // Filter stale in-process
-        const igStats = data.igStats ?? null;
-        if (igStats !== null) {
-          const syncedAt: Date | null = igStats.syncedAt?.toDate?.() ?? null;
-          if (syncedAt && syncedAt >= syncCutoff) {
-            skipped++;
-            continue;
-          }
-        }
-
         const parsed = parsePostPath(doc.ref.path);
         if (!parsed) {
           console.warn('[igStatsSync] unexpected path:', doc.ref.path);
@@ -301,29 +371,9 @@ export const igStatsSync = onSchedule(
           brandCache.set(cacheKey, cached);
         }
 
-        const mediaType: IgMediaType | null = (() => {
-          const t = data.mediaType;
-          if (t === 'IMAGE' || t === 'CAROUSEL_ALBUM' || t === 'REELS') return t;
-          return null;
-        })();
-        const insights = await fetchIgInsights(igMediaId, cached.token, mediaType);
-        const follows = await fetchPostFollows(igMediaId, cached.token);
-        const ownComments = await fetchOwnCommentsCount(
-          igMediaId,
-          cached.token,
-          cached.igUsername,
-        );
-
-        await doc.ref.update({
-          igStats: {
-            ...insights,
-            follows,
-            ownComments,
-            syncedAt: FieldValue.serverTimestamp(),
-          },
-          updatedAt: FieldValue.serverTimestamp(),
-        });
-        synced++;
+        const r = await syncOnePost(doc as FirebaseFirestore.QueryDocumentSnapshot, cached, syncCutoff);
+        if (r.outcome === 'synced') synced++;
+        else skipped++;
       } catch (err) {
         console.error('[igStatsSync] failed for', doc.ref.path, err);
         errCount++;

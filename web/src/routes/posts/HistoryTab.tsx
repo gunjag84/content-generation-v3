@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '../../lib/firebase';
 import { useActiveBrand } from '../../store/activeBrand';
 import { usePublishedPosts, type PublishedPostWithId } from '../../hooks/usePublishedPosts';
 import {
@@ -132,6 +134,22 @@ export function HistoryTab() {
   const [sort, setSort] = useState<SortField>('publishedAt');
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   const [excludeOwnComments, setExcludeOwnComments] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  async function handleSync() {
+    if (!brandId || syncing) return;
+    setSyncing(true);
+    setSyncError(null);
+    try {
+      const fn = httpsCallable<{ brandId: string }, unknown>(functions, 'manualIgSync');
+      await fn({ brandId });
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : 'Sync fehlgeschlagen');
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   const allRows = useMemo(
     () => posts.map((p) => buildRow(p, excludeOwnComments)),
@@ -227,8 +245,20 @@ export function HistoryTab() {
     <div className="p-6 space-y-4">
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="text-xs text-gray-500">
-          {lastSync ? <>Stats {timeAgo(lastSync)} synchronisiert</> : 'Stats noch nicht synchronisiert'}
+        <div className="flex items-center gap-3 text-xs text-gray-500">
+          <span>
+            {lastSync ? <>Stats {timeAgo(lastSync)} synchronisiert</> : 'Stats noch nicht synchronisiert'}
+          </span>
+          <button
+            type="button"
+            onClick={handleSync}
+            disabled={syncing}
+            className="px-2 py-1 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            title="Feed + Stats von Instagram nachladen"
+          >
+            {syncing ? 'Synchronisiere…' : 'Jetzt synchronisieren'}
+          </button>
+          {syncError && <span className="text-red-600">{syncError}</span>}
         </div>
         <div className="flex items-center gap-4 flex-wrap">
           <label

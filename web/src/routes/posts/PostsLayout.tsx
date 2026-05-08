@@ -3,16 +3,16 @@ import { DraftsTab } from './DraftsTab';
 import { ScheduledTab } from './ScheduledTab';
 import { HistoryTab } from './HistoryTab';
 
-type Tab = 'drafts' | 'scheduled' | 'history';
+type Tab = 'history' | 'drafts' | 'scheduled';
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'history', label: 'Verlauf' },
   { id: 'drafts', label: 'Drafts' },
   { id: 'scheduled', label: 'Geplant' },
-  { id: 'history', label: 'Verlauf' },
 ];
 
 export default function PostsLayout() {
-  const [active, setActive] = useState<Tab>('drafts');
+  const [active, setActive] = useState<Tab>('history');
 
   return (
     <section className="min-h-full">
