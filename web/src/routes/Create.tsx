@@ -12,6 +12,7 @@ import {
 import { auth, db } from '../lib/firebase';
 import { useActiveBrand } from '../store/activeBrand';
 import { streamGenerate } from '../lib/streamGenerate';
+import { submitManual } from '../lib/submitManual';
 import { CreateForm, type MethodOption, type SituationOption } from '../components/create/CreateForm';
 import type { GenerateRequest } from '../../../shared/schemas/generateRequest';
 import type { MethodMode } from '../../../shared/schemas/method';
@@ -38,6 +39,7 @@ export default function Create() {
 
   const [submitting, setSubmitting] = useState(false);
   const [streamText, setStreamText] = useState('');
+  const [manualSubmitting, setManualSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -120,9 +122,40 @@ export default function Create() {
     });
   }
 
+  async function onSubmitManual(req: GenerateRequest) {
+    if (!auth.currentUser) {
+      setErrorMsg('Nicht eingeloggt.');
+      return;
+    }
+    setSubmitting(true);
+    setManualSubmitting(true);
+    setStreamText('');
+    setErrorMsg(null);
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+    const token = await auth.currentUser.getIdToken();
+
+    await submitManual({
+      token,
+      body: req,
+      signal: abortRef.current.signal,
+      onComplete: ({ postId }) => {
+        setSubmitting(false);
+        setManualSubmitting(false);
+        navigate(`/editor/${postId}`);
+      },
+      onError: (err) => {
+        setErrorMsg(err.message);
+        setSubmitting(false);
+        setManualSubmitting(false);
+      },
+    });
+  }
+
   function onCancel() {
     abortRef.current?.abort();
     setSubmitting(false);
+    setManualSubmitting(false);
   }
 
   if (!uid || !brandId) {
@@ -139,13 +172,15 @@ export default function Create() {
           methods={methods}
           submitting={submitting}
           onSubmit={onSubmit}
+          onSubmitManual={onSubmitManual}
           onCancel={onCancel}
         />
         {errorMsg && <p className="text-sm text-red-600 mt-3">{errorMsg}</p>}
       </div>
       <div className="bg-zinc-950 text-zinc-200 rounded p-4 overflow-auto max-h-[80vh] font-mono text-xs whitespace-pre-wrap">
-        {submitting && !streamText && <span className="text-zinc-500">Warte auf Stream …</span>}
-        {streamText || (!submitting && <span className="text-zinc-600">Live-Vorschau erscheint hier.</span>)}
+        {manualSubmitting && <span className="text-zinc-500">Erstelle Draft …</span>}
+        {!manualSubmitting && submitting && !streamText && <span className="text-zinc-500">Warte auf Stream …</span>}
+        {!manualSubmitting && (streamText || (!submitting && <span className="text-zinc-600">Live-Vorschau erscheint hier.</span>))}
       </div>
     </section>
   );

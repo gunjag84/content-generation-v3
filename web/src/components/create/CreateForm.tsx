@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { GenerateRequest } from '../../../../shared/schemas/generateRequest';
 import type { LengthKey, MethodMode } from '../../../../shared/schemas/method';
+import { parseManualSlides } from '../../../../shared/lib/parseManualSlides';
 import { PhotoPicker, type PickedPhoto } from './PhotoPicker';
 
 export interface SituationOption {
@@ -34,6 +35,7 @@ interface CreateFormProps {
   methods: MethodOption[];
   submitting: boolean;
   onSubmit: (req: GenerateRequest) => void;
+  onSubmitManual: (req: GenerateRequest) => void;
   onCancel?: () => void;
 }
 
@@ -43,7 +45,7 @@ const MODES: Array<{ value: MethodMode; label: string }> = [
 ];
 
 export function CreateForm({
-  brandId, situations, methods, submitting, onSubmit, onCancel,
+  brandId, situations, methods, submitting, onSubmit, onSubmitManual, onCancel,
 }: CreateFormProps) {
   const [mode, setMode] = useState<MethodMode>('create-demand');
   const [methodSlug, setMethodSlug] = useState<string>('story');
@@ -80,15 +82,23 @@ export function CreateForm({
 
   const situationError = situationText.trim().length < 10 ? 'Mindestens 10 Zeichen.' : null;
 
+  // Live parse to drive the "Detected: N slides" badge and the manual-button gate.
+  const manualSlideCount = useMemo(() => {
+    try {
+      return parseManualSlides(situationText).slides.length;
+    } catch {
+      return 0;
+    }
+  }, [situationText]);
+
   const canSubmit = useMemo(
     () => !submitting && !situationError && !!selectedMethod,
     [submitting, situationError, selectedMethod],
   );
+  const canSubmitManual = canSubmit && manualSlideCount > 0;
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!canSubmit) return;
-    const req: GenerateRequest = {
+  function buildRequest(): GenerateRequest {
+    return {
       brandId,
       mode,
       method: methodSlug,
@@ -98,7 +108,17 @@ export function CreateForm({
       photos,
       ...(methodSlug === 'zitat' && author.trim() ? { author: author.trim() } : {}),
     };
-    onSubmit(req);
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canSubmit) return;
+    onSubmit(buildRequest());
+  }
+
+  function submitManual() {
+    if (!canSubmitManual) return;
+    onSubmitManual(buildRequest());
   }
 
   return (
@@ -197,6 +217,10 @@ export function CreateForm({
           className="mt-2 w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
         />
         {situationError && <p className="text-xs text-red-600 mt-1">{situationError}</p>}
+        <p className="text-xs text-gray-500 mt-1">
+          Detected: {manualSlideCount} {manualSlideCount === 1 ? 'slide' : 'slides'}
+          {manualSlideCount === 0 && ' (Format: "Slide 1: ...")'}
+        </p>
       </div>
 
       {/* Photos */}
@@ -227,7 +251,16 @@ export function CreateForm({
           disabled={!canSubmit}
           className="bg-gray-900 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
         >
-          {submitting ? 'Generiere…' : 'Generate'}
+          {submitting ? 'Generiere…' : 'Generate with AI'}
+        </button>
+        <button
+          type="button"
+          onClick={submitManual}
+          disabled={!canSubmitManual}
+          title={manualSlideCount === 0 ? 'Format: "Slide 1: ..."' : undefined}
+          className="border border-gray-900 text-gray-900 px-4 py-2 rounded text-sm disabled:opacity-50 disabled:border-gray-300 disabled:text-gray-400"
+        >
+          Use my text
         </button>
         {submitting && onCancel && (
           <button
