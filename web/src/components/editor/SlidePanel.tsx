@@ -64,8 +64,8 @@ interface SlidePanelProps {
   onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
   uploading: boolean;
   uploadError?: string | null;
-  syncGradientColor: boolean;
-  onSyncGradientColorChange: (v: boolean) => void;
+  /** One-shot: copy the active slide's gradientColor to every slide. */
+  onApplyGradientToAll: () => void;
 }
 
 export function SlidePanel({
@@ -73,7 +73,7 @@ export function SlidePanel({
   photoPool, slidePhotoId, photoTransforms,
   onAssignPhoto, onRotatePhoto,
   onUpload, uploading, uploadError,
-  syncGradientColor, onSyncGradientColorChange,
+  onApplyGradientToAll,
 }: SlidePanelProps) {
   const s = (p: Partial<SocialSlide>) => onChange({ ...slide, ...p });
   const needsPhoto = ['photo', 'overlay'].includes(slide.type);
@@ -220,21 +220,17 @@ export function SlidePanel({
         <>
           <Divider />
           <div>
-            <div className="flex justify-between items-center">
-              <Label>Gradient Color</Label>
-              <label className="flex items-center gap-1 cursor-pointer">
-                <input type="checkbox" checked={syncGradientColor}
-                  onChange={e => onSyncGradientColorChange(e.target.checked)}
-                  className="accent-amber-500 w-3 h-3" />
-                <span className="font-mono text-[9px] uppercase tracking-widest text-zinc-500">All</span>
-              </label>
-            </div>
+            <Label>Gradient Color</Label>
             <div className="mt-1">
               <ColorInput
                 value={slide.gradientColor ?? '#000000'}
                 onChange={(v) => s({ gradientColor: v })}
               />
             </div>
+            <button onClick={onApplyGradientToAll}
+              className="w-full mt-2 py-1.5 font-mono text-[10px] uppercase tracking-widest text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors flex items-center justify-center gap-1.5">
+              <Ico d={I.copy} size={11} /> Apply gradient to all
+            </button>
           </div>
           {slide.type === 'photo' && (
             <div className="select-none">

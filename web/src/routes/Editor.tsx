@@ -19,6 +19,8 @@ import {
   ZonePanel,
 } from '../components/editor';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { SchedulePostModal } from '../components/SchedulePostModal';
+import { publishNow } from '../lib/postActions';
 import type { Format, SocialSlide, Zone } from '../../../shared/types/slide';
 import { FORMAT_HEIGHTS, REF_W } from '../../../shared/types/slide';
 import type { BrandDesign } from '../../../shared/schemas/brand';
@@ -64,10 +66,18 @@ export default function Editor() {
   const [loading, setLoading] = useState(true);
   const [photoPool, setPhotoPool] = useState<{ id: string; url: string }[]>([]);
   const [photoTransforms, setPhotoTransforms] = useState<Record<string, { rotation: number; scale: number }>>({});
-  const [syncGradient, setSyncGradient] = useState(false);
   const [renderJobId, setRenderJobId] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
+  const [showGrid, setShowGrid] = useState(false);
+  const [rightTab, setRightTab] = useState<'slide' | 'zones' | 'caption'>('slide');
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  // 'now' = trigger publishNow once renderJob.status flips to 'done'.
+  // null = no publish pending. Schedule path uses SchedulePostModal and
+  // bypasses this state since the scheduled-publish worker handles render.
+  const [pendingPublishMode, setPendingPublishMode] = useState<'now' | null>(null);
+  const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const renderJob = useRenderJob(brandId, renderJobId);
   const [brandBgColor, setBrandBgColor] = useState<string | undefined>(undefined);
   const [uploading, setUploading] = useState(false);
@@ -260,11 +270,32 @@ export default function Editor() {
     });
   }
 
-  function syncGradientChange(v: boolean) {
-    setSyncGradient(v);
-    if (v && activeSlide?.gradientColor) {
-      setSlides((prev) => prev.map((s) => ({ ...s, gradientColor: activeSlide.gradientColor })));
+  function applyGradientToAll() {
+    if (!activeSlide?.gradientColor) return;
+    const color = activeSlide.gradientColor;
+    setSlides((prev) => prev.map((s) => ({ ...s, gradientColor: color })));
+  }
+
+  // Click "Jetzt veröffentlichen" — if already rendered, publish immediately.
+  // Else mark pending and kick render; the renderJob.status effect below
+  // will fire publishNow when status flips to 'done'.
+  async function requestPublishNow() {
+    if (!brandId || !postId || publishing) return;
+    setPublishError(null);
+    if (renderJob.status === 'done') {
+      setPublishing(true);
+      try {
+        await publishNow(brandId, postId);
+        navigate('/posts');
+      } catch (err) {
+        setPublishError((err as Error).message);
+      } finally {
+        setPublishing(false);
+      }
+      return;
     }
+    setPendingPublishMode('now');
+    await startRender();
   }
 
   async function startRender() {
@@ -286,17 +317,37 @@ export default function Editor() {
   }
 
   // Reset rendering flag when the job lands on a terminal state.
-  // On success: navigate to /posts so the user lands on the Drafts list where
-  // the freshly-rendered post can be scheduled or published immediately.
+  // On success: either chain into pending publishNow (if user clicked
+  // "Jetzt veröffentlichen") or navigate to /posts so they see the result.
+  // On error: keep the user in the editor with an inline message.
   useEffect(() => {
     if (renderJob.status === 'done') {
       setRendering(false);
+      if (pendingPublishMode === 'now' && brandId && postId) {
+        setPendingPublishMode(null);
+        setPublishing(true);
+        void (async () => {
+          try {
+            await publishNow(brandId, postId);
+            navigate('/posts');
+          } catch (err) {
+            setPublishError((err as Error).message);
+          } finally {
+            setPublishing(false);
+          }
+        })();
+        return;
+      }
       navigate('/posts');
     } else if (renderJob.status === 'error') {
       setRendering(false);
       if (renderJob.error) setRenderError(renderJob.error);
+      if (pendingPublishMode !== null) {
+        setPublishError(renderJob.error ?? 'Render fehlgeschlagen vor Publish.');
+        setPendingPublishMode(null);
+      }
     }
-  }, [renderJob.status, renderJob.error, navigate]);
+  }, [renderJob.status, renderJob.error, navigate, pendingPublishMode, brandId, postId]);
 
   // Recompute auto-fit for every slide that hasn't been manually adjusted
   // whenever the canvas format changes. Slides with imageManualAdjust=true keep
@@ -374,7 +425,7 @@ export default function Editor() {
   const slidePhotoId = typeof activeSlide?.photo === 'string' ? activeSlide.photo : undefined;
 
   return (
-    <div className="grid grid-cols-[200px_1fr_320px] grid-rows-[auto_1fr] h-full bg-zinc-900 text-zinc-100">
+    <div className="grid grid-cols-[200px_1fr_320px] grid-rows-[auto_1fr_auto] h-full bg-zinc-900 text-zinc-100">
       {/* Format selector toolbar spanning all columns */}
       <div className="col-span-3 flex items-center gap-3 px-4 py-2 border-b border-zinc-800 bg-zinc-950">
         <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500">Format</span>
@@ -389,6 +440,14 @@ export default function Editor() {
             {f}
           </button>
         ))}
+        <button
+          onClick={() => setShowGrid((v) => !v)}
+          className={`ml-2 px-2 py-1 font-mono text-[10px] uppercase tracking-widest border ${
+            showGrid ? 'border-amber-500 text-amber-400 bg-amber-500/10' : 'border-zinc-700 text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          Grid
+        </button>
         <span className="ml-4 font-mono text-[10px] text-zinc-600">
           Slide {activeSlideIdx + 1} / {slides.length}
         </span>
@@ -438,84 +497,147 @@ export default function Editor() {
         onSelectZone={setSelectedZoneId}
         onZoneChange={changeZone}
         backgroundColor={brandBgColor}
+        showGrid={showGrid}
       />
 
-      {/* Right rail: SlidePanel (slide-level) + ZonePanel (zone-level) + caption */}
-      <aside className="overflow-y-auto bg-zinc-950 border-l border-zinc-800">
-        {activeSlide && (
-          <SlidePanel
-            slide={activeSlide}
-            onChange={changeSlide}
-            onApplyImageToAll={applyImageToAll}
-            photoPool={photoPool}
-            slidePhotoId={slidePhotoId}
-            photoTransforms={photoTransforms}
-            onAssignPhoto={assignPhoto}
-            onRotatePhoto={rotatePhoto}
-            onScalePhoto={scalePhoto}
-            onUpload={realUpload}
-            uploading={uploading}
-            uploadError={uploadError}
-            syncGradientColor={syncGradient}
-            onSyncGradientColorChange={syncGradientChange}
-          />
-        )}
-        {activeSlide && (
-          <ZonePanel
-            zones={activeSlide.zones}
-            selectedId={selectedZoneId}
-            onSelect={setSelectedZoneId}
-            onZoneChange={changeZone}
-            onAdd={() => {
-              const z: Zone = {
-                id: crypto.randomUUID(),
-                label: `Text ${activeSlide.zones.length + 1}`,
-                x: 100, y: 100, w: 600, h: 200,
-                text: 'Neuer Text', fontSize: 64, fontFamily: 'Inter',
-                fontWeight: 400, color: '#ffffff',
-                alignH: 'left', alignV: 'top',
-                italic: false, lineHeight: 1.2, letterSpacing: 0, rotation: 0,
-              };
-              changeSlide({ ...activeSlide, zones: [...activeSlide.zones, z] });
-              setSelectedZoneId(z.id);
-            }}
-            onAddLogo={() => {
-              const z: Zone = {
-                id: crypto.randomUUID(),
-                label: 'Logo',
-                x: 60, y: 60, w: 200, h: 80,
-                text: 'LOGO', fontSize: 48, fontFamily: 'Inter',
-                fontWeight: 700, color: '#ffffff',
-                alignH: 'center', alignV: 'middle',
-                italic: false, lineHeight: 1.0, letterSpacing: 0, rotation: 0,
-                isLogo: true,
-              };
-              changeSlide({ ...activeSlide, zones: [...activeSlide.zones, z] });
-              setSelectedZoneId(z.id);
-            }}
-            onDelete={(id) => {
-              changeSlide({ ...activeSlide, zones: activeSlide.zones.filter((z) => z.id !== id) });
-              if (selectedZoneId === id) setSelectedZoneId(null);
-            }}
-            onDuplicate={(id) => {
-              const src = activeSlide.zones.find((z) => z.id === id);
-              if (!src) return;
-              const dup: Zone = { ...src, id: crypto.randomUUID(), x: src.x + 20, y: src.y + 20, label: `${src.label} copy` };
-              changeSlide({ ...activeSlide, zones: [...activeSlide.zones, dup] });
-              setSelectedZoneId(dup.id);
-            }}
-          />
-        )}
-        <div className="border-t border-zinc-800 p-3">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500 block">Caption</span>
-          <textarea
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            rows={6}
-            className="mt-1.5 w-full bg-zinc-800 border border-zinc-700 px-2 py-1.5 text-zinc-200 text-[12px] resize-none focus:outline-none focus:border-amber-500/50"
-          />
+      {/* Right rail: tabbed Slide / Zones / Caption. Conditional render
+          (not display-toggle) so the Caption tab's auto-grow ref fires on
+          mount and any active panels re-init cleanly on tab switch. */}
+      <aside className="flex flex-col bg-zinc-950 border-l border-zinc-800 overflow-hidden">
+        <div className="flex border-b border-zinc-800 flex-shrink-0">
+          {(['slide', 'zones', 'caption'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setRightTab(t)}
+              className={`flex-1 py-2 font-mono text-[9px] uppercase tracking-widest transition-colors ${
+                rightTab === t
+                  ? 'text-amber-400 border-b-2 border-amber-500'
+                  : 'text-zinc-500 hover:text-zinc-300'
+              }`}
+            >
+              {t === 'slide' ? 'Slide' : t === 'zones' ? 'Zones' : 'Caption'}
+            </button>
+          ))}
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {rightTab === 'slide' && activeSlide && (
+            <SlidePanel
+              slide={activeSlide}
+              onChange={changeSlide}
+              onApplyImageToAll={applyImageToAll}
+              photoPool={photoPool}
+              slidePhotoId={slidePhotoId}
+              photoTransforms={photoTransforms}
+              onAssignPhoto={assignPhoto}
+              onRotatePhoto={rotatePhoto}
+              onScalePhoto={scalePhoto}
+              onUpload={realUpload}
+              uploading={uploading}
+              uploadError={uploadError}
+              onApplyGradientToAll={applyGradientToAll}
+            />
+          )}
+          {rightTab === 'zones' && activeSlide && (
+            <ZonePanel
+              zones={activeSlide.zones}
+              selectedId={selectedZoneId}
+              onSelect={setSelectedZoneId}
+              onZoneChange={changeZone}
+              onAdd={() => {
+                const z: Zone = {
+                  id: crypto.randomUUID(),
+                  label: `Text ${activeSlide.zones.length + 1}`,
+                  x: 100, y: 100, w: 600, h: 200,
+                  text: 'Neuer Text', fontSize: 64, fontFamily: 'Inter',
+                  fontWeight: 400, color: '#ffffff',
+                  alignH: 'left', alignV: 'top',
+                  italic: false, lineHeight: 1.2, letterSpacing: 0, rotation: 0,
+                };
+                changeSlide({ ...activeSlide, zones: [...activeSlide.zones, z] });
+                setSelectedZoneId(z.id);
+              }}
+              onAddLogo={() => {
+                const z: Zone = {
+                  id: crypto.randomUUID(),
+                  label: 'Logo',
+                  x: 60, y: 60, w: 200, h: 80,
+                  text: 'LOGO', fontSize: 48, fontFamily: 'Inter',
+                  fontWeight: 700, color: '#ffffff',
+                  alignH: 'center', alignV: 'middle',
+                  italic: false, lineHeight: 1.0, letterSpacing: 0, rotation: 0,
+                  isLogo: true,
+                };
+                changeSlide({ ...activeSlide, zones: [...activeSlide.zones, z] });
+                setSelectedZoneId(z.id);
+              }}
+              onDelete={(id) => {
+                changeSlide({ ...activeSlide, zones: activeSlide.zones.filter((z) => z.id !== id) });
+                if (selectedZoneId === id) setSelectedZoneId(null);
+              }}
+              onDuplicate={(id) => {
+                const src = activeSlide.zones.find((z) => z.id === id);
+                if (!src) return;
+                const dup: Zone = { ...src, id: crypto.randomUUID(), x: src.x + 20, y: src.y + 20, label: `${src.label} copy` };
+                changeSlide({ ...activeSlide, zones: [...activeSlide.zones, dup] });
+                setSelectedZoneId(dup.id);
+              }}
+            />
+          )}
+          {rightTab === 'caption' && (
+            <div className="p-3">
+              <span className="font-mono text-[10px] uppercase tracking-widest text-zinc-500 block">Caption</span>
+              <textarea
+                value={caption}
+                onChange={(e) => {
+                  setCaption(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                }}
+                ref={(el) => {
+                  if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+                }}
+                rows={6}
+                className="mt-1.5 w-full bg-zinc-800 border border-zinc-700 px-2 py-1.5 text-zinc-200 text-[12px] resize-none overflow-hidden focus:outline-none focus:border-amber-500/50"
+              />
+            </div>
+          )}
         </div>
       </aside>
+
+      {/* Bottom publish bar — IG only (v3 backend doesn't wire FB). */}
+      <div className="col-span-3 flex items-center gap-3 px-4 py-2 border-t border-zinc-800 bg-zinc-950">
+        <button
+          onClick={() => navigate('/posts')}
+          className="px-3 py-1 font-mono text-[10px] uppercase tracking-widest border border-zinc-700 text-zinc-400 hover:text-zinc-100"
+        >
+          Zurück
+        </button>
+        {publishError && (
+          <span className="ml-2 font-mono text-[10px] text-red-400" title={publishError}>
+            {publishError}
+          </span>
+        )}
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={() => setScheduleModalOpen(true)}
+            disabled={publishing || rendering || renderJob.status === 'rendering'}
+            className="px-3 py-1 font-mono text-[10px] uppercase tracking-widest border border-zinc-700 text-zinc-300 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Einplanen
+          </button>
+          <button
+            onClick={requestPublishNow}
+            disabled={publishing || rendering || renderJob.status === 'rendering'}
+            className="px-4 py-1 font-mono text-[10px] uppercase tracking-widest bg-amber-500 text-zinc-900 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {publishing
+              ? 'Wird veröffentlicht …'
+              : pendingPublishMode === 'now'
+              ? 'Rendere für Publish …'
+              : 'Jetzt veröffentlichen'}
+          </button>
+        </div>
+      </div>
 
       <ConfirmModal
         open={deleteSlideIdx !== null}
@@ -523,6 +645,14 @@ export default function Editor() {
         message="Diese Slide wird endgültig aus dem Beitrag entfernt. Diese Aktion kann nicht rückgängig gemacht werden."
         onConfirm={confirmDeleteSlide}
         onClose={() => setDeleteSlideIdx(null)}
+      />
+
+      <SchedulePostModal
+        open={scheduleModalOpen}
+        postId={postId}
+        brandId={brandId}
+        onClose={() => setScheduleModalOpen(false)}
+        onScheduled={() => { setScheduleModalOpen(false); navigate('/posts'); }}
       />
     </div>
   );
