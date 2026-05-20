@@ -4,8 +4,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 if (getApps().length === 0) initializeApp();
 
-const GRAPH_VERSION = 'v21.0';
-const BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
+import { GRAPH_VERSION, GRAPH_BASE as BASE } from './graphApi';
 const SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 hours
 const MAX_PER_RUN = 200;
 

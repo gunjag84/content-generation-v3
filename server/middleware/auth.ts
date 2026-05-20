@@ -2,7 +2,6 @@ import type { Request, Response, NextFunction } from 'express';
 import { auth, db } from '../lib/firebase.js';
 
 // D-27: hardcoded allowlist. Tim updates this list and redeploys to add users.
-// Replace placeholder emails with Tim's and Jule's real emails before deploying.
 export const ALLOWED_EMAILS = [
   'tim.gansczyk@gmail.com',
   'juliane@gansczyk.de',

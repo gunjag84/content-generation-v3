@@ -109,7 +109,7 @@ Decisions locked during execution that override or extend the source-of-truth pl
 | RENDER-01..05 | render-jobs enqueue, Playwright per-request, sub-collection updates, 2s polling, <10s cold-start | 3 | Live |
 | POST-01..07 | 3-tab Posts page, draft->scheduled->published transitions, Cloud Scheduler tick, transaction lock, stale-lock sweep, igMediaId link, igStats sync | 3 | Live |
 | LEARN-01..05 | computeEditDiff, Claude Haiku pattern extract, idempotency, learnedPatterns injection, invisible UI | 4a | **Live** (deployed 2026-05-03) |
-| POLISH-01..02 + igStats display + edit hot-spots | Dashboard widgets, Calendar placeholder, per-post igStats, per-method/day-of-week aggregates (N>=3 floor) | 4b | Pending |
+| POLISH-01..02 + igStats display + edit hot-spots | Dashboard widgets, Calendar placeholder, per-post igStats, per-method/day-of-week aggregates (N>=3 floor) | 4b | **Live** (deployed `content-gen-00021-9r9`) |
 | LEARN-V2-* (auto-perf-learning) | Defer until N>=20 published posts | 4c | Deferred |
 | LAUNCH-01..06 | Hosting deployed, Cloud Run + Tasks + Scheduler active, final security rules, fresh onboarding, first real post, v2 README archive | 5 | Pending |
 

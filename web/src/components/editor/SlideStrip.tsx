@@ -4,6 +4,26 @@ import { useState } from 'react';
 import { SlideThumbnail } from './ZoneCanvas';
 import type { Format, SocialSlide, Zone } from '../../../../shared/types/slide';
 
+// Minimal 6-dot grip icon (⋮⋮). Inline SVG — no lucide dependency required.
+function GripIcon() {
+  return (
+    <svg
+      width="12"
+      height="16"
+      viewBox="0 0 12 16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <circle cx="4" cy="3" r="1.5" />
+      <circle cx="8" cy="3" r="1.5" />
+      <circle cx="4" cy="8" r="1.5" />
+      <circle cx="8" cy="8" r="1.5" />
+      <circle cx="4" cy="13" r="1.5" />
+      <circle cx="8" cy="13" r="1.5" />
+    </svg>
+  );
+}
+
 interface SlideStripProps {
   slides: SocialSlide[];
   format: Format;
@@ -71,8 +91,17 @@ export function SlideStrip({
             onDragOver={(e) => handleDragOver(e, i)}
             onDrop={(e) => handleDrop(e, i)}
             onDragEnd={handleDragEnd}
-            className={`relative inline-block transition-opacity ${isDragging ? 'opacity-40' : ''} ${isOver ? 'ring-2 ring-amber-400' : ''}`}
+            className={`relative inline-block transition-opacity group ${isDragging ? 'opacity-40' : ''} ${isOver ? 'ring-2 ring-amber-400' : ''}`}
           >
+            {onReorder && (
+              <div
+                className="absolute top-1/2 -translate-y-1/2 -left-1 z-30 flex items-center justify-center w-5 h-8 rounded text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+                title="Slide verschieben"
+                aria-label="Slide verschieben"
+              >
+                <GripIcon />
+              </div>
+            )}
             <SlideThumbnail
               slide={slide}
               format={format}

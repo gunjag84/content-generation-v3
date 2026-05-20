@@ -5,7 +5,7 @@
 //   - POST /api/settings/brand-ig (new, write-after-validate)
 //   - tests can mock fetch directly without touching Express.
 
-const GRAPH = 'https://graph.facebook.com/v21.0';
+import { GRAPH_BASE_URL as GRAPH } from './graphConstants.js';
 
 function metaErrorMessage(payload: any, status: number): string {
   const err = payload?.error;

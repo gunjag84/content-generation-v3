@@ -11,6 +11,7 @@ import { db } from './firebase.js';
 import { getMetaToken } from './getMetaToken.js';
 import { publishCarousel } from './instagram.js';
 import { runLearningExtraction } from './learningExtractor.js';
+import { resignIfExpiring } from './resignSlides.js';
 import type { SocialSlide } from '../../shared/types/slide.js';
 
 export async function publishClaimedPost(
@@ -27,6 +28,26 @@ export async function publishClaimedPost(
     throw new Error('no_rendered_slides — render before publish');
   }
 
+  // Re-sign slide URLs that are expiring within the 7-day threshold so IG
+  // never receives a broken URL. Failures are non-fatal — we log and proceed
+  // with the original URLs rather than aborting the publish.
+  let slideUrls = renderedSlideUrls;
+  try {
+    const resigned = await resignIfExpiring({
+      uid,
+      brandId,
+      postId: postRef.id,
+      renderedSlideUrls,
+    });
+    if (resigned !== null) {
+      slideUrls = resigned.newUrls;
+      // Persist fresh URLs so subsequent re-publish attempts start clean.
+      await postRef.update({ renderedSlideUrls: resigned.newUrls });
+    }
+  } catch (err) {
+    console.error('[publishClaimedPost] resignIfExpiring failed — proceeding with original URLs', postRef.path, err);
+  }
+
   const metaToken = await getMetaToken(uid, brandId);
 
   const brandSnap = await db.doc(`users/${uid}/brands/${brandId}`).get();
@@ -39,7 +60,7 @@ export async function publishClaimedPost(
   const { igMediaId, igPermalink } = await publishCarousel({
     metaToken,
     igUserId,
-    slideUrls: renderedSlideUrls,
+    slideUrls,
     caption,
   });
 

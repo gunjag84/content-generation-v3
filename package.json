@@ -19,7 +19,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:unit": "vitest run tests/unit",
-    "test:integration": "vitest run tests/integration"
+    "test:integration": "vitest run tests/integration",
+    "deploy:fns": "bash scripts/deploy-functions.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

@@ -180,7 +180,7 @@ export default function Create() {
       <div className="bg-zinc-950 text-zinc-200 rounded p-4 overflow-auto max-h-[80vh] font-mono text-xs whitespace-pre-wrap">
         {manualSubmitting && <span className="text-zinc-500">Erstelle Draft …</span>}
         {!manualSubmitting && submitting && !streamText && <span className="text-zinc-500">Warte auf Stream …</span>}
-        {!manualSubmitting && (streamText || (!submitting && <span className="text-zinc-600">Live-Vorschau erscheint hier.</span>))}
+        {!manualSubmitting && (streamText.length > 0 ? streamText : (!submitting && <span className="text-zinc-600">Live-Vorschau erscheint hier.</span>))}
       </div>
     </section>
   );

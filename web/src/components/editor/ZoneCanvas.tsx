@@ -1,9 +1,10 @@
 // Verbatim port of v2 client/src/components/social-club/ZoneCanvas.tsx (297 lines).
 // Only mechanical change: imports rewritten to point at shared/types/slide.
-import { useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import type { Zone, SocialSlide, Format } from '../../../../shared/types/slide';
 import { FORMAT_HEIGHTS, REF_W } from '../../../../shared/types/slide';
 import { ensureFontLoaded } from '../../lib/font-loader';
+import { useAutoGrow } from '../../hooks/useAutoGrow';
 
 type DragMode = 'move' | 'resize-nw' | 'resize-ne' | 'resize-sw' | 'resize-se' | 'rotate' | null;
 
@@ -140,47 +141,7 @@ export function ZoneCanvas({
   // Run synchronously before paint so the user never sees an overlap flash on
   // the initial render. Process every overflowing zone in a single pass and
   // accumulate y-shifts for downstream zones, so one tick fixes all collisions.
-  useLayoutEffect(() => {
-    const zones = slide.zones;
-    if (!zones || zones.length === 0) return;
-    const padding = 16;
-    // Snapshot computed heights up front so subsequent loop math doesn't depend
-    // on dirty DOM measurements after we mutate state.
-    const ordered = zones.map((z) => ({ z, top: z.y })).sort((a, b) => a.top - b.top);
-    const yShift: Record<string, number> = {};
-    const newH: Record<string, number> = {};
-    for (let i = 0; i < ordered.length; i++) {
-      const { z } = ordered[i];
-      if (z.isLogo) continue;
-      const el = zoneRefs.current[z.id];
-      if (!el) continue;
-      const minH = Math.ceil(el.scrollHeight + padding);
-      const effectiveH = newH[z.id] ?? z.h;
-      if (minH > effectiveH + 2) {
-        const delta = minH - effectiveH;
-        newH[z.id] = minH;
-        const zoneBottom = z.y + effectiveH;
-        for (let j = i + 1; j < ordered.length; j++) {
-          const other = ordered[j].z;
-          if (other.y + (yShift[other.id] ?? 0) >= zoneBottom - 2) {
-            yShift[other.id] = (yShift[other.id] ?? 0) + delta;
-          }
-        }
-      }
-    }
-    if (Object.keys(newH).length === 0 && Object.keys(yShift).length === 0) return;
-    for (const z of zones) {
-      const grew = newH[z.id];
-      const shifted = yShift[z.id];
-      if (grew !== undefined || shifted !== undefined) {
-        onZoneChange({
-          ...z,
-          h: grew ?? z.h,
-          y: shifted !== undefined ? z.y + shifted : z.y,
-        });
-      }
-    }
-  });
+  useAutoGrow(slide.zones, zoneRefs, onZoneChange);
 
   const corners: { mode: Exclude<DragMode, 'move' | 'rotate' | null>; style: React.CSSProperties }[] = [
     { mode: 'resize-nw', style: { top: -5, left: -5, cursor: 'nw-resize' } },
@@ -335,52 +296,13 @@ export function SlideThumbnail({ slide, format, active, index, onClick, backgrou
     families.forEach(ensureFontLoaded);
   }, [slide.zones]);
 
-  // Auto-grow + downstream-shift pass, identical to the one inside ZoneCanvas.
+  // Auto-grow + downstream-shift pass, mirrors ZoneCanvas behavior.
   // Without this, thumbnails render with the un-grown zone heights/positions
   // (overlapping text) until the user clicks a slide and the active-canvas
   // effect persists corrections. Running it here too means every slide is
   // corrected on first thumbnail paint, regardless of which slide is active.
   // Idempotent: once persisted values fit, the effect early-returns.
-  useLayoutEffect(() => {
-    if (!onZoneChange) return;
-    const zones = slide.zones;
-    if (!zones || zones.length === 0) return;
-    const padding = 16;
-    const ordered = zones.map((z) => ({ z, top: z.y })).sort((a, b) => a.top - b.top);
-    const yShift: Record<string, number> = {};
-    const newH: Record<string, number> = {};
-    for (let i = 0; i < ordered.length; i++) {
-      const { z } = ordered[i];
-      if (z.isLogo) continue;
-      const el = zoneRefs.current[z.id];
-      if (!el) continue;
-      const minH = Math.ceil(el.scrollHeight + padding);
-      const effectiveH = newH[z.id] ?? z.h;
-      if (minH > effectiveH + 2) {
-        const delta = minH - effectiveH;
-        newH[z.id] = minH;
-        const zoneBottom = z.y + effectiveH;
-        for (let j = i + 1; j < ordered.length; j++) {
-          const other = ordered[j].z;
-          if (other.y + (yShift[other.id] ?? 0) >= zoneBottom - 2) {
-            yShift[other.id] = (yShift[other.id] ?? 0) + delta;
-          }
-        }
-      }
-    }
-    if (Object.keys(newH).length === 0 && Object.keys(yShift).length === 0) return;
-    for (const z of zones) {
-      const grew = newH[z.id];
-      const shifted = yShift[z.id];
-      if (grew !== undefined || shifted !== undefined) {
-        onZoneChange({
-          ...z,
-          h: grew ?? z.h,
-          y: shifted !== undefined ? z.y + shifted : z.y,
-        });
-      }
-    }
-  });
+  useAutoGrow(slide.zones, zoneRefs, onZoneChange);
 
   const bgColor = slide.type === 'cta' ? '#0f1f16' : (backgroundColor ?? '#1c1c2e');
   const imgStyle: React.CSSProperties = slide.imageUrl

@@ -3,6 +3,7 @@
 // and immutable per Firestore rules + the DraftPatch type guard.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useUndoStack } from '../hooks/useUndoStack';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { useActiveBrand } from '../store/activeBrand';
@@ -85,6 +86,25 @@ export default function Editor() {
   const [deleteSlideIdx, setDeleteSlideIdx] = useState<number | null>(null);
   const { upload: uploadToBrandPool } = usePhotoPool(brandId);
 
+  // Undo/redo stack — snapshot-array model, cap 50, in-memory only.
+  // Exposed via ref so keyboard-shortcut handlers (D4) can access it without
+  // triggering a render cycle.
+  const undoStack = useUndoStack<{ slides: SocialSlide[]; caption: string }>(
+    { slides: [], caption: '' },
+    50,
+  );
+  const undoStackRef = useRef(undoStack);
+  undoStackRef.current = undoStack;
+
+  // commitEdit — the single entry-point for all user-initiated mutations.
+  // Pushes the CURRENT state to the undo stack BEFORE applying the next state,
+  // then calls setSlides + setCaption. Auto-save's debounce picks up naturally.
+  function commitEdit(nextSlides: SocialSlide[], nextCaption: string) {
+    undoStack.push({ slides, caption });
+    setSlides(nextSlides);
+    setCaption(nextCaption);
+  }
+
   // Load the brand's configured background color so canvas + thumbnails reflect it.
   useEffect(() => {
     if (!uid || !brandId) return;
@@ -153,33 +173,33 @@ export default function Editor() {
   const activeSlide = slides[activeSlideIdx];
 
   function changeZone(z: Zone) {
-    setSlides((prev) => updateZone(prev, activeSlideIdx, z));
+    commitEdit(updateZone(slides, activeSlideIdx, z), caption);
   }
 
   // Used by SlideStrip thumbnails so the auto-grow pass can persist y/h
   // corrections for any slide, not just the active one.
   function changeZoneAt(slideIdx: number, z: Zone) {
-    setSlides((prev) => updateZone(prev, slideIdx, z));
+    commitEdit(updateZone(slides, slideIdx, z), caption);
   }
 
   function changeSlide(s: SocialSlide) {
-    setSlides((prev) =>
-      prev.map((x, i) => {
-        if (i !== activeSlideIdx) return x;
-        // If the caller changed the image transform (Zoom/X/Y), mark this slide
-        // as manually adjusted so the auto-fit no longer touches it.
-        const transformChanged =
-          s.imageScale !== x.imageScale || s.imageX !== x.imageX || s.imageY !== x.imageY;
-        return transformChanged ? { ...s, imageManualAdjust: true } : s;
-      }),
-    );
+    const nextSlides = slides.map((x, i) => {
+      if (i !== activeSlideIdx) return x;
+      // If the caller changed the image transform (Zoom/X/Y), mark this slide
+      // as manually adjusted so the auto-fit no longer touches it.
+      const transformChanged =
+        s.imageScale !== x.imageScale || s.imageX !== x.imageX || s.imageY !== x.imageY;
+      return transformChanged ? { ...s, imageManualAdjust: true } : s;
+    });
+    commitEdit(nextSlides, caption);
   }
 
   function confirmDeleteSlide() {
     const idx = deleteSlideIdx;
     if (idx === null) return;
     if (slides.length <= 1) { setDeleteSlideIdx(null); return; }
-    setSlides((prev) => prev.filter((_, i) => i !== idx));
+    const nextSlides = slides.filter((_, i) => i !== idx);
+    commitEdit(nextSlides, caption);
     setActiveSlideIdx((prev) => {
       const newLen = slides.length - 1;
       if (idx < prev) return prev - 1;
@@ -192,12 +212,10 @@ export default function Editor() {
 
   function reorderSlides(from: number, to: number) {
     if (from === to) return;
-    setSlides((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
-    });
+    const next = [...slides];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    commitEdit(next, caption);
     setActiveSlideIdx((prev) => {
       if (prev === from) return to;
       if (from < prev && to >= prev) return prev - 1;
@@ -209,17 +227,16 @@ export default function Editor() {
   function applyImageToAll() {
     if (!activeSlide) return;
     const { imageScale, imageX, imageY, imageUrl, imageManualAdjust } = activeSlide;
-    setSlides((prev) =>
-      prev.map((s) => ({
-        ...s,
-        imageScale,
-        imageX,
-        imageY,
-        imageUrl,
-        // Propagating values from a manually adjusted slide is itself a manual act.
-        imageManualAdjust: imageManualAdjust ?? false,
-      })),
-    );
+    const nextSlides = slides.map((s) => ({
+      ...s,
+      imageScale,
+      imageX,
+      imageY,
+      imageUrl,
+      // Propagating values from a manually adjusted slide is itself a manual act.
+      imageManualAdjust: imageManualAdjust ?? false,
+    }));
+    commitEdit(nextSlides, caption);
   }
 
   // Compute cover-fit scale for a given slide+url and apply it unless the slide
@@ -244,15 +261,14 @@ export default function Editor() {
     if (!activeSlide) return;
     const url = photoId ? photoPool.find((p) => p.id === photoId)?.url : undefined;
     // Reset the manual flag on photo change so auto-fit can take over again.
-    // Update directly via setSlides to bypass the transform-change detection in changeSlide.
     const idx = activeSlideIdx;
-    setSlides((prev) =>
-      prev.map((s, i) =>
-        i !== idx
-          ? s
-          : { ...s, imageUrl: url, photo: photoId ?? undefined, imageManualAdjust: false },
-      ),
+    const nextSlides = slides.map((s, i) =>
+      i !== idx
+        ? s
+        : { ...s, imageUrl: url, photo: photoId ?? undefined, imageManualAdjust: false },
     );
+    commitEdit(nextSlides, caption);
+    // autoFitSlide runs silently after the user-initiated push (no second push).
     if (url) await autoFitSlide(idx, url, format);
   }
 
@@ -273,7 +289,7 @@ export default function Editor() {
   function applyGradientToAll() {
     if (!activeSlide?.gradientColor) return;
     const color = activeSlide.gradientColor;
-    setSlides((prev) => prev.map((s) => ({ ...s, gradientColor: color })));
+    commitEdit(slides.map((s) => ({ ...s, gradientColor: color })), caption);
   }
 
   // Click "Jetzt veröffentlichen" — if already rendered, publish immediately.
@@ -589,7 +605,7 @@ export default function Editor() {
               <textarea
                 value={caption}
                 onChange={(e) => {
-                  setCaption(e.target.value);
+                  commitEdit(slides, e.target.value);
                   e.target.style.height = 'auto';
                   e.target.style.height = e.target.scrollHeight + 'px';
                 }}

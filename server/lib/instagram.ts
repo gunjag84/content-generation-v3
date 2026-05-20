@@ -1,5 +1,4 @@
-const GRAPH_VERSION = 'v21.0';
-const BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
+import { GRAPH_VERSION, GRAPH_BASE_URL as BASE } from './graphConstants.js';
 
 export interface PublishCarouselArgs {
   metaToken: string;

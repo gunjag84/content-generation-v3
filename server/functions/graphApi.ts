@@ -4,7 +4,10 @@
 // (rootDir='.', include:['*.ts']) and cannot import outside that scope.
 // See server/functions/index.ts header for the rationale.
 
-export const GRAPH_VERSION = 'v21.0';
+// NOTE: server/functions/ has rootDir='.' and cannot import from server/lib/.
+// GRAPH_VERSION is kept inline here (mirrors server/lib/graphConstants.ts).
+// When bumping the API version, update both files.
+export const GRAPH_VERSION = 'v22.0';
 export const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
 
 export type IgMediaType = 'IMAGE' | 'CAROUSEL_ALBUM' | 'REELS';
