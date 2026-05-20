@@ -7,6 +7,13 @@ export type AlignH = 'left' | 'center' | 'right';
 export type AlignV = 'top' | 'middle' | 'bottom';
 export type Format = 'post' | 'portrait' | 'story';
 
+export interface PhotoTransform {
+  x: number;        // 0-100, object-position horizontal
+  y: number;        // 0-100, object-position vertical
+  scale: number;    // 1.0-3.0, CSS transform:scale()
+  rotation: number; // degrees
+}
+
 export interface Zone {
   id: string;
   label: string;
@@ -26,6 +33,9 @@ export interface Zone {
   letterSpacing: number;
   rotation: number;
   isLogo?: boolean;
+  /** Per-zone photo transform override. Only meaningful for image-typed zones.
+   *  Takes precedence over brand.photoTransforms[photoId] when set. */
+  photoTransform?: PhotoTransform;
 }
 
 // The legacy line types used by the v2 renderer.

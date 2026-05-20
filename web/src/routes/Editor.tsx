@@ -1,9 +1,10 @@
 // /editor/:postId - 3-column zone editor with debounced auto-save.
 // Auto-save writes ONLY {slides, caption, updatedAt}; aiSnapshot is server-authored
 // and immutable per Firestore rules + the DraftPatch type guard.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useUndoStack } from '../hooks/useUndoStack';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import { useActiveBrand } from '../store/activeBrand';
@@ -19,6 +20,7 @@ import {
   SlideStrip,
   ZonePanel,
 } from '../components/editor';
+import { KeyboardCheatsheet } from '../components/editor/KeyboardCheatsheet';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { SchedulePostModal } from '../components/SchedulePostModal';
 import { publishNow } from '../lib/postActions';
@@ -84,6 +86,7 @@ export default function Editor() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [deleteSlideIdx, setDeleteSlideIdx] = useState<number | null>(null);
+  const [cheatsheetOpen, setCheatsheetOpen] = useState(false);
   const { upload: uploadToBrandPool } = usePhotoPool(brandId);
 
   // Undo/redo stack — snapshot-array model, cap 50, in-memory only.
@@ -104,6 +107,81 @@ export default function Editor() {
     setSlides(nextSlides);
     setCaption(nextCaption);
   }
+
+  // ---------------------------------------------------------------------------
+  // Keyboard shortcut handlers (D4) — refs let callbacks stay stable across renders.
+  // ---------------------------------------------------------------------------
+  const slidesRef2 = useRef(slides);
+  slidesRef2.current = slides;
+  const captionRef = useRef(caption);
+  captionRef.current = caption;
+  const activeSlideIdxRef = useRef(activeSlideIdx);
+  activeSlideIdxRef.current = activeSlideIdx;
+  const selectedZoneIdRef = useRef(selectedZoneId);
+  selectedZoneIdRef.current = selectedZoneId;
+
+  const shortcutHandlers = useCallback(
+    () => ({
+      undo: () => {
+        const prev = undoStackRef.current.undo();
+        if (prev) { setSlides(prev.slides); setCaption(prev.caption); }
+      },
+      redo: () => {
+        const next = undoStackRef.current.redo();
+        if (next) { setSlides(next.slides); setCaption(next.caption); }
+      },
+      save: () => {
+        if (!uid || !brandId || !postId) return;
+        saveDraftDebounced(uid, brandId, postId, {
+          slides: slidesRef2.current,
+          caption: captionRef.current,
+        });
+      },
+      duplicateSlide: () => {
+        const idx = activeSlideIdxRef.current;
+        const current = slidesRef2.current;
+        if (!current[idx]) return;
+        const clone = structuredClone(current[idx]);
+        clone.number = current.length + 1;
+        const next = [...current.slice(0, idx + 1), clone, ...current.slice(idx + 1)];
+        undoStackRef.current.push({ slides: current, caption: captionRef.current });
+        setSlides(next);
+        setActiveSlideIdx(idx + 1);
+      },
+      nudgeSelectedZone: (dx: number, dy: number) => {
+        const zoneId = selectedZoneIdRef.current;
+        if (!zoneId) return;
+        const idx = activeSlideIdxRef.current;
+        const current = slidesRef2.current;
+        const slide = current[idx];
+        if (!slide) return;
+        const zone = slide.zones.find((z) => z.id === zoneId);
+        if (!zone) return;
+        const updated = { ...zone, x: zone.x + dx, y: zone.y + dy };
+        const nextSlides = updateZone(current, idx, updated);
+        undoStackRef.current.push({ slides: current, caption: captionRef.current });
+        setSlides(nextSlides);
+      },
+      removeSelectedZone: () => {
+        const zoneId = selectedZoneIdRef.current;
+        if (!zoneId) return;
+        const idx = activeSlideIdxRef.current;
+        const current = slidesRef2.current;
+        const slide = current[idx];
+        if (!slide) return;
+        const nextSlides = current.map((s, i) =>
+          i !== idx ? s : { ...s, zones: s.zones.filter((z) => z.id !== zoneId) },
+        );
+        undoStackRef.current.push({ slides: current, caption: captionRef.current });
+        setSlides(nextSlides);
+        setSelectedZoneId(null);
+      },
+      toggleCheatsheet: () => setCheatsheetOpen((v) => !v),
+    }),
+    [uid, brandId, postId],
+  );
+
+  useKeyboardShortcuts(shortcutHandlers(), true);
 
   // Load the brand's configured background color so canvas + thumbnails reflect it.
   useEffect(() => {
@@ -291,6 +369,26 @@ export default function Editor() {
     const color = activeSlide.gradientColor;
     commitEdit(slides.map((s) => ({ ...s, gradientColor: color })), caption);
   }
+
+  // Restore slides + caption from the immutable aiSnapshot loaded at mount.
+  // Routes through commitEdit so the reset itself is undo-able.
+  function resetToAi() {
+    const snap = aiSnapshotAtLoad.current;
+    if (!snap) return;
+    commitEdit(snap.slides, snap.caption);
+  }
+
+  // True when current slides are already identical to the aiSnapshot (JSON comparison).
+  const isAlreadyAiVersion = (() => {
+    const snap = aiSnapshotAtLoad.current;
+    if (!snap) return false;
+    try {
+      return JSON.stringify(slides) === JSON.stringify(snap.slides) &&
+             caption === snap.caption;
+    } catch {
+      return false;
+    }
+  })();
 
   // Click "Jetzt veröffentlichen" — if already rendered, publish immediately.
   // Else mark pending and kick render; the renderJob.status effect below
@@ -490,6 +588,13 @@ export default function Editor() {
           >
             {renderJob.status === 'done' ? 'Erneut rendern' : 'Rendern'}
           </button>
+          <button
+            onClick={() => setCheatsheetOpen((v) => !v)}
+            title="Tastatur-Shortcuts anzeigen (Ctrl+/)"
+            className="px-2 py-1 font-mono text-[10px] uppercase tracking-widest border border-zinc-700 text-zinc-500 hover:text-zinc-300"
+          >
+            ?
+          </button>
         </div>
       </div>
 
@@ -551,6 +656,8 @@ export default function Editor() {
               uploading={uploading}
               uploadError={uploadError}
               onApplyGradientToAll={applyGradientToAll}
+              onResetToAi={aiSnapshotAtLoad.current ? resetToAi : null}
+              isAlreadyAiVersion={isAlreadyAiVersion}
             />
           )}
           {rightTab === 'zones' && activeSlide && (
@@ -624,6 +731,7 @@ export default function Editor() {
       <div className="col-span-3 flex items-center gap-3 px-4 py-2 border-t border-zinc-800 bg-zinc-950">
         <button
           onClick={() => navigate('/posts')}
+          title="Zurück zur Übersicht"
           className="px-3 py-1 font-mono text-[10px] uppercase tracking-widest border border-zinc-700 text-zinc-400 hover:text-zinc-100"
         >
           Zurück
@@ -637,6 +745,7 @@ export default function Editor() {
           <button
             onClick={() => setScheduleModalOpen(true)}
             disabled={publishing || rendering || renderJob.status === 'rendering'}
+            title="Post einplanen"
             className="px-3 py-1 font-mono text-[10px] uppercase tracking-widest border border-zinc-700 text-zinc-300 hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Einplanen
@@ -644,6 +753,7 @@ export default function Editor() {
           <button
             onClick={requestPublishNow}
             disabled={publishing || rendering || renderJob.status === 'rendering'}
+            title="Jetzt auf Instagram veröffentlichen"
             className="px-4 py-1 font-mono text-[10px] uppercase tracking-widest bg-amber-500 text-zinc-900 hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {publishing
@@ -669,6 +779,11 @@ export default function Editor() {
         brandId={brandId}
         onClose={() => setScheduleModalOpen(false)}
         onScheduled={() => { setScheduleModalOpen(false); navigate('/posts'); }}
+      />
+
+      <KeyboardCheatsheet
+        open={cheatsheetOpen}
+        onClose={() => setCheatsheetOpen(false)}
       />
     </div>
   );

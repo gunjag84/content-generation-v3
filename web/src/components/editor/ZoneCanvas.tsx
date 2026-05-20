@@ -1,10 +1,18 @@
 // Verbatim port of v2 client/src/components/social-club/ZoneCanvas.tsx (297 lines).
 // Only mechanical change: imports rewritten to point at shared/types/slide.
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import type { Zone, SocialSlide, Format } from '../../../../shared/types/slide';
 import { FORMAT_HEIGHTS, REF_W } from '../../../../shared/types/slide';
 import { ensureFontLoaded } from '../../lib/font-loader';
 import { useAutoGrow } from '../../hooks/useAutoGrow';
+import { InlineTextEditor } from './InlineTextEditor';
+import { SnapGrid } from './SnapGrid';
+import { AlignmentGuides } from './AlignmentGuides';
+import { snapToGrid, computeAlignmentGuides } from '../../lib/snapMath';
+import type { AlignmentGuide } from '../../lib/snapMath';
+
+const SNAP_GRID_SIZE = 16;   // canvas px
+const SNAP_THRESHOLD = 5;    // canvas px — snap triggers within this distance
 
 type DragMode = 'move' | 'resize-nw' | 'resize-ne' | 'resize-sw' | 'resize-se' | 'rotate' | null;
 
@@ -39,6 +47,10 @@ export function ZoneCanvas({
   slide, format, selectedId, onSelect, showGrid = false, scale, onZoneChange, backgroundColor,
 }: ZoneCanvasProps) {
   const refH = FORMAT_HEIGHTS[format];
+  // editingZoneId tracks which text zone is in inline-edit mode (double-click to enter).
+  const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
+  const [snapActive, setSnapActive] = useState(false);
+  const [alignGuides, setAlignGuides] = useState<AlignmentGuide[]>([]);
 
   const dragState = useRef<{
     mode: DragMode; zoneId: string; startX: number; startY: number;
@@ -91,6 +103,8 @@ export function ZoneCanvas({
       zone,
     };
     onSelect(zone.id);
+    setSnapActive(true);
+    setAlignGuides([]);
 
     const onMove = (me: MouseEvent) => {
       const ds = dragState.current;
@@ -99,7 +113,17 @@ export function ZoneCanvas({
       const dy = (me.clientY - ds.startY) / scale;
 
       if (ds.mode === 'move') {
-        onZoneChange({ ...ds.zone, x: ds.origX + dx, y: ds.origY + dy });
+        const rawX = ds.origX + dx;
+        const rawY = ds.origY + dy;
+        // Snap to grid first, then alignment-guide snap (alignment wins if both trigger)
+        const gridX = snapToGrid(rawX, SNAP_GRID_SIZE, SNAP_THRESHOLD);
+        const gridY = snapToGrid(rawY, SNAP_GRID_SIZE, SNAP_THRESHOLD);
+        const candidate = { ...ds.zone, x: gridX, y: gridY };
+        const { snappedX, snappedY, guides } = computeAlignmentGuides(
+          candidate, slide.zones, SNAP_THRESHOLD,
+        );
+        setAlignGuides(guides);
+        onZoneChange({ ...ds.zone, x: snappedX, y: snappedY });
       } else if (ds.mode === 'rotate') {
         const angle = Math.atan2(
           me.clientY / scale - ds.centerY,
@@ -117,17 +141,24 @@ export function ZoneCanvas({
         else if (ds.mode === 'resize-ne') { y += dy; w += dx; h -= dy; }
         else if (ds.mode === 'resize-sw') { x += dx; w -= dx; h += dy; }
         else if (ds.mode === 'resize-se') { w += dx; h += dy; }
-        onZoneChange({ ...ds.zone, x, y, w: Math.max(60, w), h: Math.max(40, h) });
+        // Snap resize handles to grid (x/y/w/h independently)
+        const snX = snapToGrid(x, SNAP_GRID_SIZE, SNAP_THRESHOLD);
+        const snY = snapToGrid(y, SNAP_GRID_SIZE, SNAP_THRESHOLD);
+        const snW = snapToGrid(w, SNAP_GRID_SIZE, SNAP_THRESHOLD);
+        const snH = snapToGrid(h, SNAP_GRID_SIZE, SNAP_THRESHOLD);
+        onZoneChange({ ...ds.zone, x: snX, y: snY, w: Math.max(60, snW), h: Math.max(40, snH) });
       }
     };
     const onUp = () => {
       dragState.current = null;
+      setSnapActive(false);
+      setAlignGuides([]);
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, [scale, onZoneChange, onSelect]);
+  }, [scale, onZoneChange, onSelect, slide.zones]);
 
   // Ensure every fontFamily used by a zone is loaded, so the initial preview
   // renders in the correct typeface instead of a system fallback.
@@ -165,15 +196,31 @@ export function ZoneCanvas({
           backgroundSize: '108px 108px',
         }} />
       )}
+      <SnapGrid
+        visible={snapActive}
+        gridSize={SNAP_GRID_SIZE}
+        canvasWidth={REF_W}
+        canvasHeight={refH}
+        scale={scale}
+      />
+      <AlignmentGuides
+        guides={alignGuides}
+        scale={scale}
+        canvasWidth={REF_W}
+        canvasHeight={refH}
+      />
       {slide.zones.map(zone => {
         const sel = selectedId === zone.id;
+        const isEditing = editingZoneId === zone.id;
+        // Text zones get a text cursor on hover; logo/image zones keep move cursor.
+        const zoneCursor = !zone.isLogo ? 'text' : 'move';
         const zStyle: React.CSSProperties = {
           position: 'absolute',
           left: zone.x, top: zone.y, width: zone.w, height: zone.h,
           zIndex: 10,
           transform: zone.rotation ? `rotate(${zone.rotation}deg)` : undefined,
           transformOrigin: 'center center',
-          cursor: 'move',
+          cursor: isEditing ? 'text' : (sel ? 'move' : zoneCursor),
           outline: sel ? '1.5px solid #F59E0B' : '1px dashed rgba(255,255,255,0.15)',
           outlineOffset: 1,
           display: 'flex',
@@ -195,14 +242,28 @@ export function ZoneCanvas({
           whiteSpace: 'pre-wrap',
           width: '100%',
           pointerEvents: 'none',
+          // Hide rendered text while editing so the textarea is the only visible text.
+          // Keep the element in the DOM so useAutoGrow can still measure it.
+          visibility: isEditing ? 'hidden' : 'visible',
+        };
+
+        const handleDoubleClick = (e: React.MouseEvent) => {
+          if (zone.isLogo) return; // logo zones are not editable inline
+          e.stopPropagation();
+          onSelect(zone.id);
+          setEditingZoneId(zone.id);
         };
 
         return (
           <div
             key={zone.id}
             style={zStyle}
-            onMouseDown={e => onMouseDown(e, zone, 'move')}
+            onMouseDown={e => {
+              if (isEditing) return; // let InlineTextEditor handle its own mouse events
+              onMouseDown(e, zone, 'move');
+            }}
             onClick={e => { e.stopPropagation(); onSelect(zone.id); }}
+            onDoubleClick={handleDoubleClick}
           >
             {zone.isLogo ? (
               <div style={{
@@ -222,7 +283,7 @@ export function ZoneCanvas({
               <div ref={el => { zoneRefs.current[zone.id] = el; }} style={txtStyle}>{zone.text}</div>
             )}
 
-            {sel && corners.map(c => (
+            {sel && !isEditing && corners.map(c => (
               <div
                 key={c.mode}
                 onMouseDown={e => onMouseDown(e, zone, c.mode)}
@@ -234,7 +295,7 @@ export function ZoneCanvas({
               />
             ))}
 
-            {sel && (
+            {sel && !isEditing && (
               <div
                 onMouseDown={e => onMouseDown(e, zone, 'rotate')}
                 title="Rotate"
@@ -251,6 +312,25 @@ export function ZoneCanvas({
           </div>
         );
       })}
+
+      {/* Inline text editor overlay — rendered outside the zone div so it is not
+          clipped by the zone's overflow or transform and sits at canvas level.
+          Position is set to match zone.x/y directly (same coordinate space). */}
+      {editingZoneId && (() => {
+        const zone = slide.zones.find(z => z.id === editingZoneId);
+        if (!zone || zone.isLogo) return null;
+        return (
+          <InlineTextEditor
+            key={editingZoneId}
+            zone={zone}
+            scale={scale}
+            onCommit={(text) => {
+              onZoneChange({ ...zone, text });
+              setEditingZoneId(null);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

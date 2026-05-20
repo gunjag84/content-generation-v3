@@ -6,6 +6,8 @@
 //     repositioned manually in v3 — phase-2 ZoneCanvas already supports drag).
 //   - ColorPicker swapped for a plain <input type="color"> (the v2 picker was
 //     a heavy popover dependency; v3 phase 2 keeps it minimal).
+//   - B4: inline Image Transform sliders replaced by modal photo-edit mode.
+import { useEffect, useRef, useState } from 'react';
 import type { SocialSlide, SlideType } from '../../../../shared/types/slide';
 import { ColorInput } from '../ColorInput';
 
@@ -27,6 +29,7 @@ function Ico({ d, size = 16, className = '' }: { d: string; size?: number; class
 const I = {
   copy: 'M20 9H11a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2z M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1',
   image: 'M21 15l-5-5L5 20M3 3h18v18H3z',
+  edit: 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z',
 };
 
 function Label({ children }: { children: React.ReactNode }) {
@@ -66,6 +69,151 @@ interface SlidePanelProps {
   uploadError?: string | null;
   /** One-shot: copy the active slide's gradientColor to every slide. */
   onApplyGradientToAll: () => void;
+  /** Restore all slides + caption from aiSnapshot via commitEdit. Null = no snapshot available. */
+  onResetToAi: (() => void) | null;
+  /** True when current slides are already byte-equal to aiSnapshot (button is disabled). */
+  isAlreadyAiVersion: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// PhotoEditModal — modal overlay for zoom/pan editing of the slide photo.
+// Reads/writes slide.imageScale / imageX / imageY via the parent onChange.
+// Drag-on-photo pans; slider zooms. ESC or "Fertig" exits.
+// ---------------------------------------------------------------------------
+interface PhotoEditModalProps {
+  slide: SocialSlide;
+  imageUrl: string;
+  onChange: (s: SocialSlide) => void;
+  onClose: () => void;
+}
+
+function PhotoEditModal({ slide, imageUrl, onChange, onClose }: PhotoEditModalProps) {
+  // Local draft — committed to parent only on "Fertig" / ESC.
+  const [scale, setScale] = useState(slide.imageScale ?? 1);
+  const [x, setX] = useState(slide.imageX ?? 50);
+  const [y, setY] = useState(slide.imageY ?? 50);
+
+  // ESC exits without commit.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  // Drag-on-preview pan.
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+
+  function onPreviewMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    dragRef.current = { startX: e.clientX, startY: e.clientY, origX: x, origY: y };
+    const onMove = (me: MouseEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      // Map mouse delta to object-position delta (sensitivity tuned to preview size).
+      const sensitivity = 0.15;
+      const nx = Math.max(0, Math.min(100, d.origX - (me.clientX - d.startX) * sensitivity));
+      const ny = Math.max(0, Math.min(100, d.origY - (me.clientY - d.startY) * sensitivity));
+      setX(nx);
+      setY(ny);
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
+  function commit() {
+    onChange({ ...slide, imageScale: scale, imageX: x, imageY: y, imageManualAdjust: true });
+    onClose();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-zinc-900 border border-zinc-700 rounded p-5 w-[400px] flex flex-col gap-4 shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-[11px] uppercase tracking-widest text-amber-400">
+            Foto-Bearbeitung aktiv
+          </span>
+          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-200 text-[18px] leading-none">&times;</button>
+        </div>
+
+        {/* Photo preview with drag-to-pan */}
+        <div
+          className="relative overflow-hidden bg-zinc-800 border border-zinc-700 select-none"
+          style={{ height: 220, cursor: 'grab' }}
+          onMouseDown={onPreviewMouseDown}
+        >
+          <img
+            src={imageUrl}
+            alt=""
+            draggable={false}
+            style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%',
+              objectFit: 'contain',
+              objectPosition: `${x}% ${y}%`,
+              transform: `scale(${scale})`,
+              transformOrigin: 'center center',
+              pointerEvents: 'none',
+              userSelect: 'none',
+            }}
+          />
+          <div className="absolute bottom-1 left-0 right-0 text-center font-mono text-[9px] text-zinc-500 pointer-events-none">
+            Ziehen zum Verschieben
+          </div>
+        </div>
+
+        {/* Zoom slider */}
+        <div>
+          <div className="flex justify-between mb-1">
+            <span className="font-mono text-[10px] text-zinc-500">Zoom</span>
+            <span className="font-mono text-[11px] text-zinc-400">{Math.round(scale * 100)}%</span>
+          </div>
+          <input type="range" value={scale} min={1} max={3} step={0.05}
+            onChange={e => setScale(parseFloat(e.target.value))}
+            className="w-full accent-amber-500 h-1 cursor-pointer" />
+        </div>
+
+        {/* X/Y position sliders */}
+        <div>
+          <div className="flex justify-between mb-1">
+            <span className="font-mono text-[10px] text-zinc-500">X Position</span>
+            <span className="font-mono text-[11px] text-zinc-400">{Math.round(x)}%</span>
+          </div>
+          <input type="range" value={x} min={0} max={100} step={1}
+            onChange={e => setX(parseFloat(e.target.value))}
+            className="w-full accent-amber-500 h-1 cursor-pointer" />
+        </div>
+        <div>
+          <div className="flex justify-between mb-1">
+            <span className="font-mono text-[10px] text-zinc-500">Y Position</span>
+            <span className="font-mono text-[11px] text-zinc-400">{Math.round(y)}%</span>
+          </div>
+          <input type="range" value={y} min={0} max={100} step={1}
+            onChange={e => setY(parseFloat(e.target.value))}
+            className="w-full accent-amber-500 h-1 cursor-pointer" />
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 pt-1">
+          <button onClick={onClose}
+            className="flex-1 py-1.5 font-mono text-[10px] uppercase tracking-widest bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200">
+            Abbrechen
+          </button>
+          <button onClick={commit}
+            className="flex-1 py-1.5 font-mono text-[10px] uppercase tracking-widest bg-amber-500/20 border border-amber-500/40 text-amber-400 hover:bg-amber-500/30">
+            Fertig
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function SlidePanel({
@@ -74,9 +222,12 @@ export function SlidePanel({
   onAssignPhoto, onRotatePhoto,
   onUpload, uploading, uploadError,
   onApplyGradientToAll,
+  onResetToAi, isAlreadyAiVersion,
 }: SlidePanelProps) {
   const s = (p: Partial<SocialSlide>) => onChange({ ...slide, ...p });
   const needsPhoto = ['photo', 'overlay'].includes(slide.type);
+  const [photoEditOpen, setPhotoEditOpen] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   return (
     <div className="p-3 space-y-4">
@@ -164,35 +315,25 @@ export function SlidePanel({
         <>
           <Divider />
           <div>
-            <Label>Image Transform</Label>
+            <Label>Foto</Label>
+            <button
+              onClick={() => slide.imageUrl && setPhotoEditOpen(true)}
+              disabled={!slide.imageUrl}
+              className="w-full mt-1.5 py-1.5 font-mono text-[10px] uppercase tracking-widest text-zinc-300 hover:text-zinc-100 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Ico d={I.edit} size={11} /> Foto bearbeiten
+            </button>
+            {slide.imageUrl && (
+              <div className="mt-1.5 font-mono text-[9px] text-zinc-600 flex gap-3">
+                <span>Zoom {Math.round((slide.imageScale ?? 1) * 100)}%</span>
+                <span>X {Math.round(slide.imageX ?? 50)}%</span>
+                <span>Y {Math.round(slide.imageY ?? 50)}%</span>
+              </div>
+            )}
             <button onClick={onApplyImageToAll}
-              className="w-full mt-1.5 py-1.5 font-mono text-[10px] uppercase tracking-widest text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors flex items-center justify-center gap-1.5">
+              className="w-full mt-2 py-1.5 font-mono text-[10px] uppercase tracking-widest text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 transition-colors flex items-center justify-center gap-1.5">
               <Ico d={I.copy} size={11} /> Apply to All Slides
             </button>
-
-            <div className="mt-3 space-y-2">
-              <div>
-                <div className="flex justify-between">
-                  <span className="font-mono text-[10px] text-zinc-600">Zoom</span>
-                  <span className="font-mono text-[11px] text-zinc-400">{Math.round((slide.imageScale ?? 1) * 100)}%</span>
-                </div>
-                <Slider value={slide.imageScale ?? 1} onChange={v => s({ imageScale: v })} min={1} max={3} step={0.05} />
-              </div>
-              <div>
-                <div className="flex justify-between">
-                  <span className="font-mono text-[10px] text-zinc-600">X Position</span>
-                  <span className="font-mono text-[11px] text-zinc-400">{slide.imageX ?? 50}%</span>
-                </div>
-                <Slider value={slide.imageX ?? 50} onChange={v => s({ imageX: v })} min={0} max={100} />
-              </div>
-              <div>
-                <div className="flex justify-between">
-                  <span className="font-mono text-[10px] text-zinc-600">Y Position</span>
-                  <span className="font-mono text-[11px] text-zinc-400">{slide.imageY ?? 50}%</span>
-                </div>
-                <Slider value={slide.imageY ?? 50} onChange={v => s({ imageY: v })} min={0} max={100} />
-              </div>
-            </div>
           </div>
         </>
       )}
@@ -262,6 +403,68 @@ export function SlidePanel({
             </div>
           </div>
         </>
+      )}
+
+      {/* Reset to AI version */}
+      {onResetToAi !== null && (
+        <>
+          <Divider />
+          <div>
+            <button
+              onClick={() => setResetConfirmOpen(true)}
+              disabled={isAlreadyAiVersion}
+              className="w-full py-1.5 font-mono text-[10px] uppercase tracking-widest bg-yellow-500 text-zinc-900 hover:bg-yellow-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Auf KI-Version zurücksetzen
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Photo-edit modal — portal-less, fixed positioning covers the viewport */}
+      {photoEditOpen && slide.imageUrl && (
+        <PhotoEditModal
+          slide={slide}
+          imageUrl={slide.imageUrl}
+          onChange={onChange}
+          onClose={() => setPhotoEditOpen(false)}
+        />
+      )}
+
+      {/* Reset-to-AI confirmation modal */}
+      {resetConfirmOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={(e) => { if (e.target === e.currentTarget) setResetConfirmOpen(false); }}
+        >
+          <div className="bg-zinc-900 border border-zinc-700 rounded p-5 w-[360px] flex flex-col gap-4 shadow-2xl">
+            <div className="flex flex-col gap-1">
+              <span className="font-mono text-[11px] uppercase tracking-widest text-yellow-400">
+                Auf KI-Version zurücksetzen?
+              </span>
+              <p className="font-mono text-[11px] text-zinc-400 mt-1">
+                Deine manuellen Änderungen gehen verloren.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setResetConfirmOpen(false)}
+                className="flex-1 py-1.5 font-mono text-[10px] uppercase tracking-widest bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-zinc-200"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={() => {
+                  setResetConfirmOpen(false);
+                  onResetToAi?.();
+                }}
+                className="flex-1 py-1.5 font-mono text-[10px] uppercase tracking-widest bg-yellow-500 text-zinc-900 hover:bg-yellow-400"
+              >
+                Zurücksetzen
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
