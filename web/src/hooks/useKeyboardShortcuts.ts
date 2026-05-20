@@ -34,13 +34,14 @@ export function useKeyboardShortcuts(
     if (!isEnabled) return;
 
     function onKeyDown(e: KeyboardEvent) {
+      const h = handlersRef.current;
       const cmd = e.metaKey || e.ctrlKey;
       const inEditable = isEditableTarget(e.target);
 
       // Cmd+S: save always (even from text inputs)
       if (cmd && e.key === 's') {
         e.preventDefault();
-        handlers.save();
+        h.save();
         return;
       }
 
@@ -50,26 +51,26 @@ export function useKeyboardShortcuts(
       // Cmd+Z (undo) / Cmd+Shift+Z (redo)
       if (cmd && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
-        handlers.undo();
+        h.undo();
         return;
       }
       if (cmd && e.key === 'z' && e.shiftKey) {
         e.preventDefault();
-        handlers.redo();
+        h.redo();
         return;
       }
 
       // Cmd+D — duplicate active slide
       if (cmd && e.key === 'd') {
         e.preventDefault();
-        handlers.duplicateSlide();
+        h.duplicateSlide();
         return;
       }
 
       // Cmd+/ — toggle cheatsheet
       if (cmd && e.key === '/') {
         e.preventDefault();
-        handlers.toggleCheatsheet();
+        h.toggleCheatsheet();
         return;
       }
 
@@ -77,34 +78,34 @@ export function useKeyboardShortcuts(
       const step = e.shiftKey ? 10 : 1;
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        handlers.nudgeSelectedZone(0, -step);
+        h.nudgeSelectedZone(0, -step);
         return;
       }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        handlers.nudgeSelectedZone(0, step);
+        h.nudgeSelectedZone(0, step);
         return;
       }
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        handlers.nudgeSelectedZone(-step, 0);
+        h.nudgeSelectedZone(-step, 0);
         return;
       }
       if (e.key === 'ArrowRight') {
         e.preventDefault();
-        handlers.nudgeSelectedZone(step, 0);
+        h.nudgeSelectedZone(step, 0);
         return;
       }
 
       // Delete/Backspace — remove selected zone
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
-        handlers.removeSelectedZone();
+        h.removeSelectedZone();
         return;
       }
     }
 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isEnabled, handlers]);
+  }, [isEnabled]);
 }

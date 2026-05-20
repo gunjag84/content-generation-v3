@@ -13,12 +13,14 @@ set -euo pipefail
 REGION="europe-west1"
 SA="content-gen-sa@contentai-78bfb.iam.gserviceaccount.com"
 
-# Lowercase Cloud Run service names for each deployed function
+# Cloud Run service names: all-lowercase, camel-case flattened.
+# Convention: igFeedSync (function) -> igfeedsync (Cloud Run service).
+# Never use camelCase here - IAM bindings fail silently on wrong casing.
 SERVICES=(
   "budgetkillswitch"
   "igstatssync"
   "igfeedsync"
-  "manualIgsync"
+  "manualigsync"
 )
 
 echo "==> Deploying Firebase Cloud Functions..."

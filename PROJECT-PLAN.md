@@ -116,26 +116,26 @@ Status legend: `pending` | `in-progress` | `done` | `failed` | `blocked`
 
 | ID  | Title | Deps | Model | Verify | Status |
 |-----|-------|------|-------|--------|--------|
-| D7  | Posts tab dark-theme alignment | - | sonnet | `grep -E "bg-white\|text-indigo-600" web/src/routes/posts/PostsLayout.tsx` exits 1 | pending |
-| D8  | STATE.md POLISH-01..02 -> Live | - | sonnet | `grep -E "POLISH-01\.\.02.*Pending" STATE.md` exits 1 | pending |
-| D9  | GRAPH_VERSION centralize to graphConstants.ts | - | sonnet | new `server/lib/graphConstants.ts` exists; `grep -rE "v21\.0\|v22\.0" server/ web/` shows only that one file | pending |
-| D10 | useAutoGrow hook extract | - | sonnet | `web/src/hooks/useAutoGrow.ts` exists; both `ZoneCanvas.tsx` + `SlideStrip.tsx` import it | pending |
-| D11 | auth.ts stale placeholder comment | - | sonnet | `grep "Replace placeholder emails" server/middleware/auth.ts` exits 1 | pending |
-| D12 | Create.tsx JSX boolean-coercion fix | - | sonnet | `grep "streamText.length > 0" web/src/routes/Create.tsx` exits 0 | pending |
-| D13 | ZoneCanvas useLayoutEffect deps | - | sonnet | `useLayoutEffect` line in ZoneCanvas.tsx has dependency array `[slide.zones]` | pending |
-| C1  | SA-pin deploy automation script | - | sonnet | `scripts/deploy-functions.sh` exists, `bash -n` passes; package.json has `deploy:fns` script | pending |
-| C2  | Wire resignIfExpiring into publish path | - | opus | `grep resignIfExpiring server/lib/publishOnePost.ts` exits 0 | pending |
-| D1  | Calendar basic month view | - | opus | `web/src/routes/Calendar.tsx` + `web/src/components/calendar/MonthGrid.tsx` exist; `pnpm tsc --noEmit` clean | pending |
-| D6  | Slide reorder DnD + schedule-conflict modal | - | opus | reorder handler in SlideStrip.tsx; ConflictModal component exists | pending |
-| B3  | Undo/redo hook (snapshot, cap 50) | - | opus | `web/src/hooks/useUndoStack.ts` exists; unit test push-50 + undo-50 passes | pending |
-| B4  | Photo transform schema + modal UI | D10 | opus | `photoTransform` field in shared/types/slide.ts; photo-edit modal in SlidePanel | pending |
-| B1  | Inline text edit (textarea overlay) | D10 | opus | `web/src/components/editor/InlineTextEditor.tsx` exists; double-click + ESC + blur paths covered | pending |
-| B2  | Single-zone snap-grid + alignment guides | D10, D13 | opus | `SnapGrid.tsx` + `AlignmentGuides.tsx` exist; render during drag only | pending |
-| D4  | Keyboard shortcuts + Cmd+/ cheatsheet | B3 | opus | `useKeyboardShortcuts.ts` + `KeyboardCheatsheet.tsx` exist; Cmd+Z + Cmd+/ wired | pending |
-| C3  | Reset-to-AI button + confirm modal | B3 | opus | yellow button in SlidePanel.tsx with German confirm modal | pending |
-| A1  | Onboarding doc + Tim/Jule fresh setup | B*, C*, D1, D4, D6 | sonnet | `docs/ONBOARDING.md` exists; manual Tim+Jule verification | pending |
-| A2  | E2E test-post on @leben.lieben | A1 | manual | post live + verified visually on IG | pending |
-| A3  | Repo README repoint + branch retire | A2 | sonnet | old repo README points at v3; v3-rewrite branch deleted | pending |
+| D7  | Posts tab dark-theme alignment | - | sonnet | `grep -E "bg-white\|text-indigo-600" web/src/routes/posts/PostsLayout.tsx` exits 1 | done |
+| D8  | STATE.md POLISH-01..02 -> Live | - | sonnet | `grep -E "POLISH-01\.\.02.*Pending" STATE.md` exits 1 | done |
+| D9  | GRAPH_VERSION centralize to graphConstants.ts | - | sonnet | new `server/lib/graphConstants.ts` exists; `grep -rE "v21\.0\|v22\.0" server/ web/` shows only that one file | done |
+| D10 | useAutoGrow hook extract | - | sonnet | `web/src/hooks/useAutoGrow.ts` exists; both `ZoneCanvas.tsx` + `SlideStrip.tsx` import it | done |
+| D11 | auth.ts stale placeholder comment | - | sonnet | `grep "Replace placeholder emails" server/middleware/auth.ts` exits 1 | done |
+| D12 | Create.tsx JSX boolean-coercion fix | - | sonnet | `grep "streamText.length > 0" web/src/routes/Create.tsx` exits 0 | done |
+| D13 | ZoneCanvas useLayoutEffect deps | - | sonnet | `useLayoutEffect` line in ZoneCanvas.tsx has dependency array `[slide.zones]` | done |
+| C1  | SA-pin deploy automation script | - | sonnet | `scripts/deploy-functions.sh` exists, `bash -n` passes; package.json has `deploy:fns` script | done |
+| C2  | Wire resignIfExpiring into publish path | - | opus | `grep resignIfExpiring server/lib/publishOnePost.ts` exits 0 | done |
+| D1  | Calendar basic month view | - | opus | `web/src/routes/Calendar.tsx` + `web/src/components/calendar/MonthGrid.tsx` exist; `pnpm tsc --noEmit` clean | done |
+| D6  | Slide reorder DnD + schedule-conflict modal | - | opus | reorder handler in SlideStrip.tsx; ConflictModal component exists | done |
+| B3  | Undo/redo hook (snapshot, cap 50) | - | opus | `web/src/hooks/useUndoStack.ts` exists; unit test push-50 + undo-50 passes | done |
+| B4  | Photo transform schema + modal UI | D10 | opus | `photoTransform` field in shared/types/slide.ts; photo-edit modal in SlidePanel | done |
+| B1  | Inline text edit (textarea overlay) | D10 | opus | `web/src/components/editor/InlineTextEditor.tsx` exists; double-click + ESC + blur paths covered | done |
+| B2  | Single-zone snap-grid + alignment guides | D10, D13 | opus | `SnapGrid.tsx` + `AlignmentGuides.tsx` exist; render during drag only | done |
+| D4  | Keyboard shortcuts + Cmd+/ cheatsheet | B3 | opus | `useKeyboardShortcuts.ts` + `KeyboardCheatsheet.tsx` exist; Cmd+Z + Cmd+/ wired | done |
+| C3  | Reset-to-AI button + confirm modal | B3 | opus | yellow button in SlidePanel.tsx with German confirm modal | done |
+| A1  | Onboarding doc + Tim/Jule fresh setup | B*, C*, D1, D4, D6 | sonnet | `docs/ONBOARDING.md` exists; manual Tim+Jule verification | doc done; manual gate pending |
+| A2  | E2E test-post on @leben.lieben | A1 | manual | post live + verified visually on IG | pending (Tim manual) |
+| A3  | Repo README repoint + branch retire | A2 | sonnet | old repo README points at v3; v3-rewrite branch deleted | pending (Tim manual) |
 
 ### Test scope (LOCKED, /plan-eng-review)
 
