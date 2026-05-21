@@ -32,7 +32,7 @@ Discovered during deploy, must not regress:
 - Anthropic SDK 0.32.1 stable: `system` is plain string, no `cache_control` (lives on beta types only)
 - Tim's `tim.gansczyk@gmail.com` granted `roles/iam.serviceAccountTokenCreator` on `internal-invoker` SA for OIDC manual probes
 - KMS bypass active when `FIRESTORE_EMULATOR_HOST` is set (base64 dev stub)
-- `min-instances=1` accepted (~$5-15/mo) for stability + cleanness; no cold-starts
+- `min-instances=0` (changed 2026-05-21 from 1) — saves ~€10/mo idle cost; accepts ~5-30s cold start on first request per idle window. Live revision `content-gen-00028-lqc`. Reversal: `gcloud run services update content-gen --min-instances=1 --region=europe-west1` if cold-start UX feels painful for Jule.
 
 ### Phase 4a deploy quirks (locked in 2026-05-03)
 
