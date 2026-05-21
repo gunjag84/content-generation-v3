@@ -67,6 +67,7 @@ Mode: SCOPE EXPANSION (Tim picked Envelope C: full editor revamp before cutover)
 
 ### Items explicitly NOT in scope (deferred / rejected)
 
+- Photo-as-zone refactor (per-zone `photoTransform` override path live in render) — deferred to v1.1. Schema + helper + tests exist forward-compat; activation requires image-typed zones (currently zones are text-only and photos render at slide-level via PhotoEditModal). R2 architecture-drift audit acknowledged 2026-05-21; ZoneCanvas has inline comment explaining the deferral.
 - AI rewrite-slide button (revisit after 5+ Jule posts)
 - Phase 4c auto-perf learning seed from v2 posts (revisit at N>=20)
 - Drag-and-drop calendar reschedule (revisit after 1 month real use)

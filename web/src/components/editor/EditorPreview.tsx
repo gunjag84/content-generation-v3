@@ -12,10 +12,14 @@ interface EditorPreviewProps {
   onZoneChange: (z: Zone) => void;
   showGrid?: boolean;
   backgroundColor?: string;
+  onMutationStart?: () => void;
+  onMutationEnd?: () => void;
+  onTransientZoneChange?: (z: Zone) => void;
 }
 
 export function EditorPreview({
   slide, format, selectedZoneId, onSelectZone, onZoneChange, showGrid, backgroundColor,
+  onMutationStart, onMutationEnd, onTransientZoneChange,
 }: EditorPreviewProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.5);
@@ -70,6 +74,9 @@ export function EditorPreview({
             showGrid={showGrid}
             onZoneChange={onZoneChange}
             backgroundColor={backgroundColor}
+            onMutationStart={onMutationStart}
+            onMutationEnd={onMutationEnd}
+            onTransientZoneChange={onTransientZoneChange}
           />
         </div>
       </div>

@@ -18,6 +18,8 @@ interface InlineTextEditorProps {
  */
 export function InlineTextEditor({ zone, scale, onCommit }: InlineTextEditorProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  // Capture original text on mount so ESC can revert to it
+  const originalTextRef = useRef(zone.text || '');
 
   // Auto-focus + select all on mount
   useEffect(() => {
@@ -33,8 +35,10 @@ export function InlineTextEditor({ zone, scale, onCommit }: InlineTextEditorProp
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Escape') {
+      // ESC cancels the edit and restores the original text (industry convention:
+      // Figma, Notion, Excel all revert on ESC; blur/Enter commits).
       e.preventDefault();
-      commit();
+      onCommit(originalTextRef.current);
     }
     // Tab: prevent focus shift so user can type tabs if needed
     if (e.key === 'Tab') {

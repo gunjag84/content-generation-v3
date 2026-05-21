@@ -108,6 +108,32 @@ export default function Editor() {
     setCaption(nextCaption);
   }
 
+  // transientUpdate — applies next state WITHOUT pushing to the undo stack.
+  // Used during active drag (mid-move pixels) and by useAutoGrow layout passes.
+  // The caller is responsible for ensuring a proper undo entry is pushed
+  // at the boundary (drag-start / drag-end) if one is needed.
+  const transientUpdate = useCallback((nextSlides: SocialSlide[], nextCaption?: string) => {
+    setSlides(nextSlides);
+    if (nextCaption !== undefined) setCaption(nextCaption);
+  }, []);
+
+  // Drag-bracket: capture pre-drag state on mousedown so we can push it to the
+  // undo stack on mouseup, making the full drag a single undo entry.
+  const preDragRef = useRef<{ slides: SocialSlide[]; caption: string } | null>(null);
+
+  const handleMutationStart = useCallback(() => {
+    preDragRef.current = { slides: slidesRef2.current, caption: captionRef.current };
+  }, []);
+
+  const handleMutationEnd = useCallback(() => {
+    const pre = preDragRef.current;
+    preDragRef.current = null;
+    if (!pre) return;
+    // Push the pre-drag state so Cmd+Z reverts the whole drag in one step.
+    // Use undoStackRef so this callback is stable and doesn't recreate on every render.
+    undoStackRef.current.push(pre);
+  }, []);
+
   // ---------------------------------------------------------------------------
   // Keyboard shortcut handlers (D4) — refs let callbacks stay stable across renders.
   // ---------------------------------------------------------------------------
@@ -250,14 +276,30 @@ export default function Editor() {
 
   const activeSlide = slides[activeSlideIdx];
 
+  // changeZone routes through transientUpdate during an active drag (preDragRef is
+  // set) so mid-drag pixels don't pollute the undo stack. On non-drag calls (e.g.
+  // ZonePanel numeric inputs) preDragRef is null, so commitEdit runs normally.
   function changeZone(z: Zone) {
-    commitEdit(updateZone(slides, activeSlideIdx, z), caption);
+    const nextSlides = updateZone(slides, activeSlideIdx, z);
+    if (preDragRef.current !== null) {
+      transientUpdate(nextSlides);
+    } else {
+      commitEdit(nextSlides, caption);
+    }
   }
 
   // Used by SlideStrip thumbnails so the auto-grow pass can persist y/h
   // corrections for any slide, not just the active one.
+  // Thumbnail auto-grow is a layout correction — use transientUpdate always.
   function changeZoneAt(slideIdx: number, z: Zone) {
-    commitEdit(updateZone(slides, slideIdx, z), caption);
+    transientUpdate(updateZone(slides, slideIdx, z));
+  }
+
+  // Transient callback passed as onTransientZoneChange to EditorPreview / ZoneCanvas.
+  // Routes useAutoGrow corrections for the active canvas through transientUpdate
+  // so they never add undo entries.
+  function transientChangeZone(z: Zone) {
+    transientUpdate(updateZone(slides, activeSlideIdx, z));
   }
 
   function changeSlide(s: SocialSlide) {
@@ -619,6 +661,9 @@ export default function Editor() {
         onZoneChange={changeZone}
         backgroundColor={brandBgColor}
         showGrid={showGrid}
+        onMutationStart={handleMutationStart}
+        onMutationEnd={handleMutationEnd}
+        onTransientZoneChange={transientChangeZone}
       />
 
       {/* Right rail: tabbed Slide / Zones / Caption. Conditional render

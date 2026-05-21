@@ -41,10 +41,21 @@ interface ZoneCanvasProps {
   onZoneChange: (z: Zone) => void;
   /** Brand-configured background color for non-CTA slides. */
   backgroundColor?: string;
+  /** Called on mousedown to signal drag start (for undo-stack bracketing). */
+  onMutationStart?: () => void;
+  /** Called on mouseup to signal drag end (for undo-stack bracketing). */
+  onMutationEnd?: () => void;
+  /**
+   * Called by useAutoGrow for layout corrections that must NOT push to the
+   * undo stack. When omitted, falls back to onZoneChange (SlideThumbnail usage
+   * where there is no undo stack to protect).
+   */
+  onTransientZoneChange?: (z: Zone) => void;
 }
 
 export function ZoneCanvas({
   slide, format, selectedId, onSelect, showGrid = false, scale, onZoneChange, backgroundColor,
+  onMutationStart, onMutationEnd, onTransientZoneChange,
 }: ZoneCanvasProps) {
   const refH = FORMAT_HEIGHTS[format];
   // editingZoneId tracks which text zone is in inline-edit mode (double-click to enter).
@@ -65,6 +76,16 @@ export function ZoneCanvas({
   };
   // Photo as <img> with object-fit:contain (whole photo fits at scale 1)
   // and CSS transform:scale() so the Zoom slider works relative to contain baseline.
+  // ---
+  // ARCHITECTURE NOTE (R2 audit acknowledgement, 2026-05-20):
+  // Photos render at SLIDE level via slide.imageX/Y/Scale, written by
+  // SlidePanel's PhotoEditModal. The forward-compat `zone.photoTransform`
+  // field exists in shared/types/slide.ts + resolvePhotoTransform()
+  // helper is implemented, but it would only become live once image-typed
+  // zones exist (none today — zones are text-only). Photo-as-zone refactor
+  // is deferred to v1.1; the brand-default tier of resolvePhotoTransform
+  // is unreachable here because slide.imageX is non-optional and PhotoEditModal
+  // always writes a value.
   const imgStyle: React.CSSProperties = slide.imageUrl
     ? {
         position: 'absolute', inset: 0,
@@ -103,6 +124,7 @@ export function ZoneCanvas({
       zone,
     };
     onSelect(zone.id);
+    onMutationStart?.();
     setSnapActive(true);
     setAlignGuides([]);
 
@@ -153,12 +175,13 @@ export function ZoneCanvas({
       dragState.current = null;
       setSnapActive(false);
       setAlignGuides([]);
+      onMutationEnd?.();
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
-  }, [scale, onZoneChange, onSelect, slide.zones]);
+  }, [scale, onZoneChange, onSelect, slide.zones, onMutationStart, onMutationEnd]);
 
   // Ensure every fontFamily used by a zone is loaded, so the initial preview
   // renders in the correct typeface instead of a system fallback.
@@ -172,7 +195,9 @@ export function ZoneCanvas({
   // Run synchronously before paint so the user never sees an overlap flash on
   // the initial render. Process every overflowing zone in a single pass and
   // accumulate y-shifts for downstream zones, so one tick fixes all collisions.
-  useAutoGrow(slide.zones, zoneRefs, onZoneChange);
+  // autoGrow is a layout correction, NOT a user action — route through
+  // onTransientZoneChange so it never pollutes the undo stack.
+  useAutoGrow(slide.zones, zoneRefs, onTransientZoneChange ?? onZoneChange);
 
   const corners: { mode: Exclude<DragMode, 'move' | 'rotate' | null>; style: React.CSSProperties }[] = [
     { mode: 'resize-nw', style: { top: -5, left: -5, cursor: 'nw-resize' } },
