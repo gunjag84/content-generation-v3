@@ -58,7 +58,7 @@ Der Token und die `instagramUserId` pro Brand werden aktuell manuell in der Fire
 
 - **Doppelklick** auf einen Text-Bereich in der Vorschau → Bearbeitungsmodus.
 - Text tippen oder ändern.
-- **ESC** oder Klick außerhalb beendet den Edit und übernimmt die Änderung.
+- **Enter** oder Klick außerhalb übernimmt die Änderung. **ESC** verwirft die Änderung und schließt den Editor.
 
 ### Zonen verschieben und ausrichten (B2)
 

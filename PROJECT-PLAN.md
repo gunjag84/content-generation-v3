@@ -211,7 +211,7 @@ None right now. Architectural decisions are locked (see `STATE.md` "Locked Archi
 | Pillar P3 (Loyalty/Nurture) | Removed; only `create-demand` + `convert-demand` remain |
 | Style Types / Layout Templates / Strategy / Hooks Guidance pages | Removed entirely from settings schema |
 | Real-time multi-user collab on a single post | Posts are user-scoped; no shared editing |
-| Calendar interactive view + drag-and-drop reschedule | v2 feature; v1 has Coming Soon placeholder only |
+| Drag-and-drop reschedule | Calendar basic month view is shipped (D1); only drag-and-drop reschedule remains out-of-scope |
 | Pattern visibility UI | Learning is invisible by design (LEARN-V2-* future) |
 
 ---

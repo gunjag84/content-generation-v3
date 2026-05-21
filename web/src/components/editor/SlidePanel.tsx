@@ -229,6 +229,18 @@ export function SlidePanel({
   const [photoEditOpen, setPhotoEditOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
+  // Guard: force-close PhotoEditModal when the active slide changes.
+  // Without this, pending local state (zoom/pan) from slide A gets committed
+  // onto slide B if the user switches slides while the modal is mounted.
+  // This is a CANCEL (discard), not a commit — onChange is NOT called here.
+  const slideRef = useRef(slide);
+  useEffect(() => {
+    if (slideRef.current !== slide && photoEditOpen) {
+      setPhotoEditOpen(false);
+    }
+    slideRef.current = slide;
+  }, [slide, photoEditOpen]);
+
   return (
     <div className="p-3 space-y-4">
       <div>

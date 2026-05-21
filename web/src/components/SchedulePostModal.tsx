@@ -37,6 +37,7 @@ export function SchedulePostModal({ open, postId, brandId, onClose, onScheduled 
   const [error, setError] = useState<string | null>(null);
   const [conflictTs, setConflictTs] = useState<string | null>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
+  const savingRef = useRef(false);
   const uid = useAuthStore((s) => s.user?.uid);
 
   // Reset state when modal opens
@@ -83,7 +84,9 @@ export function SchedulePostModal({ open, postId, brandId, onClose, onScheduled 
   }
 
   async function doSave() {
-    if (!value) return;
+    if (savingRef.current) return;        // synchronous guard against double-tap
+    savingRef.current = true;
+    if (!value) { savingRef.current = false; return; }
     setLoading(true);
     setError(null);
     try {
@@ -95,6 +98,7 @@ export function SchedulePostModal({ open, postId, brandId, onClose, onScheduled 
       setError(err instanceof Error ? err.message : 'Unbekannter Fehler');
     } finally {
       setLoading(false);
+      savingRef.current = false;
     }
   }
 
