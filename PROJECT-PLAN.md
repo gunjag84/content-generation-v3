@@ -89,7 +89,7 @@ Mode: SCOPE EXPANSION (Tim picked Envelope C: full editor revamp before cutover)
 
 | # | Feature | Decision |
 |---|---------|----------|
-| D1 | B1 inline text edit affordance | Text-cursor on hover; single-click selects zone; **double-click enters edit mode**. ESC or click-outside commits + exits. First-session tip in onboarding. |
+| D1 | B1 inline text edit affordance | Text-cursor on hover; single-click selects zone; **double-click enters edit mode**. ESC or click-outside commits + exits. First-session tip in onboarding. **OVERRIDDEN 2026-06-13 (Tim):** single-click now enters edit mode directly (text editing is the primary action); a body press becomes a drag only past a 4px threshold, so press+drag still moves. Resize/rotate handles via ESC-then-handle. Persistent "Hilfsraster" grid + toggle removed — snap grid + alignment guides show only during an active drag. |
 | D2 | B2 drag/resize/snap visuals | **Cyan dashed snap-grid + pink solid alignment guides**, DURING drag only. Both vanish on drop. Drag/resize handles: 4 corners + 4 edges, visible only when zone selected. |
 | D3 | B3 undo/redo affordance | **Both keyboard (Cmd+Z / Cmd+Shift+Z) + visible toolbar buttons (↶ ↷)** with tooltips. Buttons disabled when stack empty/full. |
 | D4 | B4 photo zoom/pan controls | **Modal photo-edit mode**. Click "Edit photo" in SlidePanel → enters mode with zoom slider + drag-to-pan + Done button. ESC or Done exits. Mode-state UI indicator visible. |
