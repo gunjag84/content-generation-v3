@@ -5,7 +5,7 @@
 //     (matches the SlidePanel divergence in v3 phase 2 - the v2 ColorPicker was
 //     a heavy popover dependency we don't carry yet).
 //   - font-loader path: '../../lib/font-loader' (v3 layout).
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { FONT_FAMILIES, ensureFontLoaded } from '../../lib/font-loader';
 import { ColorInput } from '../ColorInput';
 import type { Zone } from '../../../../shared/types/slide';
@@ -13,6 +13,7 @@ import { getZonePlainText } from '../../../../shared/types/slide';
 import {
   applyFormatToSelection,
   captureSelection,
+  getActiveSelectionFontSizePx,
   type SpanFormatKey,
 } from '../../lib/spanFormat';
 
@@ -102,6 +103,58 @@ function NumInput({ value, onChange, min, max, step = 1, unit = '' }: {
         onChange={e => onChange(parseFloat(e.target.value) || 0)}
         className="bg-transparent text-zinc-200 text-[12px] w-10 focus:outline-none tabular-nums min-w-0" />
       {unit && <span className="text-zinc-500 text-[11px] flex-shrink-0">{unit}</span>}
+    </div>
+  );
+}
+
+const SIZE_STEP = 2; // px per arrow click
+
+// Font-size control with clean ▲/▼ steppers. The steppers are <button>s (not the
+// native number-input spinners), so clicking them sets blur.relatedTarget
+// correctly and the inline editor stays open — the size then applies to the
+// active text selection (via trySpanFormat) instead of the whole zone. Each
+// step reads the SELECTION's current rendered size so increments are cumulative.
+function SizeStepper({ fontSize, onZoneSize }: { fontSize: number; onZoneSize: (v: number) => void }) {
+  const [display, setDisplay] = useState(fontSize);
+  // Resync when zone.fontSize changes (zone switch, or a zone-level size apply).
+  useEffect(() => { setDisplay(fontSize); }, [fontSize]);
+
+  const apply = (next: number) => {
+    const v = Math.max(12, Math.min(400, Math.round(next)));
+    setDisplay(v);
+    if (trySpanFormat('fontSize', v)) return; // applies to the selection
+    onZoneSize(v); // no selection → whole zone
+  };
+  const step = (delta: number) => apply((getActiveSelectionFontSizePx() ?? display) + delta);
+
+  return (
+    <div className="flex items-stretch bg-zinc-800 border border-zinc-700" onMouseDown={preserveSelectionMouseDown}>
+      <input
+        type="number"
+        value={display}
+        min={12}
+        max={400}
+        onMouseDown={preserveSelectionMouseDown}
+        onChange={(e) => apply(parseFloat(e.target.value) || display)}
+        className="bg-transparent text-zinc-200 text-[12px] w-9 px-2 py-1 focus:outline-none tabular-nums min-w-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+      <span className="text-zinc-500 text-[11px] self-center pr-1 flex-shrink-0">px</span>
+      <div className="flex flex-col flex-shrink-0 border-l border-zinc-700">
+        <button
+          type="button"
+          title="Größer"
+          onMouseDown={preserveSelectionMouseDown}
+          onClick={() => step(SIZE_STEP)}
+          className="px-1.5 flex-1 leading-none text-[8px] text-zinc-300 hover:text-amber-400 hover:bg-zinc-700 border-b border-zinc-700 flex items-center justify-center"
+        >▲</button>
+        <button
+          type="button"
+          title="Kleiner"
+          onMouseDown={preserveSelectionMouseDown}
+          onClick={() => step(-SIZE_STEP)}
+          className="px-1.5 flex-1 leading-none text-[8px] text-zinc-300 hover:text-amber-400 hover:bg-zinc-700 flex items-center justify-center"
+        >▼</button>
+      </div>
     </div>
   );
 }
@@ -226,17 +279,8 @@ export function ZoneEditor({ zone, onChange }: ZoneEditorProps) {
         <div className="flex gap-2 mt-2">
           <div className="flex-1">
             <Label>Size</Label>
-            <div className="mt-1" onMouseDown={preserveSelectionMouseDown}>
-              <NumInput
-                value={zone.fontSize}
-                onChange={v => {
-                  if (trySpanFormat('fontSize', v)) return;
-                  s({ fontSize: v });
-                }}
-                min={12}
-                max={400}
-                unit="px"
-              />
+            <div className="mt-1">
+              <SizeStepper fontSize={zone.fontSize} onZoneSize={(v) => s({ fontSize: v })} />
             </div>
           </div>
           <div className="flex-1">

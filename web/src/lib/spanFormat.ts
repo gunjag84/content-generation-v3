@@ -238,6 +238,28 @@ export function clearSavedSelection(): void {
   savedRange = null;
 }
 
+/** Effective rendered font-size (px) of the current — or last-saved —
+ *  contentEditable selection, or null when there is no editable selection.
+ *  Used by the size stepper so +/- increments from the SELECTION's actual
+ *  size (cumulative), not from the zone default. */
+export function getActiveSelectionFontSizePx(): number | null {
+  const sel = window.getSelection();
+  let range: Range | null = null;
+  if (sel && sel.rangeCount > 0) {
+    const r = sel.getRangeAt(0);
+    if (findContentEditableAncestor(r.commonAncestorContainer)) range = r;
+  }
+  if (!range && savedRange && document.contains(savedRange.commonAncestorContainer)) {
+    range = savedRange;
+  }
+  if (!range) return null;
+  const node = range.startContainer;
+  const el = (node.nodeType === Node.TEXT_NODE ? node.parentElement : node) as HTMLElement | null;
+  if (!el) return null;
+  const px = parseFloat(getComputedStyle(el).fontSize);
+  return Number.isFinite(px) ? Math.round(px) : null;
+}
+
 /** Apply a per-span format to the current selection inside any contentEditable.
  *  Returns true if applied; false if no active editable selection. */
 export function applyFormatToSelection(
