@@ -10,7 +10,6 @@ interface EditorPreviewProps {
   selectedZoneId: string | null;
   onSelectZone: (id: string | null) => void;
   onZoneChange: (z: Zone) => void;
-  showGrid?: boolean;
   backgroundColor?: string;
   onMutationStart?: () => void;
   onMutationEnd?: () => void;
@@ -18,7 +17,7 @@ interface EditorPreviewProps {
 }
 
 export function EditorPreview({
-  slide, format, selectedZoneId, onSelectZone, onZoneChange, showGrid, backgroundColor,
+  slide, format, selectedZoneId, onSelectZone, onZoneChange, backgroundColor,
   onMutationStart, onMutationEnd, onTransientZoneChange,
 }: EditorPreviewProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -71,7 +70,6 @@ export function EditorPreview({
             selectedId={selectedZoneId}
             onSelect={onSelectZone}
             scale={scale}
-            showGrid={showGrid}
             onZoneChange={onZoneChange}
             backgroundColor={backgroundColor}
             onMutationStart={onMutationStart}

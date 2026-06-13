@@ -77,7 +77,6 @@ export default function Editor() {
   const [renderJobId, setRenderJobId] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [rendering, setRendering] = useState(false);
-  const [showGrid, setShowGrid] = useState(false);
   const [rightTab, setRightTab] = useState<'slide' | 'zones' | 'caption'>('slide');
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
@@ -603,15 +602,6 @@ export default function Editor() {
             {f}
           </button>
         ))}
-        <button
-          onClick={() => setShowGrid((v) => !v)}
-          title="Hilfsraster ein-/ausblenden"
-          className={`ml-2 px-2 py-1 font-mono text-[10px] uppercase tracking-widest border ${
-            showGrid ? 'border-amber-500 text-amber-400 bg-amber-500/10' : 'border-zinc-700 text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          Grid
-        </button>
         <span className="ml-4 font-mono text-[10px] text-zinc-600">
           Slide {activeSlideIdx + 1} / {slides.length}
         </span>
@@ -693,7 +683,6 @@ export default function Editor() {
         onSelectZone={setSelectedZoneId}
         onZoneChange={changeZone}
         backgroundColor={brandBgColor}
-        showGrid={showGrid}
         onMutationStart={handleMutationStart}
         onMutationEnd={handleMutationEnd}
         onTransientZoneChange={transientChangeZone}

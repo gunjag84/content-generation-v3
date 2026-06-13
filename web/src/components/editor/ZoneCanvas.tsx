@@ -13,6 +13,7 @@ import type { AlignmentGuide } from '../../lib/snapMath';
 
 const SNAP_GRID_SIZE = 16;   // canvas px
 const SNAP_THRESHOLD = 5;    // canvas px — snap triggers within this distance
+const DRAG_THRESHOLD = 4;    // client px — below this a body press is a click (enter edit), not a drag
 
 type DragMode = 'move' | 'resize-nw' | 'resize-ne' | 'resize-sw' | 'resize-se' | 'rotate' | null;
 
@@ -68,7 +69,6 @@ interface ZoneCanvasProps {
   format: Format;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
-  showGrid?: boolean;
   scale: number;
   onZoneChange: (z: Zone) => void;
   /** Brand-configured background color for non-CTA slides. */
@@ -86,11 +86,12 @@ interface ZoneCanvasProps {
 }
 
 export function ZoneCanvas({
-  slide, format, selectedId, onSelect, showGrid = false, scale, onZoneChange, backgroundColor,
+  slide, format, selectedId, onSelect, scale, onZoneChange, backgroundColor,
   onMutationStart, onMutationEnd, onTransientZoneChange,
 }: ZoneCanvasProps) {
   const refH = FORMAT_HEIGHTS[format];
-  // editingZoneId tracks which text zone is in inline-edit mode (double-click to enter).
+  // editingZoneId tracks which text zone is in inline-edit mode (single-click a
+  // text zone to enter; press+drag past DRAG_THRESHOLD moves instead).
   const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
   const [snapActive, setSnapActive] = useState(false);
   const [alignGuides, setAlignGuides] = useState<AlignmentGuide[]>([]);
@@ -156,13 +157,28 @@ export function ZoneCanvas({
       zone,
     };
     onSelect(zone.id);
-    onMutationStart?.();
-    setSnapActive(true);
-    setAlignGuides([]);
+
+    // A body 'move' press starts as a *click* (enter inline edit on release).
+    // It only becomes a real drag once the pointer travels past DRAG_THRESHOLD,
+    // at which point the snap grid + alignment guides appear. Resize/rotate
+    // handle presses are deliberate gestures, so they drag immediately.
+    let moved = mode !== 'move';
+    if (moved) {
+      onMutationStart?.();
+      setSnapActive(true);
+      setAlignGuides([]);
+    }
 
     const onMove = (me: MouseEvent) => {
       const ds = dragState.current;
       if (!ds) return;
+      if (!moved) {
+        if (Math.hypot(me.clientX - ds.startX, me.clientY - ds.startY) < DRAG_THRESHOLD) return;
+        moved = true;
+        onMutationStart?.();
+        setSnapActive(true);
+        setAlignGuides([]);
+      }
       const dx = (me.clientX - ds.startX) / scale;
       const dy = (me.clientY - ds.startY) / scale;
 
@@ -204,12 +220,21 @@ export function ZoneCanvas({
       }
     };
     const onUp = () => {
+      const ds = dragState.current;
       dragState.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      if (!moved) {
+        // No real drag happened: a plain click on a text zone body enters
+        // inline edit. (Logo zones and handle presses do not.)
+        if (ds && ds.mode === 'move' && !ds.zone.isLogo) {
+          setEditingZoneId(ds.zoneId);
+        }
+        return;
+      }
       setSnapActive(false);
       setAlignGuides([]);
       onMutationEnd?.();
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
@@ -246,13 +271,6 @@ export function ZoneCanvas({
       <div style={bgStyle} />
       {slide.imageUrl && <img src={slide.imageUrl} style={imgStyle} alt="" draggable={false} />}
       {(slide.type === 'photo' || slide.type === 'overlay') && <div style={gradOverlay} />}
-      {showGrid && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none',
-          backgroundImage: 'linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px)',
-          backgroundSize: '108px 108px',
-        }} />
-      )}
       <SnapGrid
         visible={snapActive}
         gridSize={SNAP_GRID_SIZE}
@@ -304,24 +322,16 @@ export function ZoneCanvas({
           visibility: isEditing ? 'hidden' : 'visible',
         };
 
-        const handleDoubleClick = (e: React.MouseEvent) => {
-          if (zone.isLogo) return; // logo zones are not editable inline
-          e.stopPropagation();
-          onSelect(zone.id);
-          setEditingZoneId(zone.id);
-        };
-
         return (
           <div
             key={zone.id}
             style={zStyle}
-            title={!zone.isLogo && !isEditing ? 'Doppelklick zum Bearbeiten' : undefined}
+            title={!zone.isLogo && !isEditing ? 'Klicken zum Bearbeiten, ziehen zum Verschieben' : undefined}
             onMouseDown={e => {
               if (isEditing) return; // let InlineTextEditor handle its own mouse events
               onMouseDown(e, zone, 'move');
             }}
-            onClick={e => { e.stopPropagation(); onSelect(zone.id); }}
-            onDoubleClick={handleDoubleClick}
+            onClick={e => e.stopPropagation()}
           >
             {zone.isLogo ? (
               <div style={{
