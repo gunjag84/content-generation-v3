@@ -93,6 +93,26 @@ export default function Editor() {
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false);
   const { upload: uploadToBrandPool } = usePhotoPool(brandId);
 
+  // Auto-switch the right rail to the Zones tab as soon as the user makes a
+  // (non-collapsed) text selection inside the inline editor — that's when the
+  // per-selection format controls (size/color/font/weight) become relevant.
+  useEffect(() => {
+    const onSelChange = () => {
+      const sel = document.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+      const node = sel.anchorNode;
+      const el =
+        node && node.nodeType === Node.TEXT_NODE
+          ? node.parentElement
+          : (node as HTMLElement | null);
+      if (el && el.closest?.('[contenteditable="true"]')) {
+        setRightTab('zones');
+      }
+    };
+    document.addEventListener('selectionchange', onSelChange);
+    return () => document.removeEventListener('selectionchange', onSelChange);
+  }, []);
+
   // Undo/redo stack — snapshot-array model, cap 50, in-memory only.
   // Exposed via ref so keyboard-shortcut handlers (D4) can access it without
   // triggering a render cycle.

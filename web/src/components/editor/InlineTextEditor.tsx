@@ -159,6 +159,20 @@ export function InlineTextEditor({ zone, scale, onCommit }: InlineTextEditorProp
   function handleBlur(e: React.FocusEvent<HTMLDivElement>) {
     const next = e.relatedTarget as HTMLElement | null;
     if (next && next.closest?.('[data-keep-inline-edit]')) return;
+    // Quirk: clicking an <input type="number"> (the font-size control) fires
+    // this blur with relatedTarget === null even though focus moved to a format
+    // control inside [data-keep-inline-edit]. Without this, edit mode would
+    // commit+exit and the size would hit the whole zone instead of the
+    // selection. When relatedTarget is null, defer and check where focus
+    // actually landed before deciding to commit.
+    if (!next) {
+      setTimeout(() => {
+        const active = document.activeElement as HTMLElement | null;
+        if (active && active.closest?.('[data-keep-inline-edit]')) return;
+        commit();
+      }, 0);
+      return;
+    }
     commit();
   }
 
