@@ -24,7 +24,9 @@ function emptySlide(num: number, photo: string | number | undefined, type: Slide
     imageScale: 1,
     imageX: 0,
     imageY: 0,
-    overlayOpacity: 0,
+    // Photo/overlay slides get the legibility gradient at 70% by default
+    // (ported from v2 — the @leben.lieben look). Solid slides need no overlay.
+    overlayOpacity: type === 'photo' || type === 'overlay' ? 70 : 0,
   };
 }
 

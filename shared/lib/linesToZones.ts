@@ -10,28 +10,58 @@
 import type { SlideContentLine, SocialSlide, Zone, AlignH } from '../types/slide.js';
 import type { ZoneDefaults, ZoneRole } from '../schemas/brand.js';
 
+// Per-type visual defaults ported verbatim from v2 (client/src/lib/
+// parsedSlidesToZones.ts) — the LEBEN.LIEBEN look that produced the live
+// @leben.lieben carousels: thin white Josefin-Sans body, muted-gold handwritten
+// Daniel accent, slightly-dimmed Josefin CTA.
 const FONT_SIZE_BY_TYPE: Record<SlideContentLine['type'], number> = {
-  ACCENT: 88,
-  BASE: 56,
-  SUBTLE: 36,
-  BRAND: 80,
+  ACCENT: 84,
+  BASE: 54,
+  SUBTLE: 48,
+  BRAND: 28,
   DIVIDER: 0,
 };
 
 const FONT_WEIGHT_BY_TYPE: Record<SlideContentLine['type'], number> = {
-  ACCENT: 700,
-  BASE: 500,
-  SUBTLE: 400,
-  BRAND: 700,
+  ACCENT: 400,
+  BASE: 100,
+  SUBTLE: 100,
+  BRAND: 100,
   DIVIDER: 400,
 };
 
 const FONT_FAMILY_BY_TYPE: Record<SlideContentLine['type'], string> = {
-  ACCENT: 'Inter',
-  BASE: 'Inter',
-  SUBTLE: 'Inter',
+  ACCENT: 'Daniel',
+  BASE: 'Josefin Sans',
+  SUBTLE: 'Josefin Sans',
   BRAND: 'Josefin Sans',
-  DIVIDER: 'Inter',
+  DIVIDER: 'Josefin Sans',
+};
+
+// Default text colors per type. Brand zoneDefaults can still override
+// ACCENT/BASE (via resolveColor); SUBTLE/BRAND always use these.
+const COLOR_BY_TYPE: Record<SlideContentLine['type'], string> = {
+  ACCENT: '#C4A265',
+  BASE: '#ffffff',
+  SUBTLE: 'rgba(255,255,255,0.85)',
+  BRAND: '#C4A265',
+  DIVIDER: '#ffffff',
+};
+
+const LINE_HEIGHT_BY_TYPE: Record<SlideContentLine['type'], number> = {
+  ACCENT: 1.2,
+  BASE: 1.5,
+  SUBTLE: 1.5,
+  BRAND: 1,
+  DIVIDER: 1.2,
+};
+
+const LETTER_SPACING_BY_TYPE: Record<SlideContentLine['type'], number> = {
+  ACCENT: 0,
+  BASE: 0.05,
+  SUBTLE: 0.05,
+  BRAND: 0.12,
+  DIVIDER: 0,
 };
 
 const LABEL_BY_TYPE: Record<SlideContentLine['type'], string> = {
@@ -48,6 +78,8 @@ interface ZoneSeed {
   fontWeight: number;
   fontFamily: string;
   color: string;
+  lineHeight: number;
+  letterSpacing: number;
   label: string;
   isLogo?: boolean;
 }
@@ -59,26 +91,28 @@ export interface LinesToZonesOptions {
 }
 
 function resolveColor(
+  type: SlideContentLine['type'],
   role: ZoneRole | null,
   zoneDefaults: ZoneDefaults | undefined,
   standardTextColor: string,
   accentTextColor: string,
 ): string {
-  if (!role || !zoneDefaults) return standardTextColor;
-  const def = zoneDefaults[role];
-  if (!def) return standardTextColor;
-  return def.color === 'accent' ? accentTextColor : standardTextColor;
+  // Brand zoneDefaults override (ACCENT/BASE only) wins when configured.
+  const def = role ? zoneDefaults?.[role] : undefined;
+  if (def?.color) return def.color === 'accent' ? accentTextColor : standardTextColor;
+  // Otherwise fall back to the per-type v2 default color.
+  return COLOR_BY_TYPE[type];
 }
 
 function lineSeeds(lines: SlideContentLine[], opts: LinesToZonesOptions): ZoneSeed[] {
   const standard = opts.standardTextColor ?? '#ffffff';
-  const accent = opts.accentTextColor ?? '#f59e0b';
+  const accent = opts.accentTextColor ?? '#C4A265';
   const seeds: ZoneSeed[] = [];
   for (const line of lines) {
     if (line.type === 'DIVIDER') continue;
     if (!line.text.trim()) continue;
     // Only ACCENT and BASE are configurable roles; SUBTLE and BRAND lines
-    // use hardcoded defaults and the standard text color.
+    // use the per-type v2 defaults.
     const role: ZoneRole | null =
       line.type === 'ACCENT' || line.type === 'BASE' ? line.type : null;
     const def = role ? opts.zoneDefaults?.[role] : undefined;
@@ -87,7 +121,9 @@ function lineSeeds(lines: SlideContentLine[], opts: LinesToZonesOptions): ZoneSe
       fontSize: line.fontSize ?? def?.fontSize ?? FONT_SIZE_BY_TYPE[line.type],
       fontWeight: FONT_WEIGHT_BY_TYPE[line.type],
       fontFamily: def?.fontFamily ?? FONT_FAMILY_BY_TYPE[line.type],
-      color: resolveColor(role, opts.zoneDefaults, standard, accent),
+      color: resolveColor(line.type, role, opts.zoneDefaults, standard, accent),
+      lineHeight: LINE_HEIGHT_BY_TYPE[line.type],
+      letterSpacing: LETTER_SPACING_BY_TYPE[line.type],
       label: LABEL_BY_TYPE[line.type],
       isLogo: line.type === 'BRAND',
     });
@@ -137,8 +173,8 @@ export function linesToZones(slide: SocialSlide, opts: LinesToZonesOptions = {})
       alignH,
       alignV: 'top',
       italic: false,
-      lineHeight: 1.2,
-      letterSpacing: 0,
+      lineHeight: seed.lineHeight,
+      letterSpacing: seed.letterSpacing,
       rotation: 0,
       isLogo: seed.isLogo,
     };

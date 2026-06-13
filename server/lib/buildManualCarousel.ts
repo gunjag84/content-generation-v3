@@ -38,7 +38,8 @@ function emptySlide(num: number): SocialSlide {
     imageScale: 1,
     imageX: 0,
     imageY: 0,
-    overlayOpacity: 0,
+    // 70% legibility gradient by default (ported from v2 — @leben.lieben look).
+    overlayOpacity: 70,
   };
 }
 
