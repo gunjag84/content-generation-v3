@@ -14,6 +14,19 @@ export interface PhotoTransform {
   rotation: number; // degrees
 }
 
+/** Contiguous run of text with optional per-run formatting overrides.
+ *  When a property is undefined, the span inherits the parent Zone's value.
+ *  Span order in the array IS the rendered text order; concatenating each
+ *  span.text yields the plain text. */
+export interface TextSpan {
+  text: string;
+  color?: string;
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: number;
+  italic?: boolean;
+}
+
 export interface Zone {
   id: string;
   label: string;
@@ -21,7 +34,9 @@ export interface Zone {
   y: number;
   w: number;
   h: number;
-  text: string;
+  /** Plain string OR an array of formatted spans. Use getZonePlainText /
+   *  getZoneSpans helpers below — never branch on this union manually. */
+  text: string | TextSpan[];
   fontSize: number;
   fontFamily: string;
   fontWeight: number;
@@ -36,6 +51,37 @@ export interface Zone {
   /** Per-zone photo transform override. Only meaningful for image-typed zones.
    *  Takes precedence over brand.photoTransforms[photoId] when set. */
   photoTransform?: PhotoTransform;
+}
+
+/** Plain-text view of a zone's content. Always returns a string regardless of
+ *  whether the storage is legacy `string` or new `TextSpan[]`. Use for diff,
+ *  search, accessibility, and any non-render consumer. */
+export function getZonePlainText(zone: { text: string | TextSpan[] }): string {
+  if (typeof zone.text === 'string') return zone.text;
+  return zone.text.map((s) => s.text).join('');
+}
+
+/** TextSpan[] view of a zone's content. Legacy string text is wrapped in a
+ *  single span with no overrides. Empty string returns []. */
+export function getZoneSpans(zone: { text: string | TextSpan[] }): TextSpan[] {
+  if (typeof zone.text === 'string') return zone.text ? [{ text: zone.text }] : [];
+  return zone.text;
+}
+
+/** Same as getZonePlainText but for untyped Firestore data where the shape
+ *  hasn't been validated by Zod yet (calendar, posts list, etc.). */
+export function extractPlainText(text: unknown): string {
+  if (typeof text === 'string') return text;
+  if (Array.isArray(text)) {
+    return text
+      .map((s) =>
+        s && typeof (s as { text?: unknown }).text === 'string'
+          ? (s as { text: string }).text
+          : '',
+      )
+      .join('');
+  }
+  return '';
 }
 
 // The legacy line types used by the v2 renderer.

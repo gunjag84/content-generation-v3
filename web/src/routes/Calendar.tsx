@@ -16,13 +16,17 @@ import { db } from '../lib/firebase';
 import { useActiveBrand } from '../store/activeBrand';
 import { MonthHeader } from '../components/calendar/MonthHeader';
 import { MonthGrid, type CalPost } from '../components/calendar/MonthGrid';
+import { extractPlainText } from '../../../shared/types/slide';
 
 // Extract a display title from a raw Firestore post doc.
 function hookTitle(data: Record<string, unknown>): string {
-  const slides = data['slides'] as Array<{ zones?: Array<{ text?: string }> }> | undefined;
+  const slides = data['slides'] as Array<{ zones?: Array<{ text?: unknown }> }> | undefined;
   if (slides && slides.length > 0) {
-    const zone = slides[0]?.zones?.find((z) => z.text);
-    if (zone?.text) return zone.text.slice(0, 60);
+    const zones = slides[0]?.zones ?? [];
+    for (const z of zones) {
+      const t = extractPlainText(z.text);
+      if (t) return t.slice(0, 60);
+    }
   }
   return 'Kein Titel';
 }

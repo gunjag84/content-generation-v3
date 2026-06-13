@@ -1,5 +1,5 @@
-import type { Format, SocialSlide } from '../../shared/types/slide.js';
-import { FORMAT_HEIGHTS, REF_W } from '../../shared/types/slide.js';
+import type { Format, SocialSlide, TextSpan } from '../../shared/types/slide.js';
+import { FORMAT_HEIGHTS, REF_W, getZonePlainText, getZoneSpans } from '../../shared/types/slide.js';
 
 export interface BrandColors {
   primary: string;
@@ -34,6 +34,12 @@ function buildFontLinks(slide: SocialSlide): string {
   for (const f of ALWAYS_LOAD) families.add(f);
   for (const z of slide.zones ?? []) {
     if (z.fontFamily) families.add(z.fontFamily);
+    // Per-span font overrides also need their @font-face loaded; otherwise
+    // headless Chromium falls back to a system font and the PNG diverges
+    // from the editor preview.
+    for (const s of getZoneSpans(z)) {
+      if (s.fontFamily) families.add(s.fontFamily);
+    }
   }
   const urls: string[] = [];
   for (const family of families) {
@@ -113,7 +119,7 @@ export function buildSlideHtml(
       const accentColor = brandColors?.accent ?? '#fff';
       inner = `<div style="display:flex;align-items:center;justify-content:center;height:100%;">
         <div style="background:rgba(255,255,255,0.12);border-radius:4px;padding:8px 20px;font-family:'Josefin Sans',sans-serif;font-size:24px;font-weight:700;color:${escapeAttr(accentColor)};letter-spacing:0.12em;border:1px solid rgba(255,255,255,0.2);">
-          ${escapeHtml(zone.text)}
+          ${escapeHtml(getZonePlainText(zone))}
         </div>
       </div>`;
     } else {
@@ -131,7 +137,7 @@ export function buildSlideHtml(
         `white-space:pre-wrap`,
         `width:100%`,
       ].join(';');
-      inner = `<div style="${textStyle}">${escapeHtml(zone.text)}</div>`;
+      inner = `<div style="${textStyle}">${renderTextContent(zone.text)}</div>`;
     }
 
     return `<div style="${containerStyle}">${inner}</div>`;
@@ -156,6 +162,30 @@ ${buildFontLinks(slide)}
 </div>
 </body>
 </html>`;
+}
+
+// Render zone text content. Plain string falls through with HTML-escape.
+// TextSpan[] maps each span to a <span> with inline style overrides; spans
+// with no overrides emit unwrapped text. Mirrors web/src/.../ZoneCanvas
+// SpanText so server PNG and live preview agree visually.
+function renderTextContent(text: string | TextSpan[]): string {
+  if (typeof text === 'string') return escapeHtml(text);
+  return text
+    .map((s) => {
+      const styleParts: string[] = [];
+      if (s.color) styleParts.push(`color:${escapeAttr(s.color)}`);
+      if (s.fontFamily) {
+        const fam = /[,]/.test(s.fontFamily) ? s.fontFamily : `'${s.fontFamily}',sans-serif`;
+        styleParts.push(`font-family:${fam}`);
+      }
+      if (s.fontSize !== undefined) styleParts.push(`font-size:${s.fontSize}px`);
+      if (s.fontWeight !== undefined) styleParts.push(`font-weight:${s.fontWeight}`);
+      if (s.italic === true) styleParts.push('font-style:italic');
+      if (s.italic === false) styleParts.push('font-style:normal');
+      if (styleParts.length === 0) return escapeHtml(s.text);
+      return `<span style="${styleParts.join(';')}">${escapeHtml(s.text)}</span>`;
+    })
+    .join('');
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {

@@ -9,6 +9,7 @@ import {
   safePublishedAt,
 } from '../../../../shared/lib/stats';
 import { isIgNativePost } from '../../../../shared/lib/postTypeGuards';
+import { extractPlainText } from '../../../../shared/types/slide';
 import { formatDate, formatNumber, timeAgo } from '../../lib/format';
 import { StatCard } from '../../components/posts/StatCard';
 import { SortHeader } from '../../components/posts/SortHeader';
@@ -67,10 +68,13 @@ function thumb(post: PublishedPostWithId): string | null {
 function hookTitle(post: PublishedPostWithId): string {
   // ig-native posts have no slides/zones; derive the title from caption only.
   if (!isIgNativePost(post)) {
-    const slides = post.slides as Array<{ zones?: Array<{ text?: string }> }> | undefined;
+    const slides = post.slides as Array<{ zones?: Array<{ text?: unknown }> }> | undefined;
     if (slides && slides.length > 0) {
-      const zone = slides[0]?.zones?.find((z) => z.text);
-      if (zone?.text) return zone.text;
+      const zones = slides[0]?.zones ?? [];
+      for (const z of zones) {
+        const t = extractPlainText(z.text);
+        if (t) return t;
+      }
     }
   }
   const cap = post.publishedSnapshot?.caption ?? post.caption ?? '';

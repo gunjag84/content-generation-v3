@@ -9,6 +9,12 @@ import { useEffect } from 'react';
 import { FONT_FAMILIES, ensureFontLoaded } from '../../lib/font-loader';
 import { ColorInput } from '../ColorInput';
 import type { Zone } from '../../../../shared/types/slide';
+import { getZonePlainText } from '../../../../shared/types/slide';
+import {
+  applyFormatToSelection,
+  captureSelection,
+  type SpanFormatKey,
+} from '../../lib/spanFormat';
 
 // ─── Icons ───────────────────────────────────────────────────────────────────
 
@@ -45,17 +51,36 @@ function Label({ children }: { children: React.ReactNode }) {
 
 function Divider() { return <div className="border-t border-zinc-800 my-3" />; }
 
-function IBtn({ d, active = false, onClick, title = '', size = 13 }: {
+function IBtn({ d, active = false, onClick, title = '', size = 13, onMouseDown }: {
   d: string; active?: boolean; onClick?: () => void; title?: string; size?: number;
+  onMouseDown?: (e: React.MouseEvent) => void;
 }) {
   return (
-    <button title={title} onClick={onClick}
+    <button title={title} onClick={onClick} onMouseDown={onMouseDown}
       className={`p-1.5 flex-shrink-0 transition-colors ${active
         ? 'bg-amber-500/20 text-amber-400'
         : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700'}`}>
       <Ico d={d} size={size} />
     </button>
   );
+}
+
+/** Try applying a per-span format to the active inline-edit selection. Returns
+ *  true if it landed on a real selection (and therefore the caller should NOT
+ *  fall through to a zone-level update). */
+function trySpanFormat(prop: SpanFormatKey, value: unknown): boolean {
+  return applyFormatToSelection(prop, value);
+}
+
+/** Standard mousedown handler for any format control that should preserve
+ *  the inline-edit selection. Captures the current selection (in case the
+ *  control is about to take focus) and prevents focus shift when possible
+ *  (buttons only — selects/inputs handle focus themselves). */
+function preserveSelectionMouseDown(e: React.MouseEvent) {
+  captureSelection();
+  // Only buttons can preventDefault to keep contentEditable focus; selects
+  // and inputs must take focus by design (text input, dropdown).
+  if ((e.currentTarget as HTMLElement).tagName === 'BUTTON') e.preventDefault();
 }
 
 function Slider({ value, onChange, min, max, step = 1 }: {
@@ -107,26 +132,66 @@ export function ZoneEditor({ zone, onChange }: ZoneEditorProps) {
         />
       </div>
 
-      {/* Text content */}
+      {/* Text content. Editing here clobbers any per-word formatting because
+          textarea is plain-text only. Per-word formatting is preserved when
+          editing in the canvas via double-click → InlineTextEditor. */}
       <div>
         <Label>Text</Label>
         <textarea
-          value={zone.text}
+          value={getZonePlainText(zone)}
           rows={3}
           onChange={e => s({ text: e.target.value })}
           className="mt-1.5 w-full bg-zinc-800 border border-zinc-700 px-2 py-1.5 text-zinc-200 text-[12px] resize-none focus:outline-none focus:border-amber-500/50"
         />
+        {Array.isArray(zone.text) && zone.text.some((sp) =>
+          sp.color !== undefined || sp.fontFamily !== undefined ||
+          sp.fontSize !== undefined || sp.fontWeight !== undefined || sp.italic !== undefined,
+        ) && (
+          <p className="mt-1 font-mono text-[9px] text-zinc-600">
+            Diese Zone enthält Per-Wort-Formatierung. Bearbeiten hier reduziert sie auf Plain-Text.
+          </p>
+        )}
       </div>
 
       <Divider />
 
-      {/* Text formatting */}
-      <div>
+      {/* Text formatting. The per-text-span controls (Bold, Italic, font,
+          size, weight, color) all first try applyFormatToSelection — when
+          there is an active inline-edit selection in the canvas they apply
+          ONLY to that selection. With no selection they fall through to a
+          zone-level update (existing behavior).
+          The data-keep-inline-edit attribute on this section tells
+          InlineTextEditor's onBlur to NOT commit when focus moves into
+          here, so the contentEditable stays mounted and the saved
+          selection survives. */}
+      <div data-keep-inline-edit>
         <Label>Formatting</Label>
         <div className="mt-1.5 flex flex-wrap gap-0.5">
-          <IBtn d={I.bold} active={zone.fontWeight >= 700} title="Bold" onClick={() => s({ fontWeight: zone.fontWeight >= 700 ? 400 : 700 })} />
-          <IBtn d={I.italic} active={zone.italic} title="Italic" onClick={() => s({ italic: !zone.italic })} />
+          <IBtn
+            d={I.bold}
+            active={zone.fontWeight >= 700}
+            title="Bold"
+            onMouseDown={preserveSelectionMouseDown}
+            onClick={() => {
+              const nextWeight = zone.fontWeight >= 700 ? 400 : 700;
+              if (trySpanFormat('fontWeight', nextWeight)) return;
+              s({ fontWeight: nextWeight });
+            }}
+          />
+          <IBtn
+            d={I.italic}
+            active={zone.italic}
+            title="Italic"
+            onMouseDown={preserveSelectionMouseDown}
+            onClick={() => {
+              const nextItalic = !zone.italic;
+              if (trySpanFormat('italic', nextItalic)) return;
+              s({ italic: nextItalic });
+            }}
+          />
           <div className="w-px h-6 bg-zinc-700 mx-0.5 self-center" />
+          {/* Alignment + vertical alignment are LAYOUT (block-level), not text
+              style — they always operate on the zone, not a selection. */}
           <IBtn d={I.left} active={zone.alignH === 'left'} title="Align Left" onClick={() => s({ alignH: 'left' })} />
           <IBtn d={I.center} active={zone.alignH === 'center'} title="Align Center" onClick={() => s({ alignH: 'center' })} />
           <IBtn d={I.right} active={zone.alignH === 'right'} title="Align Right" onClick={() => s({ alignH: 'right' })} />
@@ -140,12 +205,17 @@ export function ZoneEditor({ zone, onChange }: ZoneEditorProps) {
       <Divider />
 
       {/* Font */}
-      <div>
+      <div data-keep-inline-edit>
         <Label>Font Family</Label>
         <div className="mt-1.5">
           <select
             value={zone.fontFamily}
-            onChange={e => { ensureFontLoaded(e.target.value); s({ fontFamily: e.target.value }); }}
+            onMouseDown={preserveSelectionMouseDown}
+            onChange={e => {
+              ensureFontLoaded(e.target.value);
+              if (trySpanFormat('fontFamily', e.target.value)) return;
+              s({ fontFamily: e.target.value });
+            }}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-none px-2 py-1.5 text-[11px] text-zinc-200 focus:outline-none focus:border-amber-500"
           >
             {FONT_FAMILIES.map(f => (
@@ -156,8 +226,17 @@ export function ZoneEditor({ zone, onChange }: ZoneEditorProps) {
         <div className="flex gap-2 mt-2">
           <div className="flex-1">
             <Label>Size</Label>
-            <div className="mt-1">
-              <NumInput value={zone.fontSize} onChange={v => s({ fontSize: v })} min={12} max={400} unit="px" />
+            <div className="mt-1" onMouseDown={preserveSelectionMouseDown}>
+              <NumInput
+                value={zone.fontSize}
+                onChange={v => {
+                  if (trySpanFormat('fontSize', v)) return;
+                  s({ fontSize: v });
+                }}
+                min={12}
+                max={400}
+                unit="px"
+              />
             </div>
           </div>
           <div className="flex-1">
@@ -165,7 +244,12 @@ export function ZoneEditor({ zone, onChange }: ZoneEditorProps) {
             <div className="mt-1">
               <select
                 value={String(zone.fontWeight)}
-                onChange={e => s({ fontWeight: parseInt(e.target.value) })}
+                onMouseDown={preserveSelectionMouseDown}
+                onChange={e => {
+                  const w = parseInt(e.target.value);
+                  if (trySpanFormat('fontWeight', w)) return;
+                  s({ fontWeight: w });
+                }}
                 className="w-full bg-zinc-800 border border-zinc-700 text-zinc-200 text-[12px] px-2 py-1.5 focus:outline-none focus:border-amber-500/50"
               >
                 <option value="100">Thin</option>
@@ -179,10 +263,13 @@ export function ZoneEditor({ zone, onChange }: ZoneEditorProps) {
           </div>
         </div>
 
-        <div className="mt-2">
+        <div className="mt-2" onMouseDown={preserveSelectionMouseDown}>
           <Label>Color</Label>
           <div className="mt-1">
-            <ColorInput value={zone.color} onChange={(v) => s({ color: v })} />
+            <ColorInput value={zone.color} onChange={(v) => {
+              if (trySpanFormat('color', v)) return;
+              s({ color: v });
+            }} />
           </div>
         </div>
       </div>

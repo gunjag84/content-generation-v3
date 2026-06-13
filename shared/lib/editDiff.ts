@@ -10,6 +10,7 @@
 // Caption is treated as a separate zone bucket (slideIndex = null).
 
 import type { SocialSlide } from '../types/slide.js';
+import { getZonePlainText } from '../types/slide.js';
 
 export type DiffZone = 'hook' | 'body' | 'cta' | 'caption';
 
@@ -106,8 +107,8 @@ export function computeEditDiff(
       // Match by id, fall back to positional index
       const bZone = beforeZones.find((z) => z.id === aZone.id) ?? beforeZones[j];
       if (!bZone) continue;
-      const original = bZone.text ?? '';
-      const edited = aZone.text ?? '';
+      const original = getZonePlainText(bZone);
+      const edited = getZonePlainText(aZone);
       if (original === edited) continue;
       const dist = levenshtein(original, edited);
       const maxLen = Math.max(original.length, edited.length);

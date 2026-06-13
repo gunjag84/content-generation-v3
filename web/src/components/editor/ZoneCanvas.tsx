@@ -1,8 +1,8 @@
 // Verbatim port of v2 client/src/components/social-club/ZoneCanvas.tsx (297 lines).
 // Only mechanical change: imports rewritten to point at shared/types/slide.
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { Fragment, useRef, useCallback, useEffect, useState } from 'react';
 import type { Zone, SocialSlide, Format } from '../../../../shared/types/slide';
-import { FORMAT_HEIGHTS, REF_W } from '../../../../shared/types/slide';
+import { FORMAT_HEIGHTS, REF_W, getZonePlainText } from '../../../../shared/types/slide';
 import { ensureFontLoaded } from '../../lib/font-loader';
 import { useAutoGrow } from '../../hooks/useAutoGrow';
 import { InlineTextEditor } from './InlineTextEditor';
@@ -20,6 +20,38 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.trim());
   if (!m) return { r: 0, g: 0, b: 0 };
   return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
+}
+
+/** Renders zone.text honoring per-span overrides when text is a TextSpan[].
+ *  Plain string text falls through as-is (the parent div's style covers it). */
+function SpanText({ zone }: { zone: Zone }) {
+  if (typeof zone.text === 'string') return <>{zone.text}</>;
+  return (
+    <>
+      {zone.text.map((s, i) => {
+        const hasOverride =
+          s.color !== undefined ||
+          s.fontFamily !== undefined ||
+          s.fontSize !== undefined ||
+          s.fontWeight !== undefined ||
+          s.italic !== undefined;
+        if (!hasOverride) return <Fragment key={i}>{s.text}</Fragment>;
+        const style: React.CSSProperties = {
+          color: s.color,
+          fontFamily: s.fontFamily,
+          fontSize: s.fontSize !== undefined ? `${s.fontSize}px` : undefined,
+          fontWeight: s.fontWeight,
+          fontStyle:
+            s.italic === true ? 'italic' : s.italic === false ? 'normal' : undefined,
+        };
+        return (
+          <span key={i} style={style}>
+            {s.text}
+          </span>
+        );
+      })}
+    </>
+  );
 }
 
 function RotateIcon() {
@@ -283,6 +315,7 @@ export function ZoneCanvas({
           <div
             key={zone.id}
             style={zStyle}
+            title={!zone.isLogo && !isEditing ? 'Doppelklick zum Bearbeiten' : undefined}
             onMouseDown={e => {
               if (isEditing) return; // let InlineTextEditor handle its own mouse events
               onMouseDown(e, zone, 'move');
@@ -301,11 +334,11 @@ export function ZoneCanvas({
                   fontWeight: 700, color: '#fff', letterSpacing: '0.12em',
                   border: '1px solid rgba(255,255,255,0.2)',
                 }}>
-                  {zone.text}
+                  {getZonePlainText(zone)}
                 </div>
               </div>
             ) : (
-              <div ref={el => { zoneRefs.current[zone.id] = el; }} style={txtStyle}>{zone.text}</div>
+              <div ref={el => { zoneRefs.current[zone.id] = el; }} style={txtStyle}><SpanText zone={zone} /></div>
             )}
 
             {sel && !isEditing && corners.map(c => (
@@ -482,7 +515,7 @@ export function SlideThumbnail({ slide, format, active, index, onClick, backgrou
                     fontWeight: 700, color: '#fff', letterSpacing: '0.12em',
                     border: '1px solid rgba(255,255,255,0.2)',
                   }}>
-                    {zone.text}
+                    {getZonePlainText(zone)}
                   </div>
                 </div>
               </div>
@@ -502,7 +535,7 @@ export function SlideThumbnail({ slide, format, active, index, onClick, backgrou
           };
           return (
             <div key={zone.id} style={zStyle}>
-              <div ref={el => { zoneRefs.current[zone.id] = el; }} style={txtStyle}>{zone.text}</div>
+              <div ref={el => { zoneRefs.current[zone.id] = el; }} style={txtStyle}><SpanText zone={zone} /></div>
             </div>
           );
         })}

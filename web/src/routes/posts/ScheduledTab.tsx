@@ -11,6 +11,7 @@ import { db } from '../../lib/firebase';
 import { useActiveBrand } from '../../store/activeBrand';
 import { cancelSchedule, deletePost, publishNow } from '../../lib/postActions';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import { extractPlainText } from '../../../../shared/types/slide';
 
 interface PostRow {
   id: string;
@@ -36,11 +37,13 @@ function thumb(data: Record<string, unknown>): string | null {
 }
 
 function hookTitle(data: Record<string, unknown>): string {
-  const slides = data['slides'] as Array<{ zones?: Array<{ text?: string }> }> | undefined;
+  const slides = data['slides'] as Array<{ zones?: Array<{ text?: unknown }> }> | undefined;
   if (slides && slides.length > 0) {
-    const first = slides[0];
-    const zone = first?.zones?.find((z) => z.text);
-    if (zone?.text) return zone.text.slice(0, 80);
+    const zones = slides[0]?.zones ?? [];
+    for (const z of zones) {
+      const t = extractPlainText(z.text);
+      if (t) return t.slice(0, 80);
+    }
   }
   return 'Kein Titel';
 }

@@ -55,6 +55,11 @@ interface PostShape {
 }
 
 const FORMATS: Format[] = ['portrait', 'post', 'story'];
+const FORMAT_TITLES: Record<Format, string> = {
+  portrait: 'Hochformat 4:5',
+  post: 'Quadrat 1:1',
+  story: 'Story 9:16',
+};
 
 export default function Editor() {
   const { postId } = useParams<{ postId: string }>();
@@ -289,18 +294,19 @@ export default function Editor() {
   }
 
   // Used by SlideStrip thumbnails so the auto-grow pass can persist y/h
-  // corrections for any slide, not just the active one.
-  // Thumbnail auto-grow is a layout correction — use transientUpdate always.
-  function changeZoneAt(slideIdx: number, z: Zone) {
-    transientUpdate(updateZone(slides, slideIdx, z));
-  }
+  // corrections for any slide, not just the active one. Functional setSlides
+  // is required because useAutoGrow fires N synchronous onZoneChange calls in
+  // a single layout-effect pass; non-functional updates lose all but the last.
+  const changeZoneAt = useCallback((slideIdx: number, z: Zone) => {
+    setSlides((prev) => updateZone(prev, slideIdx, z));
+  }, []);
 
   // Transient callback passed as onTransientZoneChange to EditorPreview / ZoneCanvas.
-  // Routes useAutoGrow corrections for the active canvas through transientUpdate
-  // so they never add undo entries.
-  function transientChangeZone(z: Zone) {
-    transientUpdate(updateZone(slides, activeSlideIdx, z));
-  }
+  // Same reasoning as changeZoneAt — functional setSlides batches multiple
+  // per-zone corrections from the same useAutoGrow pass without dropping any.
+  const transientChangeZone = useCallback((z: Zone) => {
+    setSlides((prev) => updateZone(prev, activeSlideIdxRef.current, z));
+  }, []);
 
   function changeSlide(s: SocialSlide) {
     const nextSlides = slides.map((x, i) => {
@@ -589,6 +595,7 @@ export default function Editor() {
           <button
             key={f}
             onClick={() => setFormat(f)}
+            title={FORMAT_TITLES[f]}
             className={`px-2 py-1 font-mono text-[10px] uppercase tracking-widest border ${
               format === f ? 'border-amber-500 text-amber-400' : 'border-zinc-700 text-zinc-500 hover:text-zinc-300'
             }`}
@@ -598,6 +605,7 @@ export default function Editor() {
         ))}
         <button
           onClick={() => setShowGrid((v) => !v)}
+          title="Hilfsraster ein-/ausblenden"
           className={`ml-2 px-2 py-1 font-mono text-[10px] uppercase tracking-widest border ${
             showGrid ? 'border-amber-500 text-amber-400 bg-amber-500/10' : 'border-zinc-700 text-zinc-500 hover:text-zinc-300'
           }`}
@@ -624,8 +632,33 @@ export default function Editor() {
             </span>
           )}
           <button
+            onClick={() => {
+              const prev = undoStackRef.current.undo();
+              if (prev) { setSlides(prev.slides); setCaption(prev.caption); }
+            }}
+            disabled={!undoStack.canUndo}
+            title="Rückgängig (Ctrl+Z)"
+            aria-label="Rückgängig"
+            className="px-2 py-1 font-mono text-[14px] leading-none border border-zinc-700 text-zinc-400 hover:text-zinc-100 hover:border-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            ↶
+          </button>
+          <button
+            onClick={() => {
+              const next = undoStackRef.current.redo();
+              if (next) { setSlides(next.slides); setCaption(next.caption); }
+            }}
+            disabled={!undoStack.canRedo}
+            title="Wiederherstellen (Ctrl+Shift+Z)"
+            aria-label="Wiederherstellen"
+            className="px-2 py-1 font-mono text-[14px] leading-none border border-zinc-700 text-zinc-400 hover:text-zinc-100 hover:border-zinc-500 disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            ↷
+          </button>
+          <button
             onClick={startRender}
             disabled={rendering || renderJob.status === 'rendering'}
+            title="Slides als PNG rendern"
             className="px-3 py-1 font-mono text-[10px] uppercase tracking-widest border border-amber-500 text-amber-400 hover:bg-amber-500/10 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {renderJob.status === 'done' ? 'Erneut rendern' : 'Rendern'}

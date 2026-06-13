@@ -14,6 +14,7 @@ import { db } from './firebase.js';
 import { makeAnthropicClient } from './anthropic.js';
 import type { LoadedPattern } from './learnedPatterns.js';
 import type { SocialSlide } from '../../shared/types/slide.js';
+import { getZonePlainText } from '../../shared/types/slide.js';
 import { HAIKU_MODEL, AUDIT_MAX_TOKENS } from './learningConfig.js';
 
 const AuditResultSchema = z.object({
@@ -50,7 +51,7 @@ function renderOutputForAudit(output: { slides: SocialSlide[]; caption: string }
     const s = output.slides[i];
     lines.push(`[Slide ${i + 1}, type=${s.type}]`);
     for (const z of s.zones ?? []) {
-      lines.push(`  ${z.label}: ${z.text}`);
+      lines.push(`  ${z.label}: ${getZonePlainText(z)}`);
     }
   }
   lines.push('');
