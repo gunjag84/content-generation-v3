@@ -2,7 +2,7 @@
 
 Single source of truth for **operational state** (what is deployed, locked deploy patterns, runtime contracts, requirements traceability). Scope/phases/open decisions/out-of-scope live in `PROJECT-PLAN.md`. Architecture/ADRs/full spec live in `~/.claude/plans/modular-tumbling-sunrise.md` (v6 ISSUES_CLOSED 2026-04-26, historical reference).
 
-Last updated: 2026-06-13 (rich-text per-span formatting shipped: `Zone.text` is now `string | TextSpan[]`; editor + render + learning paths all union-safe; deployed Cloud Run rev `content-gen-00030-4h2` + Hosting; live-verified end-to-end in browser).
+Last updated: 2026-06-13 (editor batch: rich-text per-span formatting; color picker applies to selection not whole zone; single-click-to-edit + grid only during drag; default slide appearance ported from v2 to match the @leben.lieben IG look — Josefin Sans 100 white body, Daniel #f59e0b accent, 70% black overlay. Live Cloud Run rev `content-gen-00031-89b` + Hosting `index-ChD-0QUw`; all live-verified in browser).
 
 ---
 

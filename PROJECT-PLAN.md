@@ -190,7 +190,11 @@ Tier-0 (Handover-Critical): Jule must be able to operate LEBEN.LIEBEN cloud-only
 
 After A2 passes, Phase 5 closes and Tier-2 handover of LEBEN.LIEBEN to Jule unblocks.
 
-**Post-MVP shipped 2026-06-13:** rich-text per-span formatting (B1 expansion) — `Zone.text` is `string | TextSpan[]`; select text in the inline editor and apply color/font/size/weight/italic to that run only. Editor + server render + learning-diff paths all union-safe. Deployed (rev `content-gen-00030-4h2`), live-verified end-to-end.
+**Post-MVP shipped 2026-06-13** (all live-verified in browser, Cloud Run rev `content-gen-00031-89b`):
+1. Rich-text per-span formatting (B1 expansion) — `Zone.text` is `string | TextSpan[]`; select text in the inline editor and apply color/font/size/weight/italic to that run only. Editor + server render + learning-diff paths all union-safe.
+2. Color picker applies to the active selection, not the whole zone (non-destructive `captureSelection` so the 2-step popover keeps the word selection).
+3. Editor interaction: single-click a text zone enters inline edit (was double-click); body press becomes a drag only past a 4px threshold; persistent grid + toggle removed, snap grid + alignment guides show only during drag; resize via ESC-then-handle. (Overrides locked design D1.)
+4. Default slide appearance ported from v2 (`parsedSlidesToZones.ts`) to match the live @leben.lieben IG carousels: Josefin Sans weight 100 white body, Daniel handwritten #f59e0b accent, per-type lineHeight/letterSpacing, photo/overlay slides default 70% black legibility gradient. `linesToZones.ts` + `parseSlidesMd.ts` + `buildManualCarousel.ts`.
 
 ---
 
