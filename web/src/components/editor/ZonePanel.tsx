@@ -136,23 +136,23 @@ function SizeStepper({ fontSize, onZoneSize }: { fontSize: number; onZoneSize: (
         max={400}
         onMouseDown={preserveSelectionMouseDown}
         onChange={(e) => apply(parseFloat(e.target.value) || display)}
-        className="bg-transparent text-zinc-200 text-[12px] w-9 px-2 py-1 focus:outline-none tabular-nums min-w-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="bg-transparent text-zinc-200 text-[12px] w-9 px-2 py-2 text-center focus:outline-none tabular-nums min-w-0 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       <span className="text-zinc-500 text-[11px] self-center pr-1 flex-shrink-0">px</span>
-      <div className="flex flex-col flex-shrink-0 border-l border-zinc-700">
+      <div className="flex flex-col flex-shrink-0 border-l border-zinc-700 w-7">
         <button
           type="button"
           title="Größer"
           onMouseDown={preserveSelectionMouseDown}
           onClick={() => step(SIZE_STEP)}
-          className="px-1.5 flex-1 leading-none text-[8px] text-zinc-300 hover:text-amber-400 hover:bg-zinc-700 border-b border-zinc-700 flex items-center justify-center"
+          className="flex-1 leading-none text-[11px] text-zinc-300 hover:text-amber-400 hover:bg-zinc-700 active:bg-amber-500/20 border-b border-zinc-700 flex items-center justify-center"
         >▲</button>
         <button
           type="button"
           title="Kleiner"
           onMouseDown={preserveSelectionMouseDown}
           onClick={() => step(-SIZE_STEP)}
-          className="px-1.5 flex-1 leading-none text-[8px] text-zinc-300 hover:text-amber-400 hover:bg-zinc-700 flex items-center justify-center"
+          className="flex-1 leading-none text-[11px] text-zinc-300 hover:text-amber-400 hover:bg-zinc-700 active:bg-amber-500/20 flex items-center justify-center"
         >▼</button>
       </div>
     </div>
