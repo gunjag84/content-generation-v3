@@ -2,7 +2,7 @@
 
 Single source of truth for **operational state** (what is deployed, locked deploy patterns, runtime contracts, requirements traceability). Scope/phases/open decisions/out-of-scope live in `PROJECT-PLAN.md`. Architecture/ADRs/full spec live in `~/.claude/plans/modular-tumbling-sunrise.md` (v6 ISSUES_CLOSED 2026-04-26, historical reference).
 
-Last updated: 2026-05-08 (added `manualIgSync` callable Cloud Function for user-triggered IG feed+stats refresh; `KMS_KEY_NAME` env var set on the new Cloud Run service; timeout bumped to 540s + 512MiB).
+Last updated: 2026-06-13 (rich-text per-span formatting shipped: `Zone.text` is now `string | TextSpan[]`; editor + render + learning paths all union-safe; deployed Cloud Run rev `content-gen-00030-4h2` + Hosting; live-verified end-to-end in browser).
 
 ---
 
@@ -11,7 +11,8 @@ Last updated: 2026-05-08 (added `manualIgSync` callable Cloud Function for user-
 - **Project:** `contentai-78bfb` (europe-west1)
 - **Hosting:** https://contentai-78bfb.web.app
 - **Cloud Run:** https://content-gen-23953893533.europe-west1.run.app
-- **Live revisions:** `content-gen-00022-2h4` (Multi-Brand Migration, deployed 2026-05-06) + Cloud Functions `budgetKillswitch`, `igStatsSync`, `igFeedSync`, `manualIgSync` (last deployed 2026-05-08)
+- **Live revisions:** `content-gen-00030-4h2` (rich-text per-span formatting, deployed 2026-06-13) + Cloud Functions `budgetKillswitch`, `igStatsSync`, `igFeedSync`, `manualIgSync` (last deployed 2026-05-08)
+- **Deploy hazard:** ambient `gcloud config` project is `jaeger-pilot` (Tim's Tier-1 work). ALWAYS pass `--project=contentai-78bfb` on every `gcloud` command for v3, or the deploy silently creates a stray service in the wrong project. (Happened 2026-06-13; caught + cleaned.)
 
 > Note: source-of-truth plan references `content-gen-prod` as the planned project ID; actual prod project is `contentai-78bfb`.
 

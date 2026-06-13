@@ -135,8 +135,9 @@ Status legend: `pending` | `in-progress` | `done` | `failed` | `blocked`
 | D4  | Keyboard shortcuts + Cmd+/ cheatsheet | B3 | opus | `useKeyboardShortcuts.ts` + `KeyboardCheatsheet.tsx` exist; Cmd+Z + Cmd+/ wired | done |
 | C3  | Reset-to-AI button + confirm modal | B3 | opus | yellow button in SlidePanel.tsx with German confirm modal | done |
 | A1  | Onboarding doc + Tim/Jule fresh setup | B*, C*, D1, D4, D6 | sonnet | `docs/ONBOARDING.md` exists; manual Tim+Jule verification | doc done; manual gate pending |
-| A2  | E2E test-post on @leben.lieben | A1 | manual | post live + verified visually on IG | pending (Tim manual) |
-| A3  | Repo README repoint + branch retire | A2 | sonnet | old repo README points at v3; v3-rewrite branch deleted | pending (Tim manual) |
+| A2  | E2E test-post on @leben.lieben | A1 | manual | post live + verified visually on IG | pending (Tim manual; brand publish-ready — IG sync live, Meta token + instagramUserId valid) |
+| A3  | Repo README repoint + branch retire | A2 | sonnet | old repo README points at v3 | **done** 2026-06-13 (README on old repo `main` commit 279b0ab; v3-rewrite branch left in place per Tim — carries 1 unique commit + WIP, not worth deleting) |
+| B1+ | Rich-text per-span formatting (B1 expansion) | B1 | opus | select text -> color/font/size/weight/italic applies to that run only | **done** 2026-06-13 (commit 682e9cc, rev content-gen-00030-4h2, live-verified end-to-end) |
 
 ### Test scope (LOCKED, /plan-eng-review)
 
@@ -183,11 +184,13 @@ Tier-0 (Handover-Critical): Jule must be able to operate LEBEN.LIEBEN cloud-only
 **Phase 5 - Cutover.** Kill-switch trip-test passed E2E (2026-05-07); igFeedSync deployed; LEBEN.LIEBEN brand fresh-onboarded with 94 organic IG posts synced.
 
 **Next steps to close Phase 5:**
-1. Tim + Jule each complete fresh onboarding for LEBEN.LIEBEN brand on prod.
-2. First real test-post end-to-end: Generate -> Edit -> Schedule `now+5min` -> verify on @leben.lieben.
-3. Old `content-generation` repo README points at v3; `v3-rewrite` branch retired.
+1. Tim + Jule each complete fresh onboarding for LEBEN.LIEBEN brand on prod. (Brand is live with 100 synced IG posts; onboarding largely done.)
+2. **A2 (only remaining gate):** First real test-post end-to-end: Generate -> Edit -> Schedule `now+5min` -> verify on @leben.lieben. Brand is publish-ready (IG sync runs, Meta token + instagramUserId valid). Tim drives generate+publish (content judgment on the real public account).
+3. ~~Old `content-generation` repo README points at v3; `v3-rewrite` branch retired.~~ **A3 done 2026-06-13** (README on old repo `main`; v3-rewrite branch left in place per Tim).
 
-After Phase 5 closes, Tier-2 handover of LEBEN.LIEBEN to Jule unblocks.
+After A2 passes, Phase 5 closes and Tier-2 handover of LEBEN.LIEBEN to Jule unblocks.
+
+**Post-MVP shipped 2026-06-13:** rich-text per-span formatting (B1 expansion) — `Zone.text` is `string | TextSpan[]`; select text in the inline editor and apply color/font/size/weight/italic to that run only. Editor + server render + learning-diff paths all union-safe. Deployed (rev `content-gen-00030-4h2`), live-verified end-to-end.
 
 ---
 
