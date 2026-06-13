@@ -212,23 +212,22 @@ let savedRange: Range | null = null;
 
 /** Capture the current selection if it's a non-collapsed range inside a
  *  contentEditable. Call from `onMouseDown` of format controls so the
- *  selection survives focus-stealing children (popovers, native color
- *  picker, etc.). */
+ *  selection survives focus-stealing children (popovers, color picker, etc.).
+ *
+ *  NON-DESTRUCTIVE: this only ever *updates* savedRange when there is a valid
+ *  non-collapsed contentEditable selection. It never wipes savedRange to null.
+ *  This is essential for multi-step controls like the color popover: the first
+ *  mousedown (opening the popover) captures the word selection, and the later
+ *  mousedowns inside the popover (hex input, recent swatches) — by which point
+ *  focus has left the contentEditable and the live selection is collapsed —
+ *  must NOT clobber it, or the color falls back to whole-zone formatting.
+ *  savedRange is reset explicitly via clearSavedSelection() on editor unmount. */
 export function captureSelection(): void {
   const sel = window.getSelection();
-  if (!sel || sel.rangeCount === 0) {
-    savedRange = null;
-    return;
-  }
+  if (!sel || sel.rangeCount === 0) return;
   const r = sel.getRangeAt(0);
-  if (r.collapsed) {
-    savedRange = null;
-    return;
-  }
-  if (!findContentEditableAncestor(r.commonAncestorContainer)) {
-    savedRange = null;
-    return;
-  }
+  if (r.collapsed) return;
+  if (!findContentEditableAncestor(r.commonAncestorContainer)) return;
   savedRange = r.cloneRange();
 }
 
