@@ -226,9 +226,13 @@ export function ZoneCanvas({
       window.removeEventListener('mouseup', onUp);
       if (!moved) {
         // No real drag happened: a plain click on a text zone body enters
-        // inline edit. (Logo zones and handle presses do not.)
+        // inline edit. (Logo zones and handle presses do not.) Defer to the
+        // next task so the click's native focus settling finishes first —
+        // otherwise the freshly-focused contentEditable is blurred in the same
+        // cycle, which auto-commits and exits edit mode immediately.
         if (ds && ds.mode === 'move' && !ds.zone.isLogo) {
-          setEditingZoneId(ds.zoneId);
+          const zid = ds.zoneId;
+          setTimeout(() => setEditingZoneId(zid), 0);
         }
         return;
       }
