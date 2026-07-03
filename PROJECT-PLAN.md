@@ -2,7 +2,7 @@
 
 Single source of truth for **scope and direction**. Operational state (deploy anchors, locked patterns, deploy quirks, NDJSON shapes, requirements traceability) lives in `STATE.md`. Architecture/ADRs/full spec live in `~/.claude/plans/modular-tumbling-sunrise.md` (v6 ISSUES_CLOSED 2026-04-26, historical reference).
 
-Last updated: 2026-05-20.
+Last updated: 2026-07-03.
 
 ---
 
@@ -40,7 +40,7 @@ Mode: SCOPE EXPANSION (Tim picked Envelope C: full editor revamp before cutover)
 | ID | Item | Pri | Decision |
 |----|------|-----|----------|
 | D1 | Calendar: basic read-only month view (NOT "hide nav") | M | EXPANDED (D2 cherry-pick: bring in basic month view) |
-| D2 | Touch responsive: read-only on touch, edit on desktop only | M | LOCKED (D3 cherry-pick: capability boundary) |
+| D2 | Touch responsive: read-only on touch, edit on desktop only | M | DEFERRED to v1.1 (2026-07-03, Tim): never implemented during MVP build; decide after real usage. |
 | D3 | Phase 4c wedge (auto-perf from 94 v2 posts) | - | DEFERRED to N>=20 Jule posts (D4 cherry-pick) |
 | D4 | Keyboard shortcuts pack (Cmd+Z/S/D, arrow nudge, Del) | M | LOCKED (D5 cherry-pick) |
 | D5 | AI "rewrite this slide" button (Haiku variants) | - | DEFERRED to v1.1 (D6 cherry-pick: data-driven scope post-cutover) |
@@ -76,6 +76,7 @@ Mode: SCOPE EXPANSION (Tim picked Envelope C: full editor revamp before cutover)
 - Preview slideshow mode, auto alt-text, brand color extractor (delight, not MVP)
 - Real-time multi-user collab (Posts are user-scoped per existing plan)
 - Pattern visibility UI (learning is invisible by design)
+- Touch read-only gating (D2) - locked in CEO review but never built; deferred to v1.1 on 2026-07-03. Editor is desktop-only in practice; revisit if Jule edits on iPad.
 
 ### Architecture decisions LOCKED 2026-05-20 (/plan-eng-review)
 
@@ -119,15 +120,15 @@ Status legend: `pending` | `in-progress` | `done` | `failed` | `blocked`
 |-----|-------|------|-------|--------|--------|
 | D7  | Posts tab dark-theme alignment | - | sonnet | `grep -E "bg-white\|text-indigo-600" web/src/routes/posts/PostsLayout.tsx` exits 1 | done |
 | D8  | STATE.md POLISH-01..02 -> Live | - | sonnet | `grep -E "POLISH-01\.\.02.*Pending" STATE.md` exits 1 | done |
-| D9  | GRAPH_VERSION centralize to graphConstants.ts | - | sonnet | new `server/lib/graphConstants.ts` exists; `grep -rE "v21\.0\|v22\.0" server/ web/` shows only that one file | done |
-| D10 | useAutoGrow hook extract | - | sonnet | `web/src/hooks/useAutoGrow.ts` exists; both `ZoneCanvas.tsx` + `SlideStrip.tsx` import it | done |
+| D9  | GRAPH_VERSION centralize to graphConstants.ts | - | sonnet | new `server/lib/graphConstants.ts` exists; verify applies to server/ + web/ excluding server/functions - `server/functions/graphApi.ts` keeps its own GRAPH_VERSION copy by design (functions tsconfig rootDir isolation cannot import server/lib) | done |
+| D10 | useAutoGrow hook extract | - | sonnet | `web/src/hooks/useAutoGrow.ts` exists; imported by `Editor.tsx` + `ZoneCanvas.tsx` (original verify text was wrong - `SlideStrip.tsx` does not import it) | done |
 | D11 | auth.ts stale placeholder comment | - | sonnet | `grep "Replace placeholder emails" server/middleware/auth.ts` exits 1 | done |
 | D12 | Create.tsx JSX boolean-coercion fix | - | sonnet | `grep "streamText.length > 0" web/src/routes/Create.tsx` exits 0 | done |
 | D13 | ZoneCanvas useLayoutEffect deps | - | sonnet | `useLayoutEffect` line in ZoneCanvas.tsx has dependency array `[slide.zones]` | done |
 | C1  | SA-pin deploy automation script | - | sonnet | `scripts/deploy-functions.sh` exists, `bash -n` passes; package.json has `deploy:fns` script | done |
 | C2  | Wire resignIfExpiring into publish path | - | opus | `grep resignIfExpiring server/lib/publishOnePost.ts` exits 0 | done |
 | D1  | Calendar basic month view | - | opus | `web/src/routes/Calendar.tsx` + `web/src/components/calendar/MonthGrid.tsx` exist; `pnpm tsc --noEmit` clean | done |
-| D6  | Slide reorder DnD + schedule-conflict modal | - | opus | reorder handler in SlideStrip.tsx; ConflictModal component exists | done |
+| D6  | Slide reorder DnD + schedule-conflict modal | - | opus | reorder handler in SlideStrip.tsx; conflict detection lives inline in `web/src/components/SchedulePostModal.tsx` (`detectConflict` + German copy) - no standalone ConflictModal component exists | done |
 | B3  | Undo/redo hook (snapshot, cap 50) | - | opus | `web/src/hooks/useUndoStack.ts` exists; unit test push-50 + undo-50 passes | done |
 | B4  | Photo transform schema + modal UI | D10 | opus | `photoTransform` field in shared/types/slide.ts; photo-edit modal in SlidePanel | done |
 | B1  | Inline text edit (textarea overlay) | D10 | opus | `web/src/components/editor/InlineTextEditor.tsx` exists; double-click + ESC + blur paths covered | done |
@@ -181,22 +182,23 @@ Tier-0 (Handover-Critical): Jule must be able to operate LEBEN.LIEBEN cloud-only
 
 ## Current Phase + Next Step
 
-**Phase 5 - Cutover.** Kill-switch trip-test passed E2E (2026-05-07); igFeedSync deployed; LEBEN.LIEBEN brand fresh-onboarded with 94 organic IG posts synced.
+**Phase 5 - Cutover.** Kill-switch trip-test passed E2E (2026-05-07); igFeedSync deployed; LEBEN.LIEBEN brand fresh-onboarded with 94 organic IG posts synced. A1 (Tim + Jule onboarding) and A3 (README repoint) are done; **only A2 remains.**
 
-**Next steps to close Phase 5:**
-1. Tim + Jule each complete fresh onboarding for LEBEN.LIEBEN brand on prod. (Brand is live with 100 synced IG posts; onboarding largely done.)
-2. **A2 (only remaining gate):** First real test-post end-to-end: Generate -> Edit -> Schedule `now+5min` -> verify on @leben.lieben. Brand is publish-ready (IG sync runs, Meta token + instagramUserId valid). Tim drives generate+publish (content judgment on the real public account).
-3. ~~Old `content-generation` repo README points at v3; `v3-rewrite` branch retired.~~ **A3 done 2026-06-13** (README on old repo `main`; v3-rewrite branch left in place per Tim).
+**Next step to close Phase 5:**
+- **A2 (only remaining gate):** First real test-post end-to-end: Generate -> Edit -> Schedule `now+5min` -> verify on @leben.lieben. Brand is publish-ready (IG sync runs, Meta token + instagramUserId valid). Tim drives generate+publish (content judgment on the real public account).
 
 After A2 passes, Phase 5 closes and Tier-2 handover of LEBEN.LIEBEN to Jule unblocks.
 
-**Post-MVP shipped 2026-06-13** (all live-verified in browser, Cloud Run rev `content-gen-00031-89b`):
+**Post-MVP shipped 2026-06-13** (all live-verified in browser):
 1. Rich-text per-span formatting (B1 expansion) — `Zone.text` is `string | TextSpan[]`; select text in the inline editor and apply color/font/size/weight/italic to that run only. Editor + server render + learning-diff paths all union-safe.
 2. Color picker applies to the active selection, not the whole zone (non-destructive `captureSelection` so the 2-step popover keeps the word selection).
 3. Editor interaction: single-click a text zone enters inline edit (was double-click); body press becomes a drag only past a 4px threshold; persistent grid + toggle removed, snap grid + alignment guides show only during drag; resize via ESC-then-handle. (Overrides locked design D1.)
 4. Default slide appearance ported from v2 (`parsedSlidesToZones.ts`) to match the live @leben.lieben IG carousels: Josefin Sans weight 100 white body, Daniel handwritten #f59e0b accent, per-type lineHeight/letterSpacing, photo/overlay slides default 70% black legibility gradient. `linesToZones.ts` + `parseSlidesMd.ts` + `buildManualCarousel.ts`.
-5. Per-word font-size: replaced the fiddly `<input type=number>` with a clean ▲/▼ stepper (`SizeStepper`). The arrow `<button>`s `preventDefault` on mousedown so the inline editor keeps focus (no commit/exit); each step reads the selection's current rendered size (`getActiveSelectionFontSizePx`) and applies it to the selection (cumulative), falling back to the zone with no selection. Also hardened `handleBlur` for the `relatedTarget=null` number-input case.
-6. Auto-switch the right rail to Zones on any non-collapsed text selection inside the inline editor (document `selectionchange` listener in `Editor.tsx`), so per-selection format controls are reachable.
+
+**Post-MVP shipped 2026-06-14 to 2026-06-29** (Cloud Run rev `content-gen-00031-89b`, all live-verified in browser):
+5. Click-to-edit focus fix (f6a6876): deferred click-to-edit so focus settles correctly.
+6. Per-word font-size stepper: replaced the fiddly `<input type=number>` with a clean ▲/▼ stepper (`SizeStepper` in ZonePanel, commits 236cd50/24077b5/8aeb8b8). The arrow `<button>`s `preventDefault` on mousedown so the inline editor keeps focus (no commit/exit); each step reads the selection's current rendered size (`getActiveSelectionFontSizePx`) and applies it to the selection (cumulative), falling back to the zone with no selection. Also hardened `handleBlur` for the `relatedTarget=null` number-input case.
+7. Auto-switch the right rail to Zones on any non-collapsed text selection inside the inline editor (document `selectionchange` listener in `Editor.tsx`), so per-selection format controls are reachable.
 
 ---
 
@@ -252,16 +254,14 @@ None right now. Architectural decisions are locked (see `STATE.md` "Locked Archi
 
 ## Pending TODOs (Tim, manual)
 
-- Phase 2 prod smoke: sign-in -> /settings/photos upload -> /create generate (story + zitat paths) -> /editor edits persist with `aiSnapshot` byte-identical; cancel-before-complete = no post doc.
-- Phase 3 user-facing prod smoke: /create -> /editor render -> /posts schedule + publish.
-- Meta Graph token + `instagramUserId` per Brand: UI exists; manual Firestore-Console fallback also possible.
-- LEBEN.LIEBEN-Brand fresh setup für Cutover.
+Only A2 remains: first real E2E test-post on @leben.lieben (Generate -> Edit -> Schedule now+5min -> verify on IG). Phase 2/3 prod smokes, Meta token + `instagramUserId` setup, and LEBEN.LIEBEN fresh onboarding are all done.
 
 ## Pending TODOs (backlog)
 
-- Vitest harness for web package (streamGenerate trailing-byte test + saveDraftDebounced no-aiSnapshot test).
-- aiSnapshot mutation rules-deny test (rule itself is live since 02-01).
-- Re-sign helper for >7-day signed Storage URLs.
+Backlog cleared 2026-07-03 - all 3 items done:
+- Vitest harness for web package: `web/vitest.config.ts` + `web/src/lib/streamGenerate.test.ts` (trailing-byte case) + `web/src/lib/saveDraftDebounced.test.ts` (no-aiSnapshot case).
+- aiSnapshot mutation rules-deny test: `tests/integration/aiSnapshotDeny.test.ts`; caught a real catch-all-rule bug, fixed in commit 92009cc (2026-05-08).
+- Re-sign helper: `server/lib/resignSlides.ts`, wired into `server/lib/publishOnePost.ts`.
 
 ---
 

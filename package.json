@@ -26,7 +26,6 @@
     "@anthropic-ai/sdk": "^0.32.1",
     "@google-cloud/kms": "^4.5.0",
     "@google-cloud/tasks": "^6.2.1",
-    "clsx": "^2.1.1",
     "express": "^4.21.0",
     "firebase": "^11.0.0",
     "firebase-admin": "^12.6.0",
