@@ -21,16 +21,16 @@ export function DayOfWeekAggregate({ posts }: Props) {
   const buckets = aggregateByDayOfWeek(posts, { minCount: 3 });
 
   return (
-    <div className="border border-gray-200 rounded p-4 bg-white">
-      <h2 className="text-sm font-semibold text-gray-700 mb-3">Performance pro Wochentag</h2>
+    <div className="border border-zinc-700 rounded p-4 bg-zinc-900">
+      <h2 className="text-sm font-semibold text-zinc-300 mb-3">Performance pro Wochentag</h2>
 
       {buckets.size === 0 ? (
-        <p className="text-xs text-gray-400">Mindestens 3 Posts pro Wochentag nötig für Trends.</p>
+        <p className="text-xs text-zinc-500">Mindestens 3 Posts pro Wochentag nötig für Trends.</p>
       ) : (
         <>
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-left text-gray-500 border-b border-gray-100">
+              <tr className="text-left text-zinc-400 border-b border-zinc-800">
                 <th className="pb-1 font-medium">Tag</th>
                 <th className="pb-1 font-medium text-right">N</th>
                 <th className="pb-1 font-medium text-right">Engagement</th>
@@ -45,16 +45,16 @@ export function DayOfWeekAggregate({ posts }: Props) {
                   return bEng - aEng;
                 })
                 .map(([day, bucket]) => (
-                  <tr key={day} className="border-b border-gray-50 last:border-0">
-                    <td className="py-1 text-gray-700">{DAY_LABELS_DE[day]}</td>
-                    <td className="py-1 text-right text-gray-500">{bucket.n}</td>
-                    <td className="py-1 text-right text-gray-700">{fmtEng(bucket.avgEng)}</td>
-                    <td className="py-1 text-right text-gray-500">{fmtEditRatio(bucket.avgEditRatio)}</td>
+                  <tr key={day} className="border-b border-zinc-800 last:border-0">
+                    <td className="py-1 text-zinc-300">{DAY_LABELS_DE[day]}</td>
+                    <td className="py-1 text-right text-zinc-400">{bucket.n}</td>
+                    <td className="py-1 text-right text-zinc-300">{fmtEng(bucket.avgEng)}</td>
+                    <td className="py-1 text-right text-zinc-400">{fmtEditRatio(bucket.avgEditRatio)}</td>
                   </tr>
                 ))}
             </tbody>
           </table>
-          <p className="text-[10px] text-gray-400 mt-2">Tag in UTC.</p>
+          <p className="text-[10px] text-zinc-500 mt-2">Tag in UTC.</p>
         </>
       )}
     </div>

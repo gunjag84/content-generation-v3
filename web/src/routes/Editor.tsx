@@ -599,9 +599,9 @@ export default function Editor() {
     }
   }
 
-  if (loading) return <div className="p-8 text-gray-500">Lade Editor …</div>;
-  if (!uid || !brandId || !postId) return <div className="p-8 text-gray-500">Brand wird geladen …</div>;
-  if (slides.length === 0) return <div className="p-8 text-gray-500">Kein Post gefunden.</div>;
+  if (loading) return <div className="p-8 text-zinc-400">Lade Editor …</div>;
+  if (!uid || !brandId || !postId) return <div className="p-8 text-zinc-400">Brand wird geladen …</div>;
+  if (slides.length === 0) return <div className="p-8 text-zinc-400">Kein Post gefunden.</div>;
 
   const slidePhotoId = typeof activeSlide?.photo === 'string' ? activeSlide.photo : undefined;
 

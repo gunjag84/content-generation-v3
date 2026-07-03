@@ -18,7 +18,7 @@ export function StalenessHeader({ posts }: Props) {
 
   if (fresh === null) {
     return (
-      <div className="px-4 py-2 text-xs border-b bg-amber-50 text-amber-800 border-amber-200">
+      <div className="px-4 py-2 text-xs border-b bg-amber-500/10 text-amber-400 border-amber-500/30">
         Stats wurden noch nie synchronisiert.
       </div>
     );
@@ -32,8 +32,8 @@ export function StalenessHeader({ posts }: Props) {
     <div
       className={`px-4 py-2 text-xs border-b ${
         isStale
-          ? 'bg-amber-50 text-amber-800 border-amber-200'
-          : 'bg-gray-50 text-gray-500 border-gray-200'
+          ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+          : 'bg-zinc-900 text-zinc-400 border-zinc-700'
       }`}
     >
       {isStale

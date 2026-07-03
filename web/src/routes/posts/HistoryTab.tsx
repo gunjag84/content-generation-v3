@@ -229,16 +229,16 @@ export function HistoryTab() {
   if (!uid || !brandId) return null;
 
   if (loading && posts.length === 0) {
-    return <p className="p-8 text-sm text-gray-500">Lade ...</p>;
+    return <p className="p-8 text-sm text-zinc-400">Lade ...</p>;
   }
 
   if (error) {
-    return <p className="p-8 text-sm text-red-600">{error}</p>;
+    return <p className="p-8 text-sm text-red-400">{error}</p>;
   }
 
   if (posts.length === 0) {
     return (
-      <p className="p-8 text-sm text-gray-500">Noch nichts veröffentlicht.</p>
+      <p className="p-8 text-sm text-zinc-400">Noch nichts veröffentlicht.</p>
     );
   }
 
@@ -249,7 +249,7 @@ export function HistoryTab() {
     <div className="p-6 space-y-4">
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 text-xs text-gray-500">
+        <div className="flex items-center gap-3 text-xs text-zinc-400">
           <span>
             {lastSync ? <>Stats {timeAgo(lastSync)} synchronisiert</> : 'Stats noch nicht synchronisiert'}
           </span>
@@ -257,23 +257,23 @@ export function HistoryTab() {
             type="button"
             onClick={handleSync}
             disabled={syncing}
-            className="px-2 py-1 text-xs rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="px-2 py-1 text-xs rounded border border-zinc-700 text-zinc-300 hover:bg-zinc-800 disabled:opacity-50"
             title="Feed + Stats von Instagram nachladen"
           >
             {syncing ? 'Synchronisiere…' : 'Jetzt synchronisieren'}
           </button>
-          {syncError && <span className="text-red-600">{syncError}</span>}
+          {syncError && <span className="text-red-400">{syncError}</span>}
         </div>
         <div className="flex items-center gap-4 flex-wrap">
           <label
-            className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer select-none"
+            className="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer select-none"
             title="Zieht Kommentare ab, die der eigene IG-Account verfasst hat (Replies). Wirkt auf die Kommentar-Spalte und die Engagement-Rate. Eigene Likes können nicht ausgefiltert werden (Meta API gibt keine Liker-Identitäten frei)."
           >
             <input
               type="checkbox"
               checked={excludeOwnComments}
               onChange={(e) => setExcludeOwnComments(e.target.checked)}
-              className="h-3.5 w-3.5 rounded border-gray-300"
+              className="h-3.5 w-3.5 rounded border-zinc-700 bg-zinc-800 accent-cyan-500"
             />
             Eigene Kommentare ausblenden
           </label>
@@ -292,10 +292,10 @@ export function HistoryTab() {
       </div>
 
       {/* Table */}
-      <div className="border border-gray-200 rounded bg-white overflow-x-auto">
+      <div className="border border-zinc-700 rounded bg-zinc-900 overflow-x-auto">
         <div className="min-w-[820px]">
           {/* Header row */}
-          <div className={`grid ${gridCols} gap-3 px-4 py-3 border-b border-gray-200`}>
+          <div className={`grid ${gridCols} gap-3 px-4 py-3 border-b border-zinc-700`}>
             <SortHeader field="publishedAt" label="Datum" active={sort} order={order} onSort={handleSort} />
             <SortHeader field="reach" label="Reach" active={sort} order={order} onSort={handleSort} align="right" />
             <SortHeader field="impressions" label="Impr." active={sort} order={order} onSort={handleSort} align="right" />
@@ -320,22 +320,22 @@ export function HistoryTab() {
             return (
               <div
                 key={r.post.id}
-                className={`grid ${gridCols} gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 items-center`}
+                className={`grid ${gridCols} gap-3 px-4 py-3 border-b border-zinc-800 hover:bg-zinc-800 items-center`}
               >
                 {/* Thumb + title + caption preview */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="shrink-0 w-10 h-10 rounded overflow-hidden bg-gray-100">
+                  <div className="shrink-0 w-10 h-10 rounded overflow-hidden bg-zinc-800">
                     {t ? (
                       <img src={t} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <span className="flex items-center justify-center w-full h-full text-gray-400 text-xs">?</span>
+                      <span className="flex items-center justify-center w-full h-full text-zinc-500 text-xs">?</span>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm text-gray-900 truncate flex items-center gap-1.5">
+                    <div className="text-sm text-zinc-100 truncate flex items-center gap-1.5">
                       {isIgNativePost(r.post) && (
                         <span
-                          className="shrink-0 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide bg-pink-100 text-pink-700 rounded"
+                          className="shrink-0 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide bg-pink-500/20 text-pink-400 rounded"
                           title="Aus dem Instagram-Feed sync'd"
                         >
                           IG
@@ -345,7 +345,7 @@ export function HistoryTab() {
                         {hook.length > 70 ? hook.slice(0, 70) + '…' : hook}
                       </span>
                     </div>
-                    <div className="text-[11px] text-gray-500 mt-0.5">
+                    <div className="text-[11px] text-zinc-400 mt-0.5">
                       <span className="tabular-nums">{formatDate(r.publishedDate)}</span>
                       {cap && (
                         <span className="ml-2 truncate">
@@ -356,17 +356,17 @@ export function HistoryTab() {
                   </div>
                 </div>
 
-                <div className="text-right text-sm text-gray-700 tabular-nums">
+                <div className="text-right text-sm text-zinc-300 tabular-nums">
                   {formatNumber(r.reach)}
                 </div>
-                <div className="text-right text-sm text-gray-700 tabular-nums">
+                <div className="text-right text-sm text-zinc-300 tabular-nums">
                   {formatNumber(r.impressions)}
                 </div>
-                <div className="text-right text-sm text-gray-700 tabular-nums">
+                <div className="text-right text-sm text-zinc-300 tabular-nums">
                   {formatNumber(r.likes)}
                 </div>
                 <div
-                  className="text-right text-sm text-gray-700 tabular-nums"
+                  className="text-right text-sm text-zinc-300 tabular-nums"
                   title={
                     excludeOwnComments && r.rawComments != null
                       ? `Brutto ${formatNumber(r.rawComments)} − eigene ${formatNumber(r.ownComments ?? 0)}`
@@ -375,13 +375,13 @@ export function HistoryTab() {
                 >
                   {formatNumber(r.comments)}
                 </div>
-                <div className="text-right text-sm text-gray-700 tabular-nums">
+                <div className="text-right text-sm text-zinc-300 tabular-nums">
                   {formatNumber(r.saves)}
                 </div>
-                <div className="text-right text-sm text-gray-700 tabular-nums">
+                <div className="text-right text-sm text-zinc-300 tabular-nums">
                   {formatNumber(r.follows)}
                 </div>
-                <div className="text-right text-sm text-gray-700 tabular-nums">
+                <div className="text-right text-sm text-zinc-300 tabular-nums">
                   {r.engagement != null ? (r.engagement * 100).toFixed(1) + '%' : '–'}
                 </div>
 
@@ -392,7 +392,7 @@ export function HistoryTab() {
                       href={link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex text-gray-400 hover:text-indigo-600"
+                      className="inline-flex text-zinc-500 hover:text-cyan-400"
                       title="Auf Instagram ansehen"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -405,7 +405,7 @@ export function HistoryTab() {
             );
           })}
 
-          <div className="px-4 py-3 text-[11px] text-gray-500">
+          <div className="px-4 py-3 text-[11px] text-zinc-400">
             {sortedRows.length} {sortedRows.length === 1 ? 'Post' : 'Posts'}
           </div>
         </div>

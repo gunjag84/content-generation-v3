@@ -2,7 +2,7 @@
 
 Single source of truth for **operational state** (what is deployed, locked deploy patterns, runtime contracts, requirements traceability). Scope/phases/open decisions/out-of-scope live in `PROJECT-PLAN.md`. Architecture/ADRs/full spec live in `~/.claude/plans/modular-tumbling-sunrise.md` (v6 ISSUES_CLOSED 2026-04-26, historical reference).
 
-Last updated: 2026-07-03 (post-2026-06-13 editor batch: click-to-edit focus fix (f6a6876), per-word font-size stepper - `SizeStepper` in ZonePanel applies to the text selection (236cd50/24077b5/8aeb8b8), auto-switch the right rail to Zones on text selection. Live Cloud Run rev `content-gen-00031-89b` + Hosting `index-Dn5Vf7as.js`; all live-verified in browser).
+Last updated: 2026-07-03 (full dark-theme sweep: all leftover v2 light-theme Tailwind classes in web/src migrated to the locked zinc-dark convention - 39 files, ~380 occurrences; fixes invisible text-gray-900 titles in Drafts/Geplant and white cards/tables in Verlauf, Dashboard, Settings, Create, Auth screens. Slide-canvas/brand content untouched. Also: click-to-edit focus fix (f6a6876), SizeStepper (236cd50/24077b5/8aeb8b8), auto-switch right rail to Zones. Live Cloud Run rev `content-gen-00031-89b` + Hosting `index-DTsoIQdn.js`; all pages live-verified in browser post-deploy).
 
 ---
 
@@ -11,7 +11,7 @@ Last updated: 2026-07-03 (post-2026-06-13 editor batch: click-to-edit focus fix 
 - **Project:** `contentai-78bfb` (europe-west1)
 - **Hosting:** https://contentai-78bfb.web.app
 - **Cloud Run:** https://content-gen-23953893533.europe-west1.run.app
-- **Live revisions:** `content-gen-00031-89b` (Cloud Run, confirmed 2026-07-03) + Hosting `index-Dn5Vf7as.js` (confirmed 2026-07-03) + Cloud Functions `budgetKillswitch`, `igStatsSync`, `igFeedSync`, `manualIgSync` (last deployed 2026-05-08)
+- **Live revisions:** `content-gen-00031-89b` (Cloud Run, confirmed 2026-07-03) + Hosting `index-DTsoIQdn.js` (dark-theme sweep, deployed 2026-07-03) + Cloud Functions `budgetKillswitch`, `igStatsSync`, `igFeedSync`, `manualIgSync` (last deployed 2026-05-08)
 - **Deploy hazard:** ambient `gcloud config` project is `jaeger-pilot` (Tim's Tier-1 work). ALWAYS pass `--project=contentai-78bfb` on every `gcloud` command for v3, or the deploy silently creates a stray service in the wrong project. (Happened 2026-06-13; caught + cleaned.)
 
 > Note: source-of-truth plan references `content-gen-prod` as the planned project ID; actual prod project is `contentai-78bfb`.

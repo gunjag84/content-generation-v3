@@ -19,7 +19,10 @@ import {
   subscribeRecentColors,
 } from '../lib/recentColors';
 
-export type ColorInputVariant = 'dark' | 'light';
+// Both call sites (Settings > Design, editor Slide/Zone panels) now render
+// against the locked zinc-dark theme, so this component no longer needs a
+// light variant - it was the last surviving v2 light-theme remnant here.
+export type ColorInputVariant = 'dark';
 
 interface ColorInputProps {
   value: string;
@@ -32,7 +35,6 @@ interface ColorInputProps {
 export function ColorInput({
   value,
   onChange,
-  variant = 'dark',
   className,
 }: ColorInputProps) {
   const [open, setOpen] = useState(false);
@@ -97,15 +99,10 @@ export function ColorInput({
     setOpen(false);
   }
 
-  const isDark = variant === 'dark';
-  const inputCls = isDark
-    ? 'bg-zinc-800 border border-zinc-700 text-zinc-200 focus:border-amber-500/50'
-    : 'bg-white border border-gray-300 text-gray-900 focus:border-gray-900';
-  const swatchBorder = isDark ? 'border-zinc-600' : 'border-gray-300';
-  const popoverCls = isDark
-    ? 'bg-zinc-900 border border-zinc-700 shadow-xl'
-    : 'bg-white border border-gray-300 shadow-xl';
-  const hexLabelCls = isDark ? 'text-zinc-400' : 'text-gray-600';
+  const inputCls = 'bg-zinc-800 border border-zinc-700 text-zinc-200 focus:border-amber-500/50';
+  const swatchBorder = 'border-zinc-600';
+  const popoverCls = 'bg-zinc-900 border border-zinc-700 shadow-xl';
+  const hexLabelCls = 'text-zinc-400';
 
   const swatchPreview = normalizeHex(text) ?? value;
 

@@ -12,16 +12,16 @@ export function RecentPosts({ posts }: Props) {
 
   if (recent.length === 0) {
     return (
-      <div className="border border-gray-200 rounded p-4 bg-white">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Letzte Posts</h2>
-        <p className="text-xs text-gray-400">Noch keine veröffentlichten Posts.</p>
+      <div className="border border-zinc-700 rounded p-4 bg-zinc-900">
+        <h2 className="text-sm font-semibold text-zinc-300 mb-3">Letzte Posts</h2>
+        <p className="text-xs text-zinc-500">Noch keine veröffentlichten Posts.</p>
       </div>
     );
   }
 
   return (
-    <div className="border border-gray-200 rounded p-4 bg-white">
-      <h2 className="text-sm font-semibold text-gray-700 mb-3">Letzte Posts</h2>
+    <div className="border border-zinc-700 rounded p-4 bg-zinc-900">
+      <h2 className="text-sm font-semibold text-zinc-300 mb-3">Letzte Posts</h2>
       <ul>
         {recent.map((post) => {
           const rawCaption =
@@ -38,10 +38,10 @@ export function RecentPosts({ posts }: Props) {
 
           const inner = (
             <>
-              <p className="text-sm font-medium text-gray-900 truncate flex items-center gap-1.5">
+              <p className="text-sm font-medium text-zinc-100 truncate flex items-center gap-1.5">
                 {isIgNativePost(post) && (
                   <span
-                    className="shrink-0 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide bg-pink-100 text-pink-700 rounded"
+                    className="shrink-0 px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide bg-pink-500/10 text-pink-400 rounded"
                     title="Aus dem Instagram-Feed"
                   >
                     IG
@@ -49,7 +49,7 @@ export function RecentPosts({ posts }: Props) {
                 )}
                 <span className="truncate">{title}</span>
               </p>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-zinc-400 mt-0.5">
                 {date} &middot; {engagement}
               </p>
             </>
@@ -65,7 +65,7 @@ export function RecentPosts({ posts }: Props) {
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block hover:bg-gray-50 px-3 py-2 rounded"
+                    className="block hover:bg-zinc-800 px-3 py-2 rounded"
                   >
                     {inner}
                   </a>
@@ -80,7 +80,7 @@ export function RecentPosts({ posts }: Props) {
             <li key={post.id}>
               <Link
                 to={`/editor/${post.id}`}
-                className="block hover:bg-gray-50 px-3 py-2 rounded"
+                className="block hover:bg-zinc-800 px-3 py-2 rounded"
               >
                 {inner}
               </Link>

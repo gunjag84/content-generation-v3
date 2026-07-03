@@ -6,12 +6,12 @@ import { BrandSwitcher } from './BrandSwitcher';
 export function Header() {
   const user = useAuthStore((s) => s.user);
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between border-b px-6 py-3 bg-white shadow-sm">
-      <div className="font-semibold">Content Generation</div>
+    <header className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-700 px-6 py-3 bg-zinc-900">
+      <div className="font-semibold text-zinc-100">Content Generation</div>
       <div className="flex items-center gap-4">
         <BrandSwitcher />
-        <span className="text-sm text-gray-500">{user?.email}</span>
-        <button onClick={() => signOut(auth)} className="text-sm text-gray-500 hover:underline">Abmelden</button>
+        <span className="text-sm text-zinc-400">{user?.email}</span>
+        <button onClick={() => signOut(auth)} className="text-sm text-zinc-400 hover:underline">Abmelden</button>
       </div>
     </header>
   );

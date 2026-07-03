@@ -133,11 +133,11 @@ export function SchedulePostModal({ open, postId, brandId, onClose, onScheduled 
         className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
         onClick={handleBackdrop}
       >
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Beitrag einplanen</h2>
+        <div className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl w-full max-w-sm p-6">
+          <h2 className="text-lg font-semibold text-zinc-100 mb-4">Beitrag einplanen</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-zinc-300 mb-1">
                 Veröffentlichungszeitpunkt
               </label>
               <input
@@ -146,24 +146,24 @@ export function SchedulePostModal({ open, postId, brandId, onClose, onScheduled 
                 min={minDatetimeLocal()}
                 onChange={(e) => setValue(e.target.value)}
                 required
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full bg-zinc-800 border border-zinc-700 text-zinc-100 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
               />
             </div>
             {error && (
-              <p className="text-sm text-red-600">{error}</p>
+              <p className="text-sm text-red-400">{error}</p>
             )}
             <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+                className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100"
               >
                 Abbrechen
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded hover:bg-blue-500 disabled:opacity-50"
               >
                 {loading ? 'Wird geplant …' : 'Plan einplanen'}
               </button>
@@ -174,9 +174,9 @@ export function SchedulePostModal({ open, postId, brandId, onClose, onScheduled 
 
       {conflictTs && (
         <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">Zeitslot bereits belegt</h2>
-            <p className="text-sm text-gray-700 mb-6">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl w-full max-w-sm p-6">
+            <h2 className="text-lg font-semibold text-zinc-100 mb-3">Zeitslot bereits belegt</h2>
+            <p className="text-sm text-zinc-300 mb-6">
               Du hast bereits einen Post am <strong>{conflictTs}</strong> geplant. Trotzdem speichern?
             </p>
             <div className="flex justify-end gap-3">

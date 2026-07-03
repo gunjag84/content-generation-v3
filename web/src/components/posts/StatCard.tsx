@@ -12,15 +12,15 @@ export function StatCard({ label, value, avg, suffix }: Props) {
   const avgDisplay =
     avg == null ? null : formatNumber(Math.round(avg)) + (suffix ?? '');
   return (
-    <div className="border border-gray-200 rounded p-3 bg-white">
-      <div className="text-[11px] uppercase tracking-wider text-gray-500 mb-1">
+    <div className="border border-zinc-700 rounded p-3 bg-zinc-900">
+      <div className="text-[11px] uppercase tracking-wider text-zinc-400 mb-1">
         {label}
       </div>
-      <div className="text-xl font-semibold text-gray-900 tabular-nums">
+      <div className="text-xl font-semibold text-zinc-100 tabular-nums">
         {display}
       </div>
       {avgDisplay !== null && (
-        <div className="text-[11px] text-gray-400 mt-0.5 tabular-nums">
+        <div className="text-[11px] text-zinc-500 mt-0.5 tabular-nums">
           ø {avgDisplay}
         </div>
       )}

@@ -66,12 +66,12 @@ export function PhotoPicker({ brandId, slideCount, value, onChange }: PhotoPicke
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-600">
+        <span className="text-xs text-zinc-400">
           {value.length} ausgewählt {loading ? '· lade Pool…' : `· ${photos.length} im Pool`}
         </span>
         <label
           className={`px-2 py-1 rounded text-xs cursor-pointer ${
-            uploading ? 'bg-gray-300 text-gray-600' : 'bg-gray-700 text-white hover:bg-gray-900'
+            uploading ? 'bg-zinc-800 text-zinc-500' : 'bg-zinc-700 text-white hover:bg-zinc-600'
           }`}
         >
           {uploading ? 'Upload…' : '+ Upload'}
@@ -87,7 +87,7 @@ export function PhotoPicker({ brandId, slideCount, value, onChange }: PhotoPicke
       </div>
 
       {photos.length === 0 && !loading && (
-        <p className="text-xs text-gray-500">No photos yet. Upload one to start.</p>
+        <p className="text-xs text-zinc-400">No photos yet. Upload one to start.</p>
       )}
 
       {photos.length > 0 && (
@@ -100,12 +100,12 @@ export function PhotoPicker({ brandId, slideCount, value, onChange }: PhotoPicke
                   type="button"
                   onClick={() => toggle(p.downloadUrl)}
                   className={`relative block aspect-square w-full bg-center bg-cover border-2 ${
-                    picked ? 'border-amber-500' : 'border-transparent hover:border-gray-300'
+                    picked ? 'border-amber-500' : 'border-transparent hover:border-zinc-600'
                   }`}
                   style={{ backgroundImage: `url(${p.downloadUrl})` }}
                 >
                   {picked && (
-                    <span className="absolute inset-0 bg-amber-500/20 flex items-center justify-center text-amber-600 font-bold">
+                    <span className="absolute inset-0 bg-amber-500/20 flex items-center justify-center text-amber-400 font-bold">
                       ✓
                     </span>
                   )}
@@ -114,7 +114,7 @@ export function PhotoPicker({ brandId, slideCount, value, onChange }: PhotoPicke
                   <select
                     value={picked.label}
                     onChange={(e) => setLabel(p.downloadUrl, e.target.value)}
-                    className="w-full text-xs border border-gray-300 rounded px-1 py-0.5"
+                    className="w-full text-xs border border-zinc-700 bg-zinc-800 text-zinc-100 rounded px-1 py-0.5"
                   >
                     {labelOptions.map((opt) => (
                       <option key={opt} value={opt}>
@@ -130,7 +130,7 @@ export function PhotoPicker({ brandId, slideCount, value, onChange }: PhotoPicke
       )}
 
       {overSelectedWarning && (
-        <p className="text-xs text-amber-600">{overSelectedWarning}</p>
+        <p className="text-xs text-amber-400">{overSelectedWarning}</p>
       )}
     </div>
   );

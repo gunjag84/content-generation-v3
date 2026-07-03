@@ -13,13 +13,13 @@ const TABS = [
 export function SettingsLayout() {
   return (
     <div className="flex min-h-full">
-      <aside className="w-56 bg-white border-r border-gray-200 p-4 space-y-1">
+      <aside className="w-56 bg-zinc-900 border-r border-zinc-700 p-4 space-y-1">
         {TABS.map((t) => (
           <NavLink
             key={t.to}
             to={t.to}
             className={({ isActive }) =>
-              `block px-3 py-2 rounded text-sm ${isActive ? 'bg-gray-900 text-white' : 'text-gray-700 hover:bg-gray-100'}`
+              `block px-3 py-2 rounded text-sm ${isActive ? 'bg-zinc-800 text-cyan-400' : 'text-zinc-300 hover:bg-zinc-800'}`
             }
           >
             {t.label}

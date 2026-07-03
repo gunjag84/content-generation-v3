@@ -149,7 +149,7 @@ export function BrandSetupWizard({ uid, onDone, onCancel }: BrandSetupWizardProp
       {step === 'name' && (
         <form onSubmit={handleSubmitName} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium">Markenname</label>
+            <label className="block text-sm font-medium text-zinc-300">Markenname</label>
             <input
               type="text"
               required
@@ -157,16 +157,16 @@ export function BrandSetupWizard({ uid, onDone, onCancel }: BrandSetupWizardProp
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="z. B. LEBEN.LIEBEN"
-              className="mt-1 w-full border rounded px-3 py-2"
+              className="mt-1 w-full border border-zinc-700 rounded px-3 py-2 bg-zinc-800 text-zinc-100"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-zinc-400 mt-1">
               Eine Marke ist ein eigener Workspace mit eigener Identität, Fotos und Instagram-Account.
             </p>
           </div>
-          {nameError && <p className="text-sm text-red-700">{nameError}</p>}
+          {nameError && <p className="text-sm text-red-400">{nameError}</p>}
           <div className="flex justify-end gap-2">
             {onCancel && (
-              <button type="button" onClick={onCancel} className="px-4 py-2 text-sm">
+              <button type="button" onClick={onCancel} className="px-4 py-2 text-sm text-zinc-300">
                 Abbrechen
               </button>
             )}
@@ -184,34 +184,34 @@ export function BrandSetupWizard({ uid, onDone, onCancel }: BrandSetupWizardProp
       {step === 'ig' && (
         <form onSubmit={handleSubmitIg} className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold">Instagram verbinden</h3>
-            <p className="text-xs text-gray-500 mt-1">
+            <h3 className="text-sm font-semibold text-zinc-100">Instagram verbinden</h3>
+            <p className="text-xs text-zinc-400 mt-1">
               Meta Access Token + Instagram Business Account. Kannst du auch später in den Einstellungen pflegen.
             </p>
           </div>
           <div>
-            <label className="block text-sm font-medium">Meta Access Token</label>
+            <label className="block text-sm font-medium text-zinc-300">Meta Access Token</label>
             <input
               type="password"
               value={ig.token}
               onChange={(e) => setIg((p) => ({ ...p, token: e.target.value }))}
               placeholder="EAA..."
-              className="mt-1 w-full border rounded px-3 py-2 text-sm"
+              className="mt-1 w-full border border-zinc-700 rounded px-3 py-2 text-sm bg-zinc-800 text-zinc-100"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium">Instagram Business Account ID</label>
+            <label className="block text-sm font-medium text-zinc-300">Instagram Business Account ID</label>
             <input
               type="text"
               value={ig.igUserId}
               onChange={(e) => setIg((p) => ({ ...p, igUserId: e.target.value }))}
               placeholder="17841..."
-              className="mt-1 w-full border rounded px-3 py-2 text-sm"
+              className="mt-1 w-full border border-zinc-700 rounded px-3 py-2 text-sm bg-zinc-800 text-zinc-100"
             />
           </div>
-          {ig.error && <p className="text-sm text-red-700">{ig.error}</p>}
+          {ig.error && <p className="text-sm text-red-400">{ig.error}</p>}
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={skipIg} className="px-4 py-2 text-sm">
+            <button type="button" onClick={skipIg} className="px-4 py-2 text-sm text-zinc-300">
               Später
             </button>
             <button
@@ -228,34 +228,34 @@ export function BrandSetupWizard({ uid, onDone, onCancel }: BrandSetupWizardProp
       {step === 'identity' && (
         <form onSubmit={handleSubmitIdentity} className="space-y-3">
           <div>
-            <h3 className="text-sm font-semibold">Markenidentität</h3>
-            <p className="text-xs text-gray-500 mt-1">
+            <h3 className="text-sm font-semibold text-zinc-100">Markenidentität</h3>
+            <p className="text-xs text-zinc-400 mt-1">
               Voice und Persona steuern später die Generierung. Optional – kann jederzeit nachgepflegt werden.
             </p>
           </div>
           <div>
-            <label className="block text-sm font-medium">Voice</label>
+            <label className="block text-sm font-medium text-zinc-300">Voice</label>
             <textarea
               value={identity.voice}
               onChange={(e) => setIdentity((p) => ({ ...p, voice: e.target.value }))}
               placeholder="Wie spricht die Marke? (Tonalität, Stil)"
               rows={3}
-              className="mt-1 w-full border rounded px-3 py-2 text-sm"
+              className="mt-1 w-full border border-zinc-700 rounded px-3 py-2 text-sm bg-zinc-800 text-zinc-100"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium">Persona</label>
+            <label className="block text-sm font-medium text-zinc-300">Persona</label>
             <textarea
               value={identity.persona}
               onChange={(e) => setIdentity((p) => ({ ...p, persona: e.target.value }))}
               placeholder="Wer steht hinter der Marke? Wer ist die Zielgruppe?"
               rows={3}
-              className="mt-1 w-full border rounded px-3 py-2 text-sm"
+              className="mt-1 w-full border border-zinc-700 rounded px-3 py-2 text-sm bg-zinc-800 text-zinc-100"
             />
           </div>
-          {identity.error && <p className="text-sm text-red-700">{identity.error}</p>}
+          {identity.error && <p className="text-sm text-red-400">{identity.error}</p>}
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={skipIdentity} className="px-4 py-2 text-sm">
+            <button type="button" onClick={skipIdentity} className="px-4 py-2 text-sm text-zinc-300">
               Später
             </button>
             <button
@@ -270,7 +270,7 @@ export function BrandSetupWizard({ uid, onDone, onCancel }: BrandSetupWizardProp
       )}
 
       {step === 'done' && (
-        <div className="text-sm text-gray-600">Marke angelegt. Du kannst loslegen.</div>
+        <div className="text-sm text-zinc-400">Marke angelegt. Du kannst loslegen.</div>
       )}
     </div>
   );
@@ -284,21 +284,21 @@ function StepIndicator({ step }: { step: Step }) {
   ];
   const currentIdx = steps.findIndex((s) => s.key === step);
   return (
-    <ol className="flex items-center gap-2 text-xs text-gray-500">
+    <ol className="flex items-center gap-2 text-xs text-zinc-400">
       {steps.map((s, idx) => (
         <li key={s.key} className="flex items-center gap-2">
           <span
             className={
               idx < currentIdx
-                ? 'text-green-700'
+                ? 'text-green-400'
                 : idx === currentIdx
-                  ? 'font-semibold text-black'
-                  : 'text-gray-400'
+                  ? 'font-semibold text-zinc-100'
+                  : 'text-zinc-500'
             }
           >
             {idx + 1}. {s.label}
           </span>
-          {idx < steps.length - 1 && <span className="text-gray-300">›</span>}
+          {idx < steps.length - 1 && <span className="text-zinc-600">›</span>}
         </li>
       ))}
     </ol>

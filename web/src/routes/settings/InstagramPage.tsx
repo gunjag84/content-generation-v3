@@ -36,12 +36,12 @@ function FeedSyncBanner({ status }: { status: IgFeedSyncStatusDoc | null }) {
   // Token expired = blocking (no posts can be sync'd until re-auth).
   if (status.status === 'token_expired') {
     return (
-      <div className="border border-red-300 bg-red-50 rounded p-3 text-sm text-red-900">
+      <div className="border border-red-800 bg-red-950/40 rounded p-3 text-sm text-red-300">
         <div className="font-semibold">Meta Token abgelaufen</div>
         <p className="mt-1">
           Verbinde den Account neu, sonst werden keine neuen IG-Posts mehr eingelesen.
         </p>
-        {status.error && <p className="mt-1 text-xs text-red-700">{status.error}</p>}
+        {status.error && <p className="mt-1 text-xs text-red-400">{status.error}</p>}
       </div>
     );
   }
@@ -53,7 +53,7 @@ function FeedSyncBanner({ status }: { status: IgFeedSyncStatusDoc | null }) {
     status.tokenExpiresInDays < 7
   ) {
     return (
-      <div className="border border-amber-300 bg-amber-50 rounded p-3 text-sm text-amber-900">
+      <div className="border border-amber-800 bg-amber-950/40 rounded p-3 text-sm text-amber-300">
         Meta Token läuft in {status.tokenExpiresInDays} Tag(en) ab. Bitte rechtzeitig neu verbinden.
       </div>
     );
@@ -61,7 +61,7 @@ function FeedSyncBanner({ status }: { status: IgFeedSyncStatusDoc | null }) {
 
   if (status.status === 'rate_limited') {
     return (
-      <div className="border border-yellow-300 bg-yellow-50 rounded p-3 text-sm text-yellow-900">
+      <div className="border border-yellow-800 bg-yellow-950/40 rounded p-3 text-sm text-yellow-300">
         Meta Rate-Limit erreicht. Der nächste 6h-Sync versucht es erneut.
       </div>
     );
@@ -69,7 +69,7 @@ function FeedSyncBanner({ status }: { status: IgFeedSyncStatusDoc | null }) {
 
   if (status.status === 'parse_error' || status.status === 'error') {
     return (
-      <div className="border border-red-200 bg-red-50 rounded p-3 text-sm text-red-800">
+      <div className="border border-red-800 bg-red-950/40 rounded p-3 text-sm text-red-300">
         IG-Feed-Sync fehlgeschlagen.
         {status.error && <span className="block text-xs mt-1">{status.error}</span>}
       </div>
@@ -78,7 +78,7 @@ function FeedSyncBanner({ status }: { status: IgFeedSyncStatusDoc | null }) {
 
   if (status.status === 'ok') {
     return (
-      <div className="border border-gray-200 bg-gray-50 rounded p-3 text-xs text-gray-600">
+      <div className="border border-zinc-700 bg-zinc-800 rounded p-3 text-xs text-zinc-400">
         IG-Feed-Sync OK. {typeof status.itemCount === 'number' ? `${status.itemCount} Posts` : ''}
         {ts ? ` · ${ts}` : ''}
       </div>
@@ -87,7 +87,7 @@ function FeedSyncBanner({ status }: { status: IgFeedSyncStatusDoc | null }) {
 
   if (status.status === 'syncing') {
     return (
-      <div className="border border-gray-200 bg-gray-50 rounded p-3 text-xs text-gray-600">
+      <div className="border border-zinc-700 bg-zinc-800 rounded p-3 text-xs text-zinc-400">
         IG-Feed-Sync läuft …
       </div>
     );
@@ -163,14 +163,14 @@ export function InstagramPage() {
   return (
     <div className="max-w-2xl space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Instagram</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="text-2xl font-semibold text-zinc-100">Instagram</h1>
+        <p className="text-sm text-zinc-400">
           Meta Access Token und Instagram Business Account pro Marke konfigurieren.
         </p>
       </header>
 
       {!fullyConfigured && (
-        <div className="border border-amber-300 bg-amber-50 rounded p-3 text-sm text-amber-900">
+        <div className="border border-amber-800 bg-amber-950/40 rounded p-3 text-sm text-amber-300">
           IG-Token fehlt für <span className="font-semibold">{brand?.name ?? 'diese Marke'}</span>.
           Bis du Token + Account-ID hinterlegst, kann diese Marke keine Posts veröffentlichen.
         </div>
@@ -178,57 +178,57 @@ export function InstagramPage() {
 
       {fullyConfigured && <FeedSyncBanner status={feedStatus} />}
 
-      <section className="border border-gray-200 rounded p-4 space-y-3">
-        <h2 className="text-lg font-medium">Status</h2>
+      <section className="border border-zinc-700 rounded p-4 space-y-3">
+        <h2 className="text-lg font-medium text-zinc-100">Status</h2>
         {brand?.name && (
-          <p className="text-sm text-gray-600">Aktive Marke: {brand.name}</p>
+          <p className="text-sm text-zinc-300">Aktive Marke: {brand.name}</p>
         )}
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-zinc-300">
           Meta Token:{' '}
           {tokenConfigured ? (
-            <span className="text-green-700">konfiguriert</span>
+            <span className="text-green-400">konfiguriert</span>
           ) : (
-            <span className="text-amber-700">fehlt</span>
+            <span className="text-amber-400">fehlt</span>
           )}
         </p>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-zinc-300">
           Instagram Account:{' '}
           {igConfigured ? (
-            <span className="text-green-700">{brand?.instagramUserId}</span>
+            <span className="text-green-400">{brand?.instagramUserId}</span>
           ) : (
-            <span className="text-amber-700">fehlt</span>
+            <span className="text-amber-400">fehlt</span>
           )}
         </p>
       </section>
 
-      <section className="border border-gray-200 rounded p-4 space-y-3">
-        <h2 className="text-lg font-medium">
+      <section className="border border-zinc-700 rounded p-4 space-y-3">
+        <h2 className="text-lg font-medium text-zinc-100">
           {fullyConfigured ? 'Account neu verbinden' : 'Account verbinden'}
         </h2>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-zinc-300">
           Beide Felder gemeinsam validieren und speichern. Der Token wird KMS-verschlüsselt im
           Marken-Dokument abgelegt.
         </p>
 
         <div>
-          <label className="block text-sm font-medium">Meta Access Token</label>
+          <label className="block text-sm font-medium text-zinc-300">Meta Access Token</label>
           <input
             type="password"
             value={tokenInput}
             onChange={(e) => setTokenInput(e.target.value)}
             placeholder="EAA..."
-            className="mt-1 w-full border border-gray-300 rounded p-2 text-sm"
+            className="mt-1 w-full border border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded p-2 text-sm"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium">Instagram Business Account ID</label>
+          <label className="block text-sm font-medium text-zinc-300">Instagram Business Account ID</label>
           <input
             type="text"
             value={igInput}
             onChange={(e) => setIgInput(e.target.value)}
             placeholder="17841..."
-            className="mt-1 w-full border border-gray-300 rounded p-2 text-sm"
+            className="mt-1 w-full border border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded p-2 text-sm"
           />
         </div>
 
@@ -237,13 +237,13 @@ export function InstagramPage() {
             type="button"
             onClick={handleSave}
             disabled={buttonDisabled}
-            className="bg-gray-900 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
           >
             {saving ? 'Verbinde…' : 'Verbinden & speichern'}
           </button>
-          {error && <span className="text-sm text-red-600">{error}</span>}
+          {error && <span className="text-sm text-red-400">{error}</span>}
           {!error && savedAt && (
-            <span className="text-sm text-green-600">
+            <span className="text-sm text-green-400">
               Gespeichert{savedUsername ? ` (@${savedUsername})` : ''}
             </span>
           )}

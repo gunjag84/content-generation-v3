@@ -186,15 +186,15 @@ export function MethodsPage() {
     await deleteDoc(doc(db, 'users', uid, 'brands', brandId, 'methods', id));
   }
 
-  if (!uid || !brandId) return <p className="text-gray-500">Brand wird geladen ...</p>;
+  if (!uid || !brandId) return <p className="text-zinc-400">Brand wird geladen ...</p>;
 
   const visibleMethods = methods.filter((m) => m.mode === activeTab);
 
   return (
     <div className="max-w-3xl space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Methods</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="text-2xl font-semibold text-zinc-100">Methods</h1>
+        <p className="text-sm text-zinc-400">
           Methoden mit shipped Prompt-Templates (<code>story</code>, <code>liste</code>,{' '}
           <code>vorher-nachher</code>, <code>zitat</code>, <code>hormozi-ve</code>,{' '}
           <code>twist-the-knife</code>) nutzen die mitgelieferten Slide-Strukturen. Eigene Methoden
@@ -204,7 +204,7 @@ export function MethodsPage() {
       </header>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200">
+      <div className="flex gap-1 border-b border-zinc-700">
         {MODES.map((m) => (
           <button
             key={m.value}
@@ -212,8 +212,8 @@ export function MethodsPage() {
             onClick={() => setActiveTab(m.value)}
             className={`px-4 py-2 text-sm border-b-2 -mb-px ${
               activeTab === m.value
-                ? 'border-gray-900 text-gray-900 font-medium'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-cyan-400 text-cyan-400 font-medium'
+                : 'border-transparent text-zinc-400 hover:text-zinc-100'
             }`}
           >
             {m.label}
@@ -222,19 +222,19 @@ export function MethodsPage() {
       </div>
 
       {/* Add form */}
-      <div className="border border-gray-200 rounded p-4 space-y-3">
+      <div className="border border-zinc-700 rounded p-4 space-y-3">
         <input
           type="text"
           value={draftName}
           onChange={(e) => setDraftName(e.target.value)}
           placeholder="Name (z. B. Anekdote)"
-          className="w-full border border-gray-300 rounded p-2 text-sm"
+          className="w-full border border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded p-2 text-sm"
         />
         <button
           type="button"
           onClick={add}
           disabled={!draftName.trim()}
-          className="bg-gray-900 text-white px-3 py-1.5 rounded text-sm disabled:opacity-50"
+          className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-sm disabled:opacity-50"
         >
           Hinzufügen
         </button>
@@ -243,46 +243,46 @@ export function MethodsPage() {
       {/* Method cards for active tab */}
       <div className="space-y-3">
         {visibleMethods.length === 0 && (
-          <p className="text-sm text-gray-400">Noch keine Methode in diesem Tab.</p>
+          <p className="text-sm text-zinc-500">Noch keine Methode in diesem Tab.</p>
         )}
         {visibleMethods.map((m) => (
-          <div key={m.id} className="border border-gray-200 rounded p-4 space-y-4">
+          <div key={m.id} className="border border-zinc-700 rounded p-4 space-y-4">
             <div className="flex gap-3 items-center">
               <input
                 type="text"
                 value={m.name}
                 onChange={(e) => patch(m.id, 'name', e.target.value)}
-                className="flex-1 border border-gray-300 rounded p-2 text-sm"
+                className="flex-1 border border-zinc-700 bg-zinc-800 text-zinc-100 rounded p-2 text-sm"
               />
-              <code className="text-xs text-gray-500 shrink-0">{m.slug}</code>
+              <code className="text-xs text-zinc-400 shrink-0">{m.slug}</code>
               <button
                 type="button"
                 onClick={() => remove(m.id)}
-                className="text-sm text-red-600 hover:underline shrink-0"
+                className="text-sm text-red-400 hover:underline shrink-0"
               >
                 Löschen
               </button>
             </div>
             {LENGTH_LABELS.map(({ key, label }) => (
               <div key={key} className="space-y-1.5">
-                <span className="block text-xs font-medium uppercase tracking-wider text-gray-500">{label}</span>
+                <span className="block text-xs font-medium uppercase tracking-wider text-zinc-400">{label}</span>
                 <div className="flex gap-2 items-start">
                   <textarea
                     value={m.lengths[key].description}
                     onChange={(e) => patch(m.id, `lengths.${key}.description`, e.target.value)}
                     placeholder="Beschreibung (wird als Prompt-Definition verwendet)"
                     rows={3}
-                    className="flex-1 border border-gray-300 rounded p-2 text-sm"
+                    className="flex-1 border border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded p-2 text-sm"
                   />
                   <div className="flex flex-col items-center gap-1 shrink-0">
-                    <label className="text-xs text-gray-500 uppercase tracking-wider">Slides</label>
+                    <label className="text-xs text-zinc-400 uppercase tracking-wider">Slides</label>
                     <input
                       type="number"
                       min={1}
                       max={10}
                       value={m.lengths[key].slideCount}
                       onChange={(e) => patch(m.id, `lengths.${key}.slideCount`, Math.max(1, Math.min(10, parseInt(e.target.value, 10) || 1)))}
-                      className="w-16 border border-gray-300 rounded p-1.5 text-sm"
+                      className="w-16 border border-zinc-700 bg-zinc-800 text-zinc-100 rounded p-1.5 text-sm"
                     />
                   </div>
                 </div>

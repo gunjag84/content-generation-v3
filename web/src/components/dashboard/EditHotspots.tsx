@@ -17,19 +17,19 @@ export function EditHotspots({ posts }: Props) {
   const hot = hotspotZone(last10);
 
   return (
-    <div className="border border-gray-200 rounded p-4 bg-white">
-      <h2 className="text-sm font-semibold text-gray-700 mb-3">Edit-Hot-Spot</h2>
+    <div className="border border-zinc-700 rounded p-4 bg-zinc-900">
+      <h2 className="text-sm font-semibold text-zinc-300 mb-3">Edit-Hot-Spot</h2>
       {hot === null ? (
-        <p className="text-xs text-gray-400">Noch keine Edit-Daten verfügbar.</p>
+        <p className="text-xs text-zinc-500">Noch keine Edit-Daten verfügbar.</p>
       ) : (
         <>
-          <div className="text-2xl font-semibold text-gray-900">
+          <div className="text-2xl font-semibold text-zinc-100">
             {ZONE_LABELS_DE[hot.zone]}
           </div>
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs text-zinc-400 mt-1">
             {(hot.avg * 100).toFixed(0)}% Änderung im Schnitt
           </div>
-          <div className="text-[10px] text-gray-400 mt-2">
+          <div className="text-[10px] text-zinc-500 mt-2">
             Über die letzten {last10.length} Posts
           </div>
         </>

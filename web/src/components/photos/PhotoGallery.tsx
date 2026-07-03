@@ -34,12 +34,12 @@ export function PhotoGallery({ brandId }: PhotoGalleryProps) {
     <div className="max-w-5xl space-y-6">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Photos</h1>
-          <p className="text-sm text-gray-500">Brand-spezifischer Foto-Pool für Generate.</p>
+          <h1 className="text-2xl font-semibold text-zinc-100">Photos</h1>
+          <p className="text-sm text-zinc-400">Brand-spezifischer Foto-Pool für Generate.</p>
         </div>
         <label
           className={`px-3 py-1.5 rounded text-sm cursor-pointer ${
-            uploading ? 'bg-gray-300 text-gray-600' : 'bg-gray-900 text-white hover:bg-gray-700'
+            uploading ? 'bg-zinc-800 text-zinc-500' : 'bg-blue-600 text-white hover:bg-blue-500'
           }`}
         >
           {uploading ? 'Lade hoch…' : 'Upload'}
@@ -54,12 +54,12 @@ export function PhotoGallery({ brandId }: PhotoGalleryProps) {
         </label>
       </header>
 
-      {uploadError && <p className="text-sm text-red-600">{uploadError}</p>}
+      {uploadError && <p className="text-sm text-red-400">{uploadError}</p>}
 
-      {loading && <p className="text-sm text-gray-500">Lade Fotos…</p>}
+      {loading && <p className="text-sm text-zinc-400">Lade Fotos…</p>}
 
       {!loading && photos.length === 0 && (
-        <p className="text-sm text-gray-500">No photos yet. Upload your first.</p>
+        <p className="text-sm text-zinc-400">No photos yet. Upload your first.</p>
       )}
 
       {photos.length > 0 && (
@@ -105,9 +105,9 @@ function PhotoTile({ photo, onLabelChange, onDelete }: PhotoTileProps) {
   }
 
   return (
-    <div className="border border-gray-200 rounded overflow-hidden bg-white">
+    <div className="border border-zinc-700 rounded overflow-hidden bg-zinc-900">
       <div
-        className="aspect-square bg-gray-100 bg-center bg-cover"
+        className="aspect-square bg-zinc-800 bg-center bg-cover"
         style={{ backgroundImage: `url(${photo.downloadUrl})` }}
       />
       <div className="p-2 space-y-2">
@@ -116,12 +116,12 @@ function PhotoTile({ photo, onLabelChange, onDelete }: PhotoTileProps) {
           value={label}
           onChange={(e) => commit(e.target.value)}
           placeholder="label (z.B. all, 1, 2)"
-          className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+          className="w-full border border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded px-2 py-1 text-xs"
         />
         <button
           type="button"
           onClick={onDelete}
-          className="w-full text-xs text-red-600 hover:underline"
+          className="w-full text-xs text-red-400 hover:underline"
         >
           Löschen
         </button>

@@ -142,27 +142,27 @@ export function DraftsTab() {
 
   if (posts.length === 0) {
     return (
-      <p className="p-8 text-gray-500 text-sm">
-        Noch keine Drafts oder fehlgeschlagene Beiträge. <a href="/create" className="text-indigo-600 hover:underline">/create starten.</a>
+      <p className="p-8 text-zinc-400 text-sm">
+        Noch keine Drafts oder fehlgeschlagene Beiträge. <a href="/create" className="text-cyan-400 hover:underline">/create starten.</a>
       </p>
     );
   }
 
   return (
     <>
-      <ul className="divide-y divide-gray-200">
+      <ul className="divide-y divide-zinc-800">
         {posts.map((p) => (
-          <li key={p.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50">
+          <li key={p.id} className="flex items-center gap-4 px-6 py-4 hover:bg-zinc-800">
             {/* Thumbnail */}
             <button
-              className="shrink-0 w-12 h-12 rounded overflow-hidden bg-gray-100 focus:outline-none"
+              className="shrink-0 w-12 h-12 rounded overflow-hidden bg-zinc-800 focus:outline-none"
               onClick={() => navigate(`/editor/${p.id}`)}
               title="Im Editor öffnen"
             >
               {p.thumb ? (
                 <img src={p.thumb} alt="" className="w-full h-full object-cover" />
               ) : (
-                <span className="flex items-center justify-center w-full h-full text-gray-400 text-xs">?</span>
+                <span className="flex items-center justify-center w-full h-full text-zinc-500 text-xs">?</span>
               )}
             </button>
 
@@ -173,15 +173,15 @@ export function DraftsTab() {
             >
               <div className="flex items-center gap-2">
                 {p.status === 'error' && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-red-100 text-red-700 rounded">
+                  <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-red-500/20 text-red-400 rounded">
                     Fehler
                   </span>
                 )}
-                <p className="text-sm font-medium text-gray-900 truncate">{p.title}</p>
+                <p className="text-sm font-medium text-zinc-100 truncate">{p.title}</p>
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-zinc-400 mt-0.5">
                 {p.status === 'error' && p.errorMsg
-                  ? <span className="text-red-600">{p.errorMsg}</span>
+                  ? <span className="text-red-400">{p.errorMsg}</span>
                   : formatTs(p.updatedAt)}
               </p>
             </button>
@@ -189,13 +189,13 @@ export function DraftsTab() {
             {/* Actions */}
             <div className="flex items-center gap-2 shrink-0">
               {errors[p.id] && (
-                <span className="text-xs text-red-600">{errors[p.id]}</span>
+                <span className="text-xs text-red-400">{errors[p.id]}</span>
               )}
               {p.status === 'error' ? (
                 <button
                   onClick={() => handleReset(p.id)}
                   disabled={resettingId === p.id}
-                  className="px-3 py-1.5 text-xs border border-amber-400 text-amber-700 rounded hover:bg-amber-50 disabled:opacity-50"
+                  className="px-3 py-1.5 text-xs border border-amber-700 text-amber-400 rounded hover:bg-amber-950 disabled:opacity-50"
                   title="Auf Draft zurücksetzen, um neu zu veröffentlichen"
                 >
                   {resettingId === p.id ? 'Wird zurückgesetzt …' : 'Zurücksetzen'}
@@ -204,14 +204,14 @@ export function DraftsTab() {
                 <>
                   <button
                     onClick={() => setSchedulePostId(p.id)}
-                    className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-700 hover:bg-gray-100"
+                    className="px-3 py-1.5 text-xs border border-zinc-700 rounded text-zinc-300 hover:bg-zinc-800"
                   >
                     Einplanen
                   </button>
                   <button
                     onClick={() => handlePublishNow(p.id)}
                     disabled={publishingId === p.id}
-                    className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                    className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-500 disabled:opacity-50"
                   >
                     {publishingId === p.id ? 'Wird veröffentlicht …' : 'Jetzt veröffentlichen'}
                   </button>
@@ -219,7 +219,7 @@ export function DraftsTab() {
               )}
               <button
                 onClick={() => setDeletePostId(p.id)}
-                className="px-3 py-1.5 text-xs border border-red-300 text-red-600 rounded hover:bg-red-50"
+                className="px-3 py-1.5 text-xs border border-red-800 text-red-400 rounded hover:bg-red-950"
                 title="Beitrag löschen"
               >
                 Löschen

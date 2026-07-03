@@ -18,23 +18,23 @@ export default function Dashboard() {
   if (!uid || !brandId) {
     return (
       <section className="p-8">
-        <p className="text-gray-500">Brand wird geladen ...</p>
+        <p className="text-zinc-400">Brand wird geladen ...</p>
       </section>
     );
   }
 
   return (
-    <section className="flex flex-col">
+    <section className="flex flex-col text-zinc-100">
       <StalenessHeader posts={posts} />
       {error && (
         <div className="px-8 pt-4">
-          <p className="text-sm text-red-600">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
       <div className="p-8">
-        <h1 className="text-2xl font-semibold mb-6">Dashboard</h1>
+        <h1 className="text-2xl font-semibold mb-6 text-zinc-100">Dashboard</h1>
         {loading && posts.length === 0 ? (
-          <p className="text-sm text-gray-500">Lade ...</p>
+          <p className="text-sm text-zinc-400">Lade ...</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <RecentPosts posts={posts} />

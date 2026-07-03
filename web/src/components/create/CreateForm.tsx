@@ -134,8 +134,8 @@ export function CreateForm({
               onClick={() => setMode(m.value)}
               className={`py-1.5 text-sm border ${
                 mode === m.value
-                  ? 'border-gray-900 bg-gray-900 text-white'
-                  : 'border-gray-300 text-gray-700 hover:border-gray-500'
+                  ? 'border-cyan-600 bg-cyan-600 text-white'
+                  : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'
               }`}
             >
               {m.label}
@@ -148,7 +148,7 @@ export function CreateForm({
       <div>
         <Label>Method</Label>
         {filteredMethods.length === 0 ? (
-          <p className="mt-1 text-sm text-gray-400">Methoden werden initialisiert ...</p>
+          <p className="mt-1 text-sm text-zinc-500">Methoden werden initialisiert ...</p>
         ) : (
           <div className="grid grid-cols-4 gap-1 mt-1">
             {filteredMethods.map((m) => (
@@ -158,8 +158,8 @@ export function CreateForm({
                 onClick={() => setMethodSlug(m.slug)}
                 className={`py-1.5 text-sm border ${
                   methodSlug === m.slug
-                    ? 'border-gray-900 bg-gray-900 text-white'
-                    : 'border-gray-300 text-gray-700 hover:border-gray-500'
+                    ? 'border-cyan-600 bg-cyan-600 text-white'
+                    : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'
                 }`}
               >
                 {m.name}
@@ -180,8 +180,8 @@ export function CreateForm({
               onClick={() => setLength(l.value)}
               className={`py-1.5 text-sm border ${
                 length === l.value
-                  ? 'border-gray-900 bg-gray-900 text-white'
-                  : 'border-gray-300 text-gray-700 hover:border-gray-500'
+                  ? 'border-cyan-600 bg-cyan-600 text-white'
+                  : 'border-zinc-700 text-zinc-300 hover:border-zinc-500'
               }`}
             >
               {l.label}
@@ -196,7 +196,7 @@ export function CreateForm({
         <select
           value={situationId ?? ''}
           onChange={(e) => setSituationId(e.target.value || null)}
-          className="mt-1 w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+          className="mt-1 w-full border border-zinc-700 bg-zinc-800 text-zinc-100 rounded px-2 py-1.5 text-sm"
         >
           <option value="">Free text</option>
           {situations.map((s) => (
@@ -214,10 +214,10 @@ export function CreateForm({
           }}
           rows={4}
           placeholder="Situation beschreiben (>= 10 Zeichen)"
-          className="mt-2 w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+          className="mt-2 w-full border border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded px-2 py-1.5 text-sm"
         />
-        {situationError && <p className="text-xs text-red-600 mt-1">{situationError}</p>}
-        <p className="text-xs text-gray-500 mt-1">
+        {situationError && <p className="text-xs text-red-400 mt-1">{situationError}</p>}
+        <p className="text-xs text-zinc-400 mt-1">
           Detected: {manualSlideCount} {manualSlideCount === 1 ? 'slide' : 'slides'}
           {manualSlideCount === 0 && ' (Format: "Slide 1: ...")'}
         </p>
@@ -239,7 +239,7 @@ export function CreateForm({
             type="text"
             value={author}
             onChange={(e) => setAuthor(e.target.value)}
-            className="mt-1 w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+            className="mt-1 w-full border border-zinc-700 bg-zinc-800 text-zinc-100 rounded px-2 py-1.5 text-sm"
           />
         </div>
       )}
@@ -249,7 +249,7 @@ export function CreateForm({
         <button
           type="submit"
           disabled={!canSubmit}
-          className="bg-gray-900 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
         >
           {submitting ? 'Generiere…' : 'Generate with AI'}
         </button>
@@ -258,7 +258,7 @@ export function CreateForm({
           onClick={submitManual}
           disabled={!canSubmitManual}
           title={manualSlideCount === 0 ? 'Format: "Slide 1: ..."' : undefined}
-          className="border border-gray-900 text-gray-900 px-4 py-2 rounded text-sm disabled:opacity-50 disabled:border-gray-300 disabled:text-gray-400"
+          className="border border-cyan-500 text-cyan-400 px-4 py-2 rounded text-sm hover:bg-zinc-800 disabled:opacity-50 disabled:border-zinc-700 disabled:text-zinc-500"
         >
           Use my text
         </button>
@@ -266,7 +266,7 @@ export function CreateForm({
           <button
             type="button"
             onClick={onCancel}
-            className="border border-gray-300 px-4 py-2 rounded text-sm hover:bg-gray-50"
+            className="border border-zinc-700 text-zinc-300 px-4 py-2 rounded text-sm hover:bg-zinc-800"
           >
             Cancel
           </button>
@@ -277,5 +277,5 @@ export function CreateForm({
 }
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <span className="block text-xs font-medium uppercase tracking-wider text-gray-600">{children}</span>;
+  return <span className="block text-xs font-medium uppercase tracking-wider text-zinc-400">{children}</span>;
 }

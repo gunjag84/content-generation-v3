@@ -23,7 +23,7 @@ export default function App() {
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <Header />
-          <main className="flex-1 bg-gray-50 overflow-y-auto min-h-0">
+          <main className="flex-1 bg-zinc-950 overflow-y-auto min-h-0">
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/create" element={<Create />} />

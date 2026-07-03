@@ -23,8 +23,8 @@ export function SortHeader<F extends string>({
         align === 'right' ? 'text-right' : 'text-left'
       } ${
         isActive
-          ? 'text-indigo-600 font-medium'
-          : 'text-gray-500 hover:text-gray-700'
+          ? 'text-cyan-400 font-medium'
+          : 'text-zinc-400 hover:text-zinc-300'
       }`}
     >
       {label}

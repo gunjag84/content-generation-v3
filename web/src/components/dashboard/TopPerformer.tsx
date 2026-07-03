@@ -19,11 +19,11 @@ export function TopPerformer({ posts }: Props) {
     .filter((item): item is { post: PublishedPostWithId; er: number } => item.er !== null);
 
   return (
-    <div className="border border-gray-200 rounded p-4 bg-white">
-      <h2 className="text-sm font-semibold text-gray-700 mb-3">Top Post (30 Tage)</h2>
+    <div className="border border-zinc-700 rounded p-4 bg-zinc-900">
+      <h2 className="text-sm font-semibold text-zinc-300 mb-3">Top Post (30 Tage)</h2>
 
       {withEr.length === 0 ? (
-        <p className="text-sm text-gray-400">Noch keine Stats für die letzten 30 Tage.</p>
+        <p className="text-sm text-zinc-500">Noch keine Stats für die letzten 30 Tage.</p>
       ) : (
         (() => {
           const { post, er } = withEr.reduce((best, cur) =>
@@ -43,10 +43,10 @@ export function TopPerformer({ posts }: Props) {
           // to edit). Link out to IG instead.
           const inner = (
             <>
-              <p className="text-sm text-gray-800 font-medium leading-snug">
+              <p className="text-sm text-zinc-300 font-medium leading-snug">
                 {title || 'Kein Titel'}
               </p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-zinc-400 mt-1">
                 {dateStr} · {erPct} Engagement · {methodLabel}
               </p>
             </>
@@ -62,7 +62,7 @@ export function TopPerformer({ posts }: Props) {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block hover:bg-gray-50 -mx-2 px-2 py-1 rounded"
+                className="block hover:bg-zinc-800 -mx-2 px-2 py-1 rounded"
               >
                 {inner}
               </a>
@@ -72,7 +72,7 @@ export function TopPerformer({ posts }: Props) {
           return (
             <Link
               to={`/editor/${post.id}`}
-              className="block hover:bg-gray-50 -mx-2 px-2 py-1 rounded"
+              className="block hover:bg-zinc-800 -mx-2 px-2 py-1 rounded"
             >
               {inner}
             </Link>

@@ -18,9 +18,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   const { data: userDoc, loading: docLoading } = useUserDoc(user?.uid ?? null);
 
-  if (loading) return <div className="p-8 text-center text-gray-500">Lade…</div>;
+  if (loading) return <div className="p-8 text-center text-zinc-400 bg-zinc-950 min-h-screen">Lade…</div>;
   if (!user) return <SignInScreen />;
-  if (docLoading) return <div className="p-8 text-center text-gray-500">Lade Profil…</div>;
+  if (docLoading) return <div className="p-8 text-center text-zinc-400 bg-zinc-950 min-h-screen">Lade Profil…</div>;
 
   const onboardingComplete = !!userDoc?.activeBrandId && !!userDoc?.apiKeys?.anthropic;
   if (!onboardingComplete) {

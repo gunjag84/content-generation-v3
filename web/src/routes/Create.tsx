@@ -159,13 +159,13 @@ export default function Create() {
   }
 
   if (!uid || !brandId) {
-    return <section className="p-8"><p className="text-gray-500">Brand wird geladen ...</p></section>;
+    return <section className="p-8"><p className="text-zinc-400">Brand wird geladen ...</p></section>;
   }
 
   return (
     <section className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
       <div>
-        <h1 className="text-2xl font-semibold mb-4">Create</h1>
+        <h1 className="text-2xl font-semibold mb-4 text-zinc-100">Create</h1>
         <CreateForm
           brandId={brandId}
           situations={situations}
@@ -175,7 +175,7 @@ export default function Create() {
           onSubmitManual={onSubmitManual}
           onCancel={onCancel}
         />
-        {errorMsg && <p className="text-sm text-red-600 mt-3">{errorMsg}</p>}
+        {errorMsg && <p className="text-sm text-red-400 mt-3">{errorMsg}</p>}
       </div>
       <div className="bg-zinc-950 text-zinc-200 rounded p-4 overflow-auto max-h-[80vh] font-mono text-xs whitespace-pre-wrap">
         {manualSubmitting && <span className="text-zinc-500">Erstelle Draft …</span>}

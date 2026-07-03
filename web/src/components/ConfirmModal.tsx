@@ -44,15 +44,15 @@ export function ConfirmModal({
       className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center"
       onClick={handleBackdrop}
     >
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">{title}</h2>
-        <p className="text-sm text-gray-600 mb-5">{message}</p>
+      <div className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl w-full max-w-sm p-6">
+        <h2 className="text-lg font-semibold text-zinc-100 mb-2">{title}</h2>
+        <p className="text-sm text-zinc-400 mb-5">{message}</p>
         <div className="flex justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
             disabled={busy}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
+            className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-100 disabled:opacity-50"
           >
             {cancelLabel}
           </button>

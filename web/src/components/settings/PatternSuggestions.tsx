@@ -77,12 +77,12 @@ export function PatternSuggestions({ brandId, voice, persona, onIdentityUpdated 
   }
 
   if (loading) {
-    return <p className="text-sm text-gray-500">Vorschläge werden geladen ...</p>;
+    return <p className="text-sm text-zinc-400">Vorschläge werden geladen ...</p>;
   }
 
   if (candidates.length === 0) {
     return (
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-zinc-400">
         Keine Vorschläge. Sobald die KI ein wiederkehrendes Editier-Muster erkennt
         (mindestens 3-mal verwendet, hohe Konfidenz), erscheint es hier.
       </p>
@@ -95,12 +95,12 @@ export function PatternSuggestions({ brandId, voice, persona, onIdentityUpdated 
         {candidates.map((p) => (
           <li
             key={p.id}
-            className="border border-gray-200 rounded p-3 text-sm space-y-2"
+            className="border border-zinc-700 rounded p-3 text-sm space-y-2"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="font-medium">{p.description}</div>
-                <div className="text-xs text-gray-500 mt-1">
+                <div className="font-medium text-zinc-100">{p.description}</div>
+                <div className="text-xs text-zinc-400 mt-1">
                   Zone: {p.zone} · Konfidenz: {(p.confidence * 100).toFixed(0)}% ·
                   {' '}genutzt: {p.useCount}× · {p.sourceMethod} / {p.sourceMode}
                 </div>
@@ -111,7 +111,7 @@ export function PatternSuggestions({ brandId, voice, persona, onIdentityUpdated 
                 type="button"
                 disabled={busyId === p.id}
                 onClick={() => setApproveTarget(p)}
-                className="bg-gray-900 text-white text-xs px-3 py-1 rounded disabled:opacity-50"
+                className="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1 rounded disabled:opacity-50"
               >
                 Übernehmen
               </button>
@@ -119,7 +119,7 @@ export function PatternSuggestions({ brandId, voice, persona, onIdentityUpdated 
                 type="button"
                 disabled={busyId === p.id}
                 onClick={() => dismiss(p)}
-                className="border border-gray-300 text-xs px-3 py-1 rounded disabled:opacity-50"
+                className="border border-zinc-700 text-zinc-300 text-xs px-3 py-1 rounded disabled:opacity-50"
               >
                 Verwerfen
               </button>
@@ -127,7 +127,7 @@ export function PatternSuggestions({ brandId, voice, persona, onIdentityUpdated 
                 type="button"
                 disabled={busyId === p.id}
                 onClick={() => hardDelete(p)}
-                className="text-xs text-red-600 px-3 py-1 disabled:opacity-50"
+                className="text-xs text-red-400 px-3 py-1 disabled:opacity-50"
               >
                 Löschen
               </button>

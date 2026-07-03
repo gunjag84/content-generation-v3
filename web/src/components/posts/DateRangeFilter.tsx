@@ -32,8 +32,8 @@ export function DateRangeFilter({ active, counts, onChange }: Props) {
             onClick={() => onChange(r)}
             className={`px-3 py-1 text-xs rounded transition-colors ${
               isActive
-                ? 'bg-indigo-600 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'bg-blue-600 text-white'
+                : 'text-zinc-400 hover:bg-zinc-800'
             }`}
           >
             {LABEL[r]} ({counts[r]})

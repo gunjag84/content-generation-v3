@@ -85,25 +85,25 @@ export function IdentityPage() {
     setSavedAt(Date.now());
   }
 
-  if (!uid || !brandId) return <p className="text-gray-500">Brand wird geladen ...</p>;
+  if (!uid || !brandId) return <p className="text-zinc-400">Brand wird geladen ...</p>;
 
   return (
     <div className="max-w-2xl space-y-8">
       <header>
-        <h1 className="text-2xl font-semibold">Identity</h1>
-        <p className="text-sm text-gray-500">Stimme und Persona der Marke.</p>
+        <h1 className="text-2xl font-semibold text-zinc-100">Identity</h1>
+        <p className="text-sm text-zinc-400">Stimme und Persona der Marke.</p>
       </header>
 
       {ACTIVE_FIELDS.map((f) => (
         <label key={f.key} className="block">
-          <span className="block text-sm font-medium mb-1">{f.label}</span>
-          <span className="block text-xs text-gray-500 mb-2">{f.help}</span>
+          <span className="block text-sm font-medium mb-1 text-zinc-300">{f.label}</span>
+          <span className="block text-xs text-zinc-400 mb-2">{f.help}</span>
           <textarea
             value={identity[f.key]}
             onChange={(e) => update(f.key, e.target.value)}
             onBlur={() => save(identity)}
             rows={5}
-            className="w-full border border-gray-300 rounded p-2 text-sm"
+            className="w-full border border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded p-2 text-sm"
           />
         </label>
       ))}
@@ -112,18 +112,18 @@ export function IdentityPage() {
         <button
           type="button"
           onClick={() => save(identity)}
-          className="bg-gray-900 text-white px-4 py-2 rounded text-sm"
+          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm"
         >
           Speichern
         </button>
-        {error && <span className="text-sm text-red-600">{error}</span>}
-        {!error && savedAt && <span className="text-sm text-green-600">Gespeichert</span>}
+        {error && <span className="text-sm text-red-400">{error}</span>}
+        {!error && savedAt && <span className="text-sm text-green-400">Gespeichert</span>}
       </div>
 
-      <section className="border-t border-gray-200 pt-6 space-y-3">
+      <section className="border-t border-zinc-700 pt-6 space-y-3">
         <header>
-          <h2 className="text-lg font-semibold">Vorschläge aus deinen Edits</h2>
-          <p className="text-sm text-gray-500">
+          <h2 className="text-lg font-semibold text-zinc-100">Vorschläge aus deinen Edits</h2>
+          <p className="text-sm text-zinc-400">
             Wenn die KI ein wiederkehrendes Editier-Muster erkennt, erscheint es
             hier. Übernehmen schreibt es in Stimme oder Persona. Verwerfen
             schließt es aus weiteren Generates aus. Löschen entfernt es ganz.
@@ -137,10 +137,10 @@ export function IdentityPage() {
         />
       </section>
 
-      <section className="border-t border-gray-200 pt-6 space-y-3 opacity-60">
+      <section className="border-t border-zinc-700 pt-6 space-y-3 opacity-60">
         <header>
-          <h2 className="text-base font-semibold">Aktuell ungenutzt</h2>
-          <p className="text-xs text-gray-500">
+          <h2 className="text-base font-semibold text-zinc-100">Aktuell ungenutzt</h2>
+          <p className="text-xs text-zinc-400">
             Diese Felder werden derzeit NICHT in den System-Prompt eingespeist
             (dead code). Sie sind weiter editierbar, falls sie später aktiviert
             werden, aber Eingaben hier beeinflussen aktuell keinen Generate.
@@ -148,9 +148,9 @@ export function IdentityPage() {
         </header>
         {INACTIVE_FIELDS.map((f) => (
           <label key={f.key} className="block">
-            <span className="block text-sm font-medium mb-1">
+            <span className="block text-sm font-medium mb-1 text-zinc-300">
               {f.label}
-              <span className="ml-2 text-xs uppercase tracking-wide text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+              <span className="ml-2 text-xs uppercase tracking-wide text-amber-400 bg-amber-900/40 px-1.5 py-0.5 rounded">
                 inactive
               </span>
             </span>
@@ -159,7 +159,7 @@ export function IdentityPage() {
               onChange={(e) => update(f.key, e.target.value)}
               onBlur={() => save(identity)}
               rows={3}
-              className="w-full border border-gray-300 rounded p-2 text-sm"
+              className="w-full border border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded p-2 text-sm"
             />
           </label>
         ))}

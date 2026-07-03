@@ -104,41 +104,41 @@ export function DesignPage() {
     await save(next);
   }
 
-  if (!uid || !brandId) return <p className="text-gray-500">Brand wird geladen ...</p>;
+  if (!uid || !brandId) return <p className="text-zinc-400">Brand wird geladen ...</p>;
 
   return (
     <div className="max-w-2xl space-y-6">
       <header>
-        <h1 className="text-2xl font-semibold">Design</h1>
-        <p className="text-sm text-gray-500">Farben, Logo und Instagram-Handle der Marke.</p>
+        <h1 className="text-2xl font-semibold text-zinc-100">Design</h1>
+        <p className="text-sm text-zinc-400">Farben, Logo und Instagram-Handle der Marke.</p>
       </header>
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-semibold">Farben</h2>
-          <p className="text-sm text-gray-500">Hintergrund + zwei Text-Farben für die Slide-Komposition.</p>
+          <h2 className="text-lg font-semibold text-zinc-100">Farben</h2>
+          <p className="text-sm text-zinc-400">Hintergrund + zwei Text-Farben für die Slide-Komposition.</p>
         </div>
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <span className="block text-sm font-medium mb-1">Primary Color (Background)</span>
+            <span className="block text-sm font-medium mb-1 text-zinc-300">Primary Color (Background)</span>
             <ColorInput
-              variant="light"
+              variant="dark"
               value={design.backgroundColor}
               onChange={(v) => update('backgroundColor', v)}
             />
           </div>
           <div>
-            <span className="block text-sm font-medium mb-1">Standard Text</span>
+            <span className="block text-sm font-medium mb-1 text-zinc-300">Standard Text</span>
             <ColorInput
-              variant="light"
+              variant="dark"
               value={design.standardTextColor}
               onChange={(v) => update('standardTextColor', v)}
             />
           </div>
           <div>
-            <span className="block text-sm font-medium mb-1">Accent Text</span>
+            <span className="block text-sm font-medium mb-1 text-zinc-300">Accent Text</span>
             <ColorInput
-              variant="light"
+              variant="dark"
               value={design.accentTextColor}
               onChange={(v) => update('accentTextColor', v)}
             />
@@ -147,12 +147,12 @@ export function DesignPage() {
       </section>
 
       <div>
-        <span className="block text-sm font-medium mb-1">Logo</span>
+        <span className="block text-sm font-medium mb-1 text-zinc-300">Logo</span>
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => logoInputRef.current?.click()}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded bg-white hover:border-gray-500"
+            className="px-3 py-1.5 text-sm border border-zinc-700 rounded bg-zinc-800 text-zinc-100 hover:border-zinc-500"
           >
             {design.logoUrl ? 'Logo ersetzen' : 'Logo hochladen'}
           </button>
@@ -170,27 +170,27 @@ export function DesignPage() {
       </div>
 
       <label className="block">
-        <span className="block text-sm font-medium mb-1">Instagram-Handle</span>
+        <span className="block text-sm font-medium mb-1 text-zinc-300">Instagram-Handle</span>
         <input
           type="text"
           value={design.igHandle}
           onChange={(e) => update('igHandle', e.target.value)}
           onBlur={() => save(design)}
           placeholder="ohne @"
-          className="w-full border border-gray-300 rounded p-2 text-sm"
+          className="w-full border border-zinc-700 bg-zinc-800 text-zinc-100 placeholder:text-zinc-500 rounded p-2 text-sm"
         />
       </label>
 
       <section className="space-y-3">
         <div>
-          <h2 className="text-lg font-semibold">Text-Defaults pro Zone</h2>
-          <p className="text-sm text-gray-500">Standardwerte für neu generierte Slides. Im Editor pro Zone überschreibbar.</p>
+          <h2 className="text-lg font-semibold text-zinc-100">Text-Defaults pro Zone</h2>
+          <p className="text-sm text-zinc-400">Standardwerte für neu generierte Slides. Im Editor pro Zone überschreibbar.</p>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-separate border-spacing-y-2">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
+              <tr className="text-left text-xs uppercase tracking-wide text-zinc-400">
                 <th className="pr-3">Zone</th>
                 <th className="pr-3">Farbe</th>
                 <th className="pr-3">Font</th>
@@ -203,8 +203,8 @@ export function DesignPage() {
                 return (
                   <tr key={row.key} className="align-top">
                     <td className="pr-3 pt-1.5">
-                      <div className="font-medium">{row.label}</div>
-                      <div className="text-xs text-gray-500">{row.description}</div>
+                      <div className="font-medium text-zinc-100">{row.label}</div>
+                      <div className="text-xs text-zinc-400">{row.description}</div>
                     </td>
                     <td className="pr-3">
                       <div className="flex gap-1">
@@ -215,8 +215,8 @@ export function DesignPage() {
                             onClick={() => updateZoneDefault(row.key, { color: opt })}
                             className={`px-2 py-1 text-xs border rounded ${
                               current.color === opt
-                                ? 'bg-gray-900 text-white border-gray-900'
-                                : 'bg-white text-gray-600 border-gray-300 hover:border-gray-500'
+                                ? 'bg-cyan-600 text-white border-cyan-600'
+                                : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-zinc-500'
                             }`}
                           >
                             {opt === 'standard' ? 'Standard' : 'Accent'}
@@ -232,7 +232,7 @@ export function DesignPage() {
                       <select
                         value={current.fontFamily}
                         onChange={(e) => updateZoneDefault(row.key, { fontFamily: e.target.value })}
-                        className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
+                        className="border border-zinc-700 bg-zinc-800 text-zinc-100 rounded px-2 py-1 text-sm"
                       >
                         {FONT_FAMILIES.map((f) => (
                           <option key={f} value={f} style={{ fontFamily: f }}>
@@ -251,7 +251,7 @@ export function DesignPage() {
                           const v = parseInt(e.target.value, 10);
                           if (Number.isFinite(v) && v > 0) updateZoneDefault(row.key, { fontSize: v });
                         }}
-                        className="w-20 border border-gray-300 rounded px-2 py-1 text-sm tabular-nums"
+                        className="w-20 border border-zinc-700 bg-zinc-800 text-zinc-100 rounded px-2 py-1 text-sm tabular-nums"
                       />
                     </td>
                   </tr>
@@ -266,12 +266,12 @@ export function DesignPage() {
         <button
           type="button"
           onClick={() => save(design)}
-          className="bg-gray-900 text-white px-4 py-2 rounded text-sm"
+          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm"
         >
           Speichern
         </button>
-        {error && <span className="text-sm text-red-600">{error}</span>}
-        {!error && savedAt && <span className="text-sm text-green-600">Gespeichert</span>}
+        {error && <span className="text-sm text-red-400">{error}</span>}
+        {!error && savedAt && <span className="text-sm text-green-400">Gespeichert</span>}
       </div>
     </div>
   );

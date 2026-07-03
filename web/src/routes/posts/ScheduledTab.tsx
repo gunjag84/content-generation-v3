@@ -134,7 +134,7 @@ export function ScheduledTab() {
   if (posts.length === 0) {
     return (
       <>
-        <p className="p-8 text-gray-500 text-sm">Noch keine geplanten Beiträge.</p>
+        <p className="p-8 text-zinc-400 text-sm">Noch keine geplanten Beiträge.</p>
         <ConfirmModal
           open={deletePostId !== null}
           title="Beitrag löschen?"
@@ -149,24 +149,24 @@ export function ScheduledTab() {
 
   return (
     <>
-    <ul className="divide-y divide-gray-200">
+    <ul className="divide-y divide-zinc-800">
       {posts.map((p) => (
         <li key={p.id} className="flex items-center gap-4 px-6 py-4">
           {/* Thumbnail */}
-          <div className="shrink-0 w-12 h-12 rounded overflow-hidden bg-gray-100">
+          <div className="shrink-0 w-12 h-12 rounded overflow-hidden bg-zinc-800">
             {p.thumb ? (
               <img src={p.thumb} alt="" className="w-full h-full object-cover" />
             ) : (
-              <span className="flex items-center justify-center w-full h-full text-gray-400 text-xs">?</span>
+              <span className="flex items-center justify-center w-full h-full text-zinc-500 text-xs">?</span>
             )}
           </div>
 
           {/* Title + scheduled time */}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">{p.title}</p>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-sm font-medium text-zinc-100 truncate">{p.title}</p>
+            <p className="text-xs text-zinc-400 mt-0.5">
               {p.status === 'publishing' ? (
-                <span className="text-amber-600">Wird veröffentlicht …</span>
+                <span className="text-amber-400">Wird veröffentlicht …</span>
               ) : (
                 <>Geplant: {formatTs(p.scheduledAt)}</>
               )}
@@ -176,27 +176,27 @@ export function ScheduledTab() {
           {/* Actions */}
           <div className="flex items-center gap-2 shrink-0">
             {errors[p.id] && (
-              <span className="text-xs text-red-600">{errors[p.id]}</span>
+              <span className="text-xs text-red-400">{errors[p.id]}</span>
             )}
             {p.status === 'scheduled' && (
               <>
                 <button
                   onClick={() => handleCancel(p.id)}
                   disabled={actionId === p.id}
-                  className="text-xs text-gray-500 hover:text-red-600 disabled:opacity-50 underline"
+                  className="text-xs text-zinc-400 hover:text-red-400 disabled:opacity-50 underline"
                 >
                   Abbrechen
                 </button>
                 <button
                   onClick={() => handlePublishNow(p.id)}
                   disabled={actionId === p.id}
-                  className="px-3 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                  className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-500 disabled:opacity-50"
                 >
                   Jetzt veröffentlichen
                 </button>
                 <button
                   onClick={() => setDeletePostId(p.id)}
-                  className="px-3 py-1.5 text-xs border border-red-300 text-red-600 rounded hover:bg-red-50"
+                  className="px-3 py-1.5 text-xs border border-red-800 text-red-400 rounded hover:bg-red-950"
                   title="Beitrag löschen"
                 >
                   Löschen

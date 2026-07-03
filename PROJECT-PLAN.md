@@ -200,6 +200,9 @@ After A2 passes, Phase 5 closes and Tier-2 handover of LEBEN.LIEBEN to Jule unbl
 6. Per-word font-size stepper: replaced the fiddly `<input type=number>` with a clean ▲/▼ stepper (`SizeStepper` in ZonePanel, commits 236cd50/24077b5/8aeb8b8). The arrow `<button>`s `preventDefault` on mousedown so the inline editor keeps focus (no commit/exit); each step reads the selection's current rendered size (`getActiveSelectionFontSizePx`) and applies it to the selection (cumulative), falling back to the zone with no selection. Also hardened `handleBlur` for the `relatedTarget=null` number-input case.
 7. Auto-switch the right rail to Zones on any non-collapsed text selection inside the inline editor (document `selectionchange` listener in `Editor.tsx`), so per-selection format controls are reachable.
 
+**Post-MVP shipped 2026-07-03** (Hosting `index-DTsoIQdn.js`, all pages live-verified):
+8. Full dark-theme sweep: all leftover v2 light-theme classes migrated to the locked zinc-dark convention (39 files, ~380 occurrences). Fixes invisible titles in Posts Drafts/Geplant, white cards/table in Verlauf, and light-mode Dashboard/Settings/Create/Auth surfaces. Extends D7 (which had only covered the tab bar) to the whole app; slide-canvas/brand content untouched.
+
 ---
 
 ## Open Decisions

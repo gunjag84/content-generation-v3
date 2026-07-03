@@ -22,10 +22,10 @@ export function OnboardingModal({ uid, userEmail, userDisplayName }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-8 space-y-6">
+      <div className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-lg w-full max-w-md p-8 space-y-6">
         <header>
-          <h2 className="text-xl font-semibold">Willkommen bei Content-Generation</h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <h2 className="text-xl font-semibold text-zinc-100">Willkommen bei Content-Generation</h2>
+          <p className="text-sm text-zinc-400 mt-1">
             {hasAnthropic
               ? 'Lege deine erste Marke an.'
               : 'Anthropic API-Schlüssel und erste Marke einrichten.'}
@@ -39,7 +39,7 @@ export function OnboardingModal({ uid, userEmail, userDisplayName }: Props) {
         )}
 
         <div className="text-right">
-          <button onClick={() => signOut(auth)} className="text-xs text-gray-500 hover:underline">
+          <button onClick={() => signOut(auth)} className="text-xs text-zinc-400 hover:underline">
             Abmelden
           </button>
         </div>
@@ -95,29 +95,29 @@ function AnthropicKeyStep({
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium">Anthropic API-Schlüssel</label>
+        <label className="block text-sm font-medium text-zinc-300">Anthropic API-Schlüssel</label>
         <input
           type="password"
           required
           value={apiKey}
           onChange={(e) => setApiKey(e.target.value)}
           placeholder="sk-ant-..."
-          className="mt-1 w-full border rounded px-3 py-2"
+          className="mt-1 w-full border border-zinc-700 rounded px-3 py-2 bg-zinc-800 text-zinc-100"
         />
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-zinc-400 mt-1">
           Hol dir deinen Schlüssel auf{' '}
           <a
             href="https://console.anthropic.com/"
             target="_blank"
             rel="noopener noreferrer"
-            className="underline"
+            className="underline text-cyan-400 hover:text-cyan-300"
           >
             console.anthropic.com
           </a>{' '}
           (öffnet in neuem Tab).
         </p>
       </div>
-      {error && <p className="text-sm text-red-700">{error}</p>}
+      {error && <p className="text-sm text-red-400">{error}</p>}
       <button
         type="submit"
         disabled={!canSubmit || saving}
